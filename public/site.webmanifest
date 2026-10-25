@@ -1,0 +1,13 @@
+{
+    "name": "ORBIT — Online Real-Time Based Identification and Tracking System",
+    "short_name": "ORBIT",
+    "description": "Attendance, workforce scheduling, and operational visibility for institutions.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f4f7f9",
+    "theme_color": "#0f766e",
+    "icons": [
+        { "src": "/images/brand/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/images/brand/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}

@@ -1,0 +1,1952 @@
+{
+    "meta": {
+        "country": "Ghana",
+        "region_count": 16,
+        "district_count": 261,
+        "source": "pro-docs/list_of_districts_of_ghanaj.xls",
+        "region_capital_source": "pro-docs/region-lists.txt",
+        "codes": "Deterministic seed identifiers; not official administrative codes",
+        "geometry": "Not included; authoritative GeoJSON source pending client confirmation"
+    },
+    "regions": [
+        {
+            "code": "AH",
+            "name": "Ahafo",
+            "capital": "Goaso",
+            "districts": [
+                {
+                    "code": "GH-AH-001",
+                    "name": "Asunafo North",
+                    "capital": "Goaso",
+                    "category": "Municipal",
+                    "established": "1912"
+                },
+                {
+                    "code": "GH-AH-002",
+                    "name": "Asunafo South",
+                    "capital": "Kukuom",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-AH-003",
+                    "name": "Asutifi North",
+                    "capital": "Kenyasi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AH-004",
+                    "name": "Asutifi South",
+                    "capital": "Hwidiem",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-AH-005",
+                    "name": "Tano North",
+                    "capital": "Duayaw Nkwanta",
+                    "category": "Municipal",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-AH-006",
+                    "name": "Tano South",
+                    "capital": "Bechem",
+                    "category": "Municipal",
+                    "established": "2004"
+                }
+            ]
+        },
+        {
+            "code": "AS",
+            "name": "Ashanti",
+            "capital": "Kumasi",
+            "districts": [
+                {
+                    "code": "GH-AS-001",
+                    "name": "Adansi Asokwa",
+                    "capital": "Adansi Asokwa",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-002",
+                    "name": "Adansi North",
+                    "capital": "Fomena",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-003",
+                    "name": "Adansi South",
+                    "capital": "New Edubiase",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-004",
+                    "name": "Afigya-Kwabre North",
+                    "capital": "Boamang",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-005",
+                    "name": "Afigya-Kwabre South",
+                    "capital": "Kodie",
+                    "category": "District",
+                    "established": "1 November 2007"
+                },
+                {
+                    "code": "GH-AS-006",
+                    "name": "Ahafo-Ano North",
+                    "capital": "Tepa",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-AS-007",
+                    "name": "Ahafo-Ano South East",
+                    "capital": "Adugyama",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-008",
+                    "name": "Ahafo-Ano South West",
+                    "capital": "Mankranso",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-009",
+                    "name": "Akrofuom",
+                    "capital": "Akrofuom",
+                    "category": "District",
+                    "established": "15 March 2018"
+                },
+                {
+                    "code": "GH-AS-010",
+                    "name": "Amansie Central",
+                    "capital": "Jacobu",
+                    "category": "District",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-AS-011",
+                    "name": "Amansie West",
+                    "capital": "Manso Nkwanta",
+                    "category": "District",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-AS-012",
+                    "name": "Amansie South",
+                    "capital": "Manso Adubia",
+                    "category": "District",
+                    "established": "15 March 2018"
+                },
+                {
+                    "code": "GH-AS-013",
+                    "name": "Asante-Akim Central",
+                    "capital": "Konongo",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-AS-014",
+                    "name": "Asante-Akim North",
+                    "capital": "Agogo",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-015",
+                    "name": "Asante-Akim South",
+                    "capital": "Juaso",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-016",
+                    "name": "Asokore-Mampong",
+                    "capital": "Asokore Mampong",
+                    "category": "Municipal",
+                    "established": "29 June 2012"
+                },
+                {
+                    "code": "GH-AS-017",
+                    "name": "Asokwa",
+                    "capital": "Asokwa",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-018",
+                    "name": "Atwima-Kwanwoma",
+                    "capital": "Twedie",
+                    "category": "District",
+                    "established": "November 2007"
+                },
+                {
+                    "code": "GH-AS-019",
+                    "name": "Atwima-Mponua",
+                    "capital": "Nyinahin",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-020",
+                    "name": "Atwima-Nwabiagya",
+                    "capital": "Nkawie",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-021",
+                    "name": "Atwima-Nwabiagya North",
+                    "capital": "Barekese",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-022",
+                    "name": "Bekwai",
+                    "capital": "Bekwai",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-023",
+                    "name": "Bosome Freho",
+                    "capital": "Asiwa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-024",
+                    "name": "Bosomtwe",
+                    "capital": "Kuntanase",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-025",
+                    "name": "Ejisu",
+                    "capital": "Ejisu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-026",
+                    "name": "Ejura/Sekyedumase",
+                    "capital": "Ejura",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-027",
+                    "name": "Juaben",
+                    "capital": "Juaben",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-028",
+                    "name": "Kumasi",
+                    "capital": "Kumasi",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-029",
+                    "name": "Kwabre East",
+                    "capital": "Mamponteng",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-030",
+                    "name": "Kwadaso",
+                    "capital": "Kwadaso",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-031",
+                    "name": "Mampong",
+                    "capital": "Mampong",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-032",
+                    "name": "Obuasi East",
+                    "capital": "Tutuka",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-033",
+                    "name": "Obuasi",
+                    "capital": "Obuasi",
+                    "category": "Municipal",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-AS-034",
+                    "name": "Offinso",
+                    "capital": "Offinso",
+                    "category": "Municipal",
+                    "established": "2007"
+                },
+                {
+                    "code": "GH-AS-035",
+                    "name": "Offinso North",
+                    "capital": "Akomadan",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-036",
+                    "name": "Oforikrom",
+                    "capital": "Oforikrom",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-037",
+                    "name": "Old Tafo",
+                    "capital": "Old Tafo",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-AS-038",
+                    "name": "Sekyere Afram Plains",
+                    "capital": "Drobonso",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-AS-039",
+                    "name": "Sekyere Central",
+                    "capital": "Nsuta",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-040",
+                    "name": "Sekyere East",
+                    "capital": "Effiduase",
+                    "category": "District",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-AS-041",
+                    "name": "Sekyere Kumawu",
+                    "capital": "Kumawu",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AS-042",
+                    "name": "Sekyere South",
+                    "capital": "Agona",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AS-043",
+                    "name": "Suame",
+                    "capital": "Suame",
+                    "category": "Municipal",
+                    "established": "2018"
+                }
+            ]
+        },
+        {
+            "code": "BO",
+            "name": "Bono",
+            "capital": "Sunyani",
+            "districts": [
+                {
+                    "code": "GH-BO-001",
+                    "name": "Banda",
+                    "capital": "Banda Ahenkro",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-002",
+                    "name": "Berekum East",
+                    "capital": "Berekum",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-003",
+                    "name": "Berekum West",
+                    "capital": "Jinijini",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-004",
+                    "name": "Dormaa Central",
+                    "capital": "Dormaa Ahenkro",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-005",
+                    "name": "Dormaa East",
+                    "capital": "Wamfie",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-006",
+                    "name": "Dormaa West",
+                    "capital": "Nkrankwanta",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-007",
+                    "name": "Jaman North",
+                    "capital": "Sampa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-008",
+                    "name": "Jaman South",
+                    "capital": "Drobo",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-009",
+                    "name": "Sunyani",
+                    "capital": "Sunyani",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-010",
+                    "name": "Sunyani West",
+                    "capital": "Odumase",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-011",
+                    "name": "Tain",
+                    "capital": "Nsawkaw",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BO-012",
+                    "name": "Wenchi",
+                    "capital": "Wenchi",
+                    "category": "Municipal",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "BE",
+            "name": "Bono East",
+            "capital": "Techiman",
+            "districts": [
+                {
+                    "code": "GH-BE-001",
+                    "name": "Atebubu-Amantin",
+                    "capital": "Atebubu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-002",
+                    "name": "Kintampo North",
+                    "capital": "Kintampo",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-003",
+                    "name": "Kintampo South",
+                    "capital": "Jema",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-004",
+                    "name": "Nkoranza North",
+                    "capital": "Busunya",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-005",
+                    "name": "Nkoranza South",
+                    "capital": "Nkoranza",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-006",
+                    "name": "Pru East",
+                    "capital": "Yeji",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-007",
+                    "name": "Pru West",
+                    "capital": "Prang",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-008",
+                    "name": "Sene East",
+                    "capital": "Kajaji",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-009",
+                    "name": "Sene West",
+                    "capital": "Kwame Danso",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-010",
+                    "name": "Techiman",
+                    "capital": "Techiman",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-BE-011",
+                    "name": "Techiman North",
+                    "capital": "Tuobodom",
+                    "category": "District",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "CP",
+            "name": "Central",
+            "capital": "Cape Coast",
+            "districts": [
+                {
+                    "code": "GH-CP-001",
+                    "name": "Abura/Asebu/Kwamankese",
+                    "capital": "Abura-Dunkwa",
+                    "category": "District",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-CP-002",
+                    "name": "Agona East",
+                    "capital": "Nsaba",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-003",
+                    "name": "Agona West Municipal",
+                    "capital": "Agona Swedru",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-004",
+                    "name": "Ajumako/Enyan/Essiam",
+                    "capital": "Ajumako",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-005",
+                    "name": "Asikuma Odoben Brakwa",
+                    "capital": "Breman Asikuma",
+                    "category": "District",
+                    "established": "2 November 1988"
+                },
+                {
+                    "code": "GH-CP-006",
+                    "name": "Assin Central",
+                    "capital": "Assin Foso",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-007",
+                    "name": "Assin North",
+                    "capital": "Assin Bereku",
+                    "category": "District",
+                    "established": "15 March 2018"
+                },
+                {
+                    "code": "GH-CP-008",
+                    "name": "Assin South",
+                    "capital": "Nsuaem Kyekyewere",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-009",
+                    "name": "Awutu Senya East",
+                    "capital": "Kasoa",
+                    "category": "Municipal",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-CP-010",
+                    "name": "Awutu Senya West",
+                    "capital": "Awutu Breku",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-011",
+                    "name": "Cape Coast",
+                    "capital": "Cape Coast",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-012",
+                    "name": "Effutu",
+                    "capital": "Winneba",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-013",
+                    "name": "Ekumfi",
+                    "capital": "Esakyir",
+                    "category": "District",
+                    "established": "June 20012"
+                },
+                {
+                    "code": "GH-CP-014",
+                    "name": "Gomoa East",
+                    "capital": "Potsin",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-CP-015",
+                    "name": "Gomoa Central",
+                    "capital": "Afransi",
+                    "category": "District",
+                    "established": "29 February 2008"
+                },
+                {
+                    "code": "GH-CP-016",
+                    "name": "Gomoa West",
+                    "capital": "Apam",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-017",
+                    "name": "Komenda/Edina/Eguafo/Abirem",
+                    "capital": "Elmina",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-018",
+                    "name": "Mfantsiman",
+                    "capital": "Saltpond",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-019",
+                    "name": "Twifo Atti Morkwa",
+                    "capital": "Twifo Praso",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-CP-020",
+                    "name": "Twifo/Hemang/Lower Denkyira",
+                    "capital": "Hemang",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-CP-021",
+                    "name": "Upper Denkyira East",
+                    "capital": "Dunkwa-on-Offin",
+                    "category": "Municipal",
+                    "established": "February 2008"
+                },
+                {
+                    "code": "GH-CP-022",
+                    "name": "Upper Denkyira West",
+                    "capital": "Diaso",
+                    "category": "District",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "EP",
+            "name": "Eastern",
+            "capital": "Koforidua",
+            "districts": [
+                {
+                    "code": "GH-EP-001",
+                    "name": "Abuakwa North",
+                    "capital": "Kukurantumi",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-EP-002",
+                    "name": "Abuakwa South",
+                    "capital": "Kibi",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-003",
+                    "name": "Achiase",
+                    "capital": "Achiase",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-004",
+                    "name": "Akuapim North",
+                    "capital": "Akropong",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-EP-005",
+                    "name": "Akuapim South",
+                    "capital": "Aburi",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-EP-006",
+                    "name": "Akyemansa",
+                    "capital": "Ofoase",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-EP-007",
+                    "name": "Asene Manso Akroso",
+                    "capital": "Manso",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-EP-008",
+                    "name": "Asuogyaman",
+                    "capital": "Atimpoku",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-009",
+                    "name": "Atiwa East",
+                    "capital": "Anyinam",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-EP-010",
+                    "name": "Atiwa West",
+                    "capital": "Kwabeng",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-EP-011",
+                    "name": "Ayensuano",
+                    "capital": "Coaltar",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-EP-012",
+                    "name": "Birim Central",
+                    "capital": "Akim Oda",
+                    "category": "Municipal",
+                    "established": "2007"
+                },
+                {
+                    "code": "GH-EP-013",
+                    "name": "Birim North",
+                    "capital": "New Abirem",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-014",
+                    "name": "Birim South",
+                    "capital": "Akim Swedru",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-EP-015",
+                    "name": "Denkyembour",
+                    "capital": "Akwatia",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-EP-016",
+                    "name": "Fanteakwa North",
+                    "capital": "Begoro",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-017",
+                    "name": "Fanteakwa South",
+                    "capital": "Osino",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-EP-018",
+                    "name": "Kwaebibirem",
+                    "capital": "Kade",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-EP-019",
+                    "name": "Kwahu Afram Plains North",
+                    "capital": "Donkorkrom",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-020",
+                    "name": "Kwahu Afram Plains South",
+                    "capital": "Tease",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-EP-021",
+                    "name": "Kwahu East",
+                    "capital": "Abetifi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-022",
+                    "name": "Kwahu South",
+                    "capital": "Mpraeso",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-023",
+                    "name": "Kwahu West",
+                    "capital": "Nkawkaw",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-024",
+                    "name": "Lower Manya Krobo",
+                    "capital": "Krobo Odumase",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-025",
+                    "name": "New Juaben North",
+                    "capital": "Effiduase",
+                    "category": "Municipal",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-EP-026",
+                    "name": "New Juaben South",
+                    "capital": "Koforidua",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-EP-027",
+                    "name": "Nsawam Adoagyire",
+                    "capital": "Nsawam",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-028",
+                    "name": "Okere",
+                    "capital": "Adukrom",
+                    "category": "District",
+                    "established": "15 March 2018"
+                },
+                {
+                    "code": "GH-EP-029",
+                    "name": "Suhum",
+                    "capital": "Suhum, Ghana",
+                    "category": "Municipal",
+                    "established": "July 2012"
+                },
+                {
+                    "code": "GH-EP-030",
+                    "name": "Upper Manya Krobo",
+                    "capital": "Asesewa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-031",
+                    "name": "Upper West Akim",
+                    "capital": "Adeiso",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-EP-032",
+                    "name": "West Akim",
+                    "capital": "Asamankese",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-EP-033",
+                    "name": "Yilo-Krobo",
+                    "capital": "Somanya",
+                    "category": "Municipal",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "AA",
+            "name": "Greater Accra",
+            "capital": "Accra",
+            "districts": [
+                {
+                    "code": "GH-AA-001",
+                    "name": "Ablekuma Central",
+                    "capital": "Lartebiokorshie",
+                    "category": "Municipal",
+                    "established": "19 February 2019"
+                },
+                {
+                    "code": "GH-AA-002",
+                    "name": "Ablekuma North",
+                    "capital": "Darkuman",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-003",
+                    "name": "Ablekuma West",
+                    "capital": "Dansoman",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-004",
+                    "name": "Accra",
+                    "capital": "Accra",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-005",
+                    "name": "Ada East",
+                    "capital": "Ada Foah",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-006",
+                    "name": "Ada West",
+                    "capital": "Sege",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-007",
+                    "name": "Adenta",
+                    "capital": "Adenta",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AA-008",
+                    "name": "Ashaiman",
+                    "capital": "Ashaiman",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AA-009",
+                    "name": "Ayawaso Central",
+                    "capital": "Kokomlemle",
+                    "category": "Municipal",
+                    "established": "9 February 2019"
+                },
+                {
+                    "code": "GH-AA-010",
+                    "name": "Ayawaso East",
+                    "capital": "Nima",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-011",
+                    "name": "Ayawaso North",
+                    "capital": "Accra New Town",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-012",
+                    "name": "Ayawaso West",
+                    "capital": "Dzorwulu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-013",
+                    "name": "Ga Central",
+                    "capital": "Sowutuom",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-014",
+                    "name": "Ga East",
+                    "capital": "Abokobi",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-015",
+                    "name": "Ga North",
+                    "capital": "Amomole",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-016",
+                    "name": "Ga South",
+                    "capital": "Ngleshie Amanfro",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AA-017",
+                    "name": "Ga West",
+                    "capital": "Amasaman",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-018",
+                    "name": "Korle-Klottey",
+                    "capital": "Osu",
+                    "category": "Municipal",
+                    "established": "19 February 2019"
+                },
+                {
+                    "code": "GH-AA-019",
+                    "name": "Kpone-Katamanso",
+                    "capital": "Kpone",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-020",
+                    "name": "Krowor",
+                    "capital": "Nungua",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AA-021",
+                    "name": "La-Dade-Kotopon",
+                    "capital": "La",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-022",
+                    "name": "La-Nkwantanang-Madina",
+                    "capital": "Madina",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-023",
+                    "name": "Ledzokuku",
+                    "capital": "Teshie",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-AA-024",
+                    "name": "Ningo-Prampram",
+                    "capital": "Prampram",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-025",
+                    "name": "Okaikwei North",
+                    "capital": "Tesano",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-026",
+                    "name": "Shai-Osudoku",
+                    "capital": "Dodowa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-027",
+                    "name": "Tema Metropolitan",
+                    "capital": "Tema",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-028",
+                    "name": "Tema West",
+                    "capital": "Tema Community 18",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-AA-029",
+                    "name": "Weija Gbawe",
+                    "capital": "Weija",
+                    "category": "Municipal",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "NP",
+            "name": "Northern",
+            "capital": "Tamale",
+            "districts": [
+                {
+                    "code": "GH-NP-001",
+                    "name": "Gushegu Municipal",
+                    "capital": "Gushegu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-002",
+                    "name": "Karaga",
+                    "capital": "Karaga",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-003",
+                    "name": "Kpandai",
+                    "capital": "Kpandai",
+                    "category": "District",
+                    "established": "29 February 2008"
+                },
+                {
+                    "code": "GH-NP-004",
+                    "name": "Kumbungu",
+                    "capital": "Kumbungu",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-NP-005",
+                    "name": "Mion",
+                    "capital": "Sang",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-006",
+                    "name": "Nanton",
+                    "capital": "Nanton",
+                    "category": "District",
+                    "established": "15 March 2018"
+                },
+                {
+                    "code": "GH-NP-007",
+                    "name": "Nanumba North Municipal",
+                    "capital": "Bimbilla",
+                    "category": "Municipal",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-NP-008",
+                    "name": "Nanumba South",
+                    "capital": "Wulensi",
+                    "category": "District",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-NP-009",
+                    "name": "Saboba",
+                    "capital": "Saboba",
+                    "category": "District",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-NP-010",
+                    "name": "Sagnarigu Municipal",
+                    "capital": "Sagnarigu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-011",
+                    "name": "Savelugu Municipal",
+                    "capital": "Savelugu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-012",
+                    "name": "Tamale Metropolitan",
+                    "capital": "Tamale",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-NP-013",
+                    "name": "Tatale Sanguli",
+                    "capital": "Tatale",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-NP-014",
+                    "name": "Tolon",
+                    "capital": "Tolon",
+                    "category": "District",
+                    "established": "2011"
+                },
+                {
+                    "code": "GH-NP-015",
+                    "name": "Yendi Municipal",
+                    "capital": "Yendi",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-NP-016",
+                    "name": "Zabzugu",
+                    "capital": "Zabzugu",
+                    "category": "District",
+                    "established": "2012"
+                }
+            ]
+        },
+        {
+            "code": "NE",
+            "name": "North East",
+            "capital": "Nalerigu",
+            "districts": [
+                {
+                    "code": "GH-NE-001",
+                    "name": "Bunkpurugu Nyankpanduri",
+                    "capital": "Bunkpurugu",
+                    "category": "District",
+                    "established": "August 2004"
+                },
+                {
+                    "code": "GH-NE-002",
+                    "name": "Chereponi",
+                    "capital": "Chereponi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-NE-003",
+                    "name": "East Mamprusi",
+                    "capital": "Nalerigu",
+                    "category": "Municipal",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-NE-004",
+                    "name": "Mamprugu Moagduri",
+                    "capital": "Yagaba",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-NE-005",
+                    "name": "West Mamprusi",
+                    "capital": "Walewale",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-NE-006",
+                    "name": "Yunyoo-Nasuan",
+                    "capital": "Yunyoo",
+                    "category": "District",
+                    "established": "15 March 2018"
+                }
+            ]
+        },
+        {
+            "code": "OT",
+            "name": "Oti",
+            "capital": "Dambai",
+            "districts": [
+                {
+                    "code": "GH-OT-001",
+                    "name": "Biakoye",
+                    "capital": "Nkonya Ahenkro",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-OT-002",
+                    "name": "Jasikan",
+                    "capital": "Jasikan",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-003",
+                    "name": "Kadjebi",
+                    "capital": "Kadjebi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-004",
+                    "name": "Krachi East",
+                    "capital": "Dambai",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-005",
+                    "name": "Krachi Nchumuru",
+                    "capital": "Chinderi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-006",
+                    "name": "Krachi West",
+                    "capital": "Kete Krachi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-007",
+                    "name": "Nkwanta North",
+                    "capital": "Kpassa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-OT-008",
+                    "name": "Nkwanta South",
+                    "capital": "Nkwanta",
+                    "category": "Municipal",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "SV",
+            "name": "Savannah",
+            "capital": "Damango",
+            "districts": [
+                {
+                    "code": "GH-SV-001",
+                    "name": "Bole",
+                    "capital": "Bole",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-SV-002",
+                    "name": "Central Gonja",
+                    "capital": "Buipe",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-SV-003",
+                    "name": "East Gonja Municipal",
+                    "capital": "Salaga",
+                    "category": "Municipal",
+                    "established": "2007"
+                },
+                {
+                    "code": "GH-SV-004",
+                    "name": "North Gonja",
+                    "capital": "Daboya",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-SV-005",
+                    "name": "North East Gonja",
+                    "capital": "Kpalbe",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-SV-006",
+                    "name": "Sawla-Tuna-Kalba",
+                    "capital": "Sawla",
+                    "category": "District",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-SV-007",
+                    "name": "West Gonja",
+                    "capital": "Damongo",
+                    "category": "Municipal",
+                    "established": "2004"
+                }
+            ]
+        },
+        {
+            "code": "UE",
+            "name": "Upper East",
+            "capital": "Bolgatanga",
+            "districts": [
+                {
+                    "code": "GH-UE-001",
+                    "name": "Bawku Municipal",
+                    "capital": "Bawku",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-002",
+                    "name": "Bawku West",
+                    "capital": "Zebilla",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-003",
+                    "name": "Binduri",
+                    "capital": "Binduri",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-UE-004",
+                    "name": "Bolgatanga East",
+                    "capital": "Zuarungu",
+                    "category": "District",
+                    "established": "2018"
+                },
+                {
+                    "code": "GH-UE-005",
+                    "name": "Bolgatanga Municipal",
+                    "capital": "Bolgatanga",
+                    "category": "Municipal",
+                    "established": "2004"
+                },
+                {
+                    "code": "GH-UE-006",
+                    "name": "Bongo",
+                    "capital": "Bongo",
+                    "category": "District",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-UE-007",
+                    "name": "Builsa North Municipal",
+                    "capital": "Sandema",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-008",
+                    "name": "Builsa South",
+                    "capital": "Fumbisi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-009",
+                    "name": "Garu",
+                    "capital": "Garu",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-010",
+                    "name": "Kassena-Nankana Municipal",
+                    "capital": "Navrongo",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-011",
+                    "name": "Kassena-Nankana West",
+                    "capital": "Paga",
+                    "category": "District",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-UE-012",
+                    "name": "Nabdam",
+                    "capital": "Nangodi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-013",
+                    "name": "Pusiga",
+                    "capital": "Pusiga",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-014",
+                    "name": "Talensi",
+                    "capital": "Tongo",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UE-015",
+                    "name": "Tempane",
+                    "capital": "Tempane",
+                    "category": "District",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "UW",
+            "name": "Upper West",
+            "capital": "Wa",
+            "districts": [
+                {
+                    "code": "GH-UW-001",
+                    "name": "Daffiama Bussie Issa",
+                    "capital": "Issa",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-002",
+                    "name": "Jirapa Municipal",
+                    "capital": "Jirapa",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-003",
+                    "name": "Lambussie Karni",
+                    "capital": "Lambussie",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-004",
+                    "name": "Lawra Municipal",
+                    "capital": "Lawra",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-005",
+                    "name": "Nadowli-Kaleo",
+                    "capital": "Nadowli",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-006",
+                    "name": "Nandom Municipal",
+                    "capital": "Nandom",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-007",
+                    "name": "Sissala East Municipal",
+                    "capital": "Tumu",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-008",
+                    "name": "Sissala West",
+                    "capital": "Gwollu",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-009",
+                    "name": "Wa East",
+                    "capital": "Funsi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-010",
+                    "name": "Wa Municipal",
+                    "capital": "Wa",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-UW-011",
+                    "name": "Wa West",
+                    "capital": "Wechiau",
+                    "category": "District",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "TV",
+            "name": "Volta",
+            "capital": "Ho",
+            "districts": [
+                {
+                    "code": "GH-TV-001",
+                    "name": "Adaklu District",
+                    "capital": "Adaklu Waya",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-002",
+                    "name": "Afadzato South",
+                    "capital": "Ve Golokwati",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-003",
+                    "name": "Agotime Ziope",
+                    "capital": "Kpetoe",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-004",
+                    "name": "Akatsi North",
+                    "capital": "Ave-Dakpa",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-TV-005",
+                    "name": "Akatsi South",
+                    "capital": "Akatsi",
+                    "category": "District",
+                    "established": "15 March 2012"
+                },
+                {
+                    "code": "GH-TV-006",
+                    "name": "Anloga",
+                    "capital": "Anloga",
+                    "category": "District",
+                    "established": "2019"
+                },
+                {
+                    "code": "GH-TV-007",
+                    "name": "Central Tongu",
+                    "capital": "Adidome",
+                    "category": "District",
+                    "established": "February 2012"
+                },
+                {
+                    "code": "GH-TV-008",
+                    "name": "Guan",
+                    "capital": "Likpe-Mate",
+                    "category": "District",
+                    "established": "2021"
+                },
+                {
+                    "code": "GH-TV-009",
+                    "name": "Ho Municipal",
+                    "capital": "Ho",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-TV-010",
+                    "name": "Ho West",
+                    "capital": "Dzolokpuita",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-011",
+                    "name": "Hohoe Municipal",
+                    "capital": "Hohoe",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-TV-012",
+                    "name": "Keta Municipal",
+                    "capital": "Keta",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-TV-013",
+                    "name": "Ketu North Municipal",
+                    "capital": "Dzodze",
+                    "category": "Municipal",
+                    "established": "2008"
+                },
+                {
+                    "code": "GH-TV-014",
+                    "name": "Ketu South Municipal",
+                    "capital": "Denu",
+                    "category": "Municipal",
+                    "established": "1989"
+                },
+                {
+                    "code": "GH-TV-015",
+                    "name": "Kpando Municipal",
+                    "capital": "Kpando",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-TV-016",
+                    "name": "North Dayi",
+                    "capital": "Anfoega",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-017",
+                    "name": "North Tongu",
+                    "capital": "Battor Dugame",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-TV-018",
+                    "name": "South Dayi",
+                    "capital": "Kpeve",
+                    "category": "District",
+                    "established": "19 August 2004"
+                },
+                {
+                    "code": "GH-TV-019",
+                    "name": "South Tongu",
+                    "capital": "Sogakope",
+                    "category": "District",
+                    "established": "1989"
+                }
+            ]
+        },
+        {
+            "code": "WP",
+            "name": "Western",
+            "capital": "Sekondi-Takoradi",
+            "districts": [
+                {
+                    "code": "GH-WP-001",
+                    "name": "Ahanta West",
+                    "capital": "Agona Ahanta",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-002",
+                    "name": "Amenfi Central",
+                    "capital": "Manso Amenfi",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-003",
+                    "name": "Amenfi West",
+                    "capital": "Asankragua",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-004",
+                    "name": "Effia Kwesimintsim Municipal",
+                    "capital": "Kwesimintsim",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-005",
+                    "name": "Ellembelle",
+                    "capital": "Nkroful",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-006",
+                    "name": "Jomoro",
+                    "capital": "Half Assini",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-007",
+                    "name": "Mpohor",
+                    "capital": "Mpohor",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-008",
+                    "name": "Nzema East Municipal",
+                    "capital": "Axim",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-009",
+                    "name": "Prestea-Huni Valley Municipal",
+                    "capital": "Prestea",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-010",
+                    "name": "Sekondi Takoradi Metropolitan",
+                    "capital": "Sekondi-Takoradi",
+                    "category": "Metropolitan",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-011",
+                    "name": "Shama",
+                    "capital": "Shama",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-012",
+                    "name": "Tarkwa-Nsuaem Municipal",
+                    "capital": "Tarkwa",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-013",
+                    "name": "Wassa Amenfi East",
+                    "capital": "Wassa-Akropong",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WP-014",
+                    "name": "Wassa East",
+                    "capital": "Daboase",
+                    "category": "District",
+                    "established": null
+                }
+            ]
+        },
+        {
+            "code": "WN",
+            "name": "Western North",
+            "capital": "Sefwi Wiawso",
+            "districts": [
+                {
+                    "code": "GH-WN-001",
+                    "name": "Aowin",
+                    "capital": "Enchi",
+                    "category": "Municipal",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-WN-002",
+                    "name": "Bia East",
+                    "capital": "Sefwi Adabokrom",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-WN-003",
+                    "name": "Bia West",
+                    "capital": "Essam-Debiso",
+                    "category": "District",
+                    "established": "2012"
+                },
+                {
+                    "code": "GH-WN-004",
+                    "name": "Bibiani Anhwiaso Bekwai",
+                    "capital": "Bibiani",
+                    "category": "Municipal",
+                    "established": "1988"
+                },
+                {
+                    "code": "GH-WN-005",
+                    "name": "Bodi",
+                    "capital": "Sefwi Bodi",
+                    "category": "District",
+                    "established": "28 June 2012"
+                },
+                {
+                    "code": "GH-WN-006",
+                    "name": "Juaboso",
+                    "capital": "Juaboso",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WN-007",
+                    "name": "Sefwi Akontombra",
+                    "capital": "Sefwi Akontombra",
+                    "category": "District",
+                    "established": null
+                },
+                {
+                    "code": "GH-WN-008",
+                    "name": "Sefwi-Wiawso",
+                    "capital": "Sefwi Wiawso",
+                    "category": "Municipal",
+                    "established": null
+                },
+                {
+                    "code": "GH-WN-009",
+                    "name": "Suaman",
+                    "capital": "Dadieso",
+                    "category": "District",
+                    "established": "28 June 2012"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+---
+description: Security, privacy, automated tests, observability, and release quality rules
+globs: ["app/**/*.php", "routes/**/*.php", "tests/**/*.php", "config/**/*.php", "database/**/*.php"]
+alwaysApply: false
+---
+# Security and quality rules
+
+- Apply Laravel authentication, CSRF protection, password hashing, throttling, secure cookies, validation, authorization policies, output escaping, and safe file handling.
+- Follow least privilege. Protect login, password reset, registration, invitations, sensitive exports, and any location-based action with suitable rate limits and authorization.
+- Treat GPS as sensitive data: collect only when needed for an attendance action, communicate the purpose, validate server-side, and avoid continuous/background tracking in the MVP.
+- Use fictional EPA seed data only. Never import real EPA staff records or integrate actual EPA systems for the demo without explicit approval.
+- Write feature tests for happy paths, validation failures, authorization failures, tenant isolation, expired/replayed invitations, and important edge cases.
+- Test attendance idempotency/duplicate prevention, QR expiry/signature validation, geofence boundary behaviour, and timezone boundaries when those modules are implemented.
+- Keep audit/activity events useful and minimised. Record actor, tenant, action, target, timestamp, and safe metadata; exclude secrets and unnecessary sensitive payloads.
+- Use structured logs and correlation/request IDs where appropriate. Never swallow exceptions silently.
+- Run relevant test suites, static analysis/formatting tools that are installed, and frontend builds when applicable. Report commands and outcomes honestly.

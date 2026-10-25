@@ -1,0 +1,92 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\OrganizationStatus;
+use App\Enums\OrganizationType;
+use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\OrganizationFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
+
+#[Fillable([
+    'name',
+    'slug',
+    'type',
+    'status',
+    'timezone',
+    'country_code',
+    'contact_email',
+    'contact_phone',
+    'address_line',
+    'city',
+    'logo_path',
+    'settings',
+    'verified_at',
+])]
+class Organization extends Model
+{
+    /** @use HasFactory<OrganizationFactory> */
+    use HasFactory, HasPublicUuid;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'type' => OrganizationType::class,
+            'status' => OrganizationStatus::class,
+            'settings' => 'array',
+            'verified_at' => 'datetime',
+        ];
+    }
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === OrganizationStatus::Active;
+    }
+
+    public function isOperational(): bool
+    {
+        return $this->status->isOperational();
+    }
+
+    public function markVerified(): void
+    {
+        if ($this->status === OrganizationStatus::PendingVerification) {
+            $this->forceFill([
+                'status' => OrganizationStatus::Active,
+                'verified_at' => now(),
+            ])->save();
+        }
+    }
+
+    /**
+     * Build a unique, URL-safe slug from a display name.
+     */
+    public static function uniqueSlugFor(string $name): string
+    {
+        $base = Str::limit(Str::slug($name), 150, '') ?: 'organisation';
+        $slug = $base;
+
+        while (static::query()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.Str::lower(Str::random(6));
+        }
+
+        return $slug;
+    }
+}

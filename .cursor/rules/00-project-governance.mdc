@@ -1,0 +1,17 @@
+---
+description: Always-on ORBIT product, workflow, scope, and repository safety rules
+alwaysApply: true
+---
+# ORBIT project governance
+
+- Treat `docs/` as the project specification. Read the relevant requirements and ADRs before implementing a feature.
+- Before edits, inspect the existing repository, `composer.json`, lockfiles, migrations, routes, tests, asset pipeline, and conventions. Do not assume a blank project.
+- Preserve idiomatic Laravel structure and the existing stable stack. Do not introduce a second architecture or framework without an approved ADR.
+- Implement a modular monolith with clear domain boundaries. Do not introduce microservices for the MVP.
+- Work in small, reviewable increments. Explain the planned files and approach before broad refactors; run focused tests and relevant quality checks after changes. Add progress markable document for feature implement.
+- Never run `git pull`, `git commit`, push, branch creation/switching, reset, clean, or destructive Git operations. The user creates feature/fix branches and performs commits/pulls. Read-only status/diff/log commands are allowed if useful.
+- Do not claim a test, migration, build, or integration succeeded unless it was actually run and its result observed.
+- Do not invent API credentials, provider endpoints, real EPA data, or undocumented product behaviour. Use environment variables and fictional demo data.
+- Do not implement future roadmap features just because they are mentioned in slides or long-term architecture notes. Follow `docs/requirements/00-product-scope.md` and the phase plan.
+- Do not put secrets in source control, tests, seeders, logs, exception messages, or frontend bundles.
+- Keep documentation aligned with code. When a decision materially changes, propose/update the relevant ADR and requirements.

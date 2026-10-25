@@ -1,0 +1,18 @@
+---
+description: Database schema, indexing, query performance, caching, and availability rules
+globs: ["app/**/*.php", "database/**/*.php", "routes/**/*.php"]
+alwaysApply: false
+---
+# Database and performance rules
+
+- Use PostgreSQL as the preferred production database unless the existing environment and an approved ADR specify otherwise. Keep schema portable where practical.
+- Every table uses an internal numeric `id` primary key. Add a `uuid` column to externally addressable domain entities and use UUIDs for route binding/public API identifiers. UUID is not a replacement for the internal PK.
+- Use foreign keys, appropriate nullability, check constraints/unique constraints, and indexes that reflect real access patterns. Tenant-owned indexes commonly begin with `organization_id` where appropriate.
+- Index common filter/order combinations such as tenant + date/status, foreign keys, invitation lookup hashes, and attendance session expiry. Avoid indiscriminate indexing.
+- Store timestamps consistently; use UTC in storage and convert to the user's configured timezone for display. Define the organisation timezone and attendance cutoff semantics.
+- Paginate lists and bound export/query sizes. Use aggregate SQL for dashboard summaries rather than loading entire tables into PHP.
+- Avoid N+1 queries and repeated count queries. Use eager loading, `withCount`, conditional aggregates, query builder aggregates, and query profiling when useful.
+- Use Redis for queues/cache/rate limits only where configured and justified; ensure core correctness does not depend on cache being perfectly fresh.
+- Use transactions for attendance uniqueness, invitation acceptance, leave decisions, and other multi-step state changes. Design idempotency for retried requests/jobs.
+- Do not add caching before identifying cache keys, tenant boundaries, invalidation rules, and acceptable staleness.
+- For high availability, keep application instances stateless, store sessions/files in shared durable services when deployed across instances, use health checks, backups, monitored queues, and documented recovery procedures.

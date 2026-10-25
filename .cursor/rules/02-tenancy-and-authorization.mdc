@@ -1,0 +1,17 @@
+---
+description: Mandatory tenant isolation, account provisioning, and authorization safeguards
+globs: ["app/**/*.php", "routes/**/*.php", "database/**/*.php", "resources/views/**/*.blade.php"]
+alwaysApply: false
+---
+# Multi-tenancy and account rules
+
+- ORBIT is multi-tenant from the beginning. EPA Ghana is represented as a tenant/organisation with fictional seeded data.
+- Adopt the approved shared-database tenant model unless an ADR explicitly changes it. Tenant-owned records must carry a tenant/organization foreign key and be scoped in all reads and writes.
+- Never trust a tenant ID supplied by a browser, URL, hidden input, API payload, or client-side state. Resolve tenant context from the authenticated user and validated host/session context, then authorize every operation.
+- Prevent cross-tenant IDOR: use tenant-scoped route binding/queries and policies; add automated tests that attempt cross-tenant reads, updates, deletes, exports, and relationship attachment.
+- Platform operators and tenant administrators are distinct security boundaries. Platform-wide access must be explicit, least-privilege, audited, and never granted by a tenant role.
+- Public registration is only for an organisation and its responsible contact/initial organisation administrator. Do not provide open registration for students, employees, staff, or field officers.
+- Other users are created through invitations or an explicitly authorised provisioning/import flow. Invitation tokens must be random, single-use, hashed at rest where practical, expiring, revocable, and rate-limited.
+- Enforce unique email/phone rules with a deliberate global-versus-tenant policy documented in schema and validation. Do not assume a user may belong to multiple tenants unless the model explicitly supports it.
+- Use policies, gates, middleware, and role/permission checks on the server. Hiding a menu item is not authorization.
+- Do not log passwords, authentication tokens, invitation tokens, OTPs, precise location histories, or other unnecessary sensitive values.

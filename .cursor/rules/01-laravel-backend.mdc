@@ -1,0 +1,19 @@
+---
+description: Laravel backend, database, service boundaries, and maintainability rules
+globs: ["app/**/*.php", "routes/**/*.php", "database/**/*.php", "bootstrap/**/*.php", "config/**/*.php"]
+alwaysApply: false
+---
+# Laravel implementation rules
+
+- Follow the installed Laravel version and its conventions. Confirm the actual version before using version-specific APIs; do not upgrade Laravel/PHP as part of an unrelated feature.
+- Keep controllers thin: authenticate/authorize, validate via Form Requests, delegate use-case orchestration to an appropriate action/service, and return a response/resource.
+- Use Eloquent models, relationships, policies, Form Requests, API Resources, events/listeners, jobs, notifications, and service providers where they fit naturally. Avoid unnecessary abstraction and generic repositories wrapping Eloquent without a demonstrated need.
+- Keep business rules out of Blade templates and avoid giant controllers, god services, static global state, and duplicated domain logic.
+- Use database transactions for multi-write operations and enforce important invariants at the database layer where feasible.
+- Use explicit, named routes; route-model bind public entities by UUID (e.g. `{organization:uuid}`) while retaining numeric internal primary keys.
+- Validate all external input server-side. Use policies/gates for authorization, not only hidden UI controls.
+- Prefer eager loading, selected columns, pagination, appropriate indexes, and query-count checks. Avoid N+1 queries and unbounded result sets.
+- Use queues for slow, retryable work such as email/SMS, exports, and large imports. Make jobs idempotent and define retry/backoff/failure handling.
+- Keep integrations behind interfaces/contracts and provider adapters. Never couple core attendance or tenant workflows to a specific SMS/payment vendor.
+- Use explicit enums/value objects only where they improve clarity and fit existing project conventions.
+- Do not add packages before checking compatibility, maintenance status, licensing, overlap with Laravel-native functionality, and the actual use case.

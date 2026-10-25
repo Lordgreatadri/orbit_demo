@@ -1,0 +1,17 @@
+---
+description: Blade, Tailwind, Alpine, responsive UI, accessibility, and ORBIT visual rules
+globs: ["resources/views/**/*.blade.php", "resources/css/**/*.css", "resources/js/**/*.js", "tailwind.config.*", "vite.config.*"]
+alwaysApply: false
+---
+# Frontend and design rules
+
+- Use the existing Laravel frontend stack; the default is Blade + Tailwind CSS + Alpine.js + small vanilla JavaScript modules. Do not introduce a SPA framework without an approved ADR.
+- Use reusable Blade layouts/components for navigation, form fields, alerts, buttons, badges, empty states, pagination, and page headers.
+- Make public pages responsive and fast, with semantic HTML, keyboard access, visible focus, useful labels, accessible contrast, and reduced-motion support.
+- Provide a default light theme and a user-selectable alternate theme: a refined deep teal / midnight plum palette, not a generic pure-black dark mode. Persist the choice using an accessible, low-risk preference mechanism; avoid flash of the wrong theme where feasible.
+- Use semantic design tokens rather than scattering raw colors. Attendance statuses must also have text/icon labels and must not rely on colour alone.
+- Keep the public marketing experience visually distinct from dense authenticated dashboards while using one coherent design system.
+- Avoid unnecessary animation, oversized gradients, stock-dashboard clutter, and decorative charts with fabricated live values.
+- Charts, maps, and real-time labels must distinguish seeded/demo data from live verified data. Do not imply GPS or real-time tracking is active when it is not.
+- Forms must show server-side validation errors, preserve safe old input, announce success/failure accessibly, and prevent duplicate submissions where appropriate.
+- Use CSRF protection for web forms. Never embed credentials or privileged API tokens in JavaScript.
