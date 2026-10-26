@@ -23,34 +23,41 @@
         @scroll.window.passive="scrolled = window.scrollY > 8"
         :class="scrolled && 'shadow-[0_1px_0_0_var(--edge),0_8px_24px_-16px_rgb(0_0_0/0.25)]'"
     >
-        <div class="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-            <a href="{{ route('home') }}" class="rounded-lg focus-visible:outline-2" aria-label="{{ config('orbit.product_name') }} home">
+        <div class="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
+            <a href="{{ route('home') }}" class="shrink-0 rounded-lg focus-visible:outline-2" aria-label="{{ config('orbit.product_name') }} home">
                 <x-logo />
             </a>
 
-            <nav aria-label="Primary" class="hidden items-center gap-1 rounded-full border border-edge/70 bg-surface-muted/60 p-1 md:flex">
-                @foreach ($primaryNav as $routeName => $label)
-                    <a
-                        href="{{ route($routeName) }}"
-                        @if (request()->routeIs($routeName)) aria-current="page" @endif
-                        class="rounded-full px-4 py-1.5 text-[0.9375rem] font-medium transition-colors {{ request()->routeIs($routeName) ? 'bg-surface text-fg shadow-sm' : 'text-fg-muted hover:text-fg' }}"
-                    >{{ $label }}</a>
-                @endforeach
+            {{-- Inline links from large tablets / laptops upward. Portrait tablets use the menu. --}}
+            <nav aria-label="Primary" class="hidden min-w-0 flex-1 justify-center lg:flex">
+                <div class="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-edge/70 bg-surface-muted/60 p-1">
+                    @foreach ($primaryNav as $routeName => $label)
+                        <a
+                            href="{{ route($routeName) }}"
+                            @if (request()->routeIs($routeName)) aria-current="page" @endif
+                            class="shrink-0 rounded-full px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors xl:px-4 xl:text-[0.9375rem] {{ request()->routeIs($routeName) ? 'bg-surface text-fg shadow-sm' : 'text-fg-muted hover:text-fg' }}"
+                        >{{ $label }}</a>
+                    @endforeach
+                </div>
             </nav>
 
-            <div class="flex items-center gap-2">
-                <x-theme-toggle />
-                <div class="hidden items-center gap-2 md:flex">
+            <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <x-theme-toggle label-class="hidden xl:inline" />
+                <div class="hidden items-center gap-2 lg:flex">
                     @auth
-                        <x-button :href="route('app.dashboard')" variant="secondary" size="sm">Open dashboard</x-button>
+                        <x-button :href="route('app.dashboard')" variant="secondary" size="sm">Dashboard</x-button>
                     @else
                         <x-button :href="route('login')" variant="ghost" size="sm">Sign in</x-button>
-                        <x-button :href="route('register')" size="sm">Register your organisation <x-icon name="arrow-right" class="size-4" /></x-button>
+                        <x-button :href="route('register')" size="sm">
+                            <span class="xl:hidden">Register</span>
+                            <span class="hidden xl:inline">Register your organisation</span>
+                            <x-icon name="arrow-right" class="size-4" />
+                        </x-button>
                     @endauth
                 </div>
                 <button
                     type="button"
-                    class="inline-flex size-10 items-center justify-center rounded-lg border border-edge text-fg-muted md:hidden"
+                    class="inline-flex size-10 items-center justify-center rounded-lg border border-edge text-fg-muted lg:hidden"
                     @click="open = !open"
                     :aria-expanded="open.toString()"
                     aria-controls="mobile-nav"
@@ -62,7 +69,7 @@
             </div>
         </div>
 
-        <nav id="mobile-nav" aria-label="Mobile" x-show="open" x-cloak x-transition.opacity @keydown.escape.window="open = false" class="border-t border-edge bg-surface px-4 py-4 md:hidden">
+        <nav id="mobile-nav" aria-label="Mobile" x-show="open" x-cloak x-transition.opacity @keydown.escape.window="open = false" class="border-t border-edge bg-surface px-4 py-4 lg:hidden">
             <ul class="space-y-1">
                 @foreach ($primaryNav as $routeName => $label)
                     <li>

@@ -140,7 +140,9 @@ class InvitationTest extends TestCase
     #[Test]
     public function invitee_can_accept_a_valid_invitation_and_joins_the_right_organisation_with_the_right_role(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->create([
+            'name' => "O'Connell Institute of Testing",
+        ]);
         $admin = $this->createOrganizationAdmin($organization);
         $raw = str_repeat('a', 64);
         $invitation = Invitation::factory()->invitedBy($admin)->withRawToken($raw)->create([

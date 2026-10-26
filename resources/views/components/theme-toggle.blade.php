@@ -1,3 +1,5 @@
+@props(['labelClass' => 'hidden sm:inline'])
+
 <div x-data="themeToggle" {{ $attributes->merge(['class' => 'inline-flex']) }}>
     <button
         type="button"
@@ -14,7 +16,7 @@
         <svg x-show="isPlum" x-cloak aria-hidden="true" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
         </svg>
-        <span class="hidden sm:inline" x-text="isPlum ? 'Deep teal' : 'Light'">Light</span>
+        <span class="{{ $labelClass }}" x-text="isPlum ? 'Deep teal' : 'Light'">Light</span>
         <span class="sr-only">theme</span>
     </button>
 </div>

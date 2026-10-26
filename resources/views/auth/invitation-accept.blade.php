@@ -1,4 +1,7 @@
-<x-layouts.auth title="Join {{ $invitation->organization->name }}" description="You have been invited as {{ $roleLabel }}. Complete your details to create your account.">
+<x-layouts.auth
+    :title="'Join '.$invitation->organization->name"
+    :description="'You have been invited as '.$roleLabel.'. Complete your details to create your account.'"
+>
     <form method="POST" action="{{ route('invitations.accept', ['token' => $token]) }}" class="space-y-5" x-data="{ submitting: false }" @submit="submitting = true">
         @csrf
 

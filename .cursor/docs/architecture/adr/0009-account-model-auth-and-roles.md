@@ -23,8 +23,7 @@ Livewire starter kits (Fortify-backed) or hand-written controllers on framework 
 - `App\Tenancy\TenantContext` (request-scoped singleton) is set by the `SetTenantContext` middleware from
   the authenticated user and cleared after each request and before/after each queued job.
 - `App\Models\Concerns\BelongsToOrganization` adds a global scope (`organization_id = current`) and fills
-  `organization_id` on create. Platform users (no tenant) see no tenant rows unless an explicit, audited
-  `withoutTenantScope()` path is used (none exists in Phase 1).
+  `organization_id` on create. `platform_super_admin` may open `/app/members`, which lists every organisation's members and writes `platform.members.viewed`. `platform_support` cannot. Other tenant rows stay closed to platform accounts.
 - Policies additionally compare `organization_id` so that a missing scope cannot silently widen access.
 
 ### 3. Identifiers
@@ -40,8 +39,12 @@ Livewire starter kits (Fortify-backed) or hand-written controllers on framework 
   password-reset request 3/min per IP, verification resend 6/min, invitation accept 10/min, contact 5/min.
 - Email verification is enabled by `ORBIT_REQUIRE_EMAIL_VERIFICATION` (default `true`). Verifying the
   initial administrator's email transitions the organisation from `pending_verification` to `active`.
-- Phone is captured (`users.phone`, `phone_verified_at` reserved). SMS OTP is deferred until a provider is
-  approved (ADR-0007).
+- Phone is captured (`users.phone`, `phone_verified_at`). Workspace routes use
+  `identity.verified`, which keeps the account on one verification screen until
+  both e-mail and phone are confirmed. The phone code is a 6-digit value stored
+  as an HMAC in cache for 10 minutes. Delivery is `App\Contracts\SmsSender`,
+  bound to `LogSmsSender` until a provider adapter is approved (ADR-0007).
+  The code is written to the application log and is not returned in the HTTP response.
 - MFA extension point: the login controller delegates to a single `LoginRequest::authenticate()`; a later
   phase can introduce Fortify or a second-factor step without changing routes or views.
 

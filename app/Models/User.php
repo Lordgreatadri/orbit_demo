@@ -83,6 +83,22 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->status === UserStatus::Active;
     }
 
+    public function hasVerifiedPhone(): bool
+    {
+        return $this->phone_verified_at !== null;
+    }
+
+    /**
+     * Both contact checks required for workspace access, unless a flag is off.
+     */
+    public function identityVerified(): bool
+    {
+        $emailReady = ! config('orbit.require_email_verification') || $this->hasVerifiedEmail();
+        $phoneReady = ! config('orbit.require_phone_verification') || $this->hasVerifiedPhone();
+
+        return $emailReady && $phoneReady;
+    }
+
     public function belongsToOrganization(Organization|int $organization): bool
     {
         $id = $organization instanceof Organization ? $organization->getKey() : $organization;

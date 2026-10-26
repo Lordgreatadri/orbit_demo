@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\SmsSender;
+use App\Integrations\Sms\LogSmsSender;
 use App\Models\Invitation;
 use App\Models\Organization;
 use App\Models\User;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantContext::class);
+        $this->app->bind(SmsSender::class, LogSmsSender::class);
     }
 
     /**
@@ -60,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('registration', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
         RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
         RateLimiter::for('verification', fn (Request $request) => Limit::perMinute(6)->by($request->user()?->getKey() ?: $request->ip()));
+        RateLimiter::for('phone-otp', fn (Request $request) => Limit::perMinute(5)->by($request->user()?->getKey() ?: $request->ip()));
         RateLimiter::for('invitation-accept', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('invitation-send', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip()));
     }

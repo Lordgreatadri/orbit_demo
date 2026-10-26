@@ -15,11 +15,7 @@ use Illuminate\Support\Facades\Route;
 | membership on every action.
 */
 
-$middleware = ['auth', 'account.operational'];
-
-if (config('orbit.require_email_verification')) {
-    $middleware[] = 'verified';
-}
+$middleware = ['auth', 'account.operational', 'identity.verified'];
 
 Route::prefix('app')->middleware($middleware)->name('app.')->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');

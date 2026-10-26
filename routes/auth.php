@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
@@ -54,6 +55,16 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:verification')
         ->name('verification.send');
+
+    Route::put('/phone', [PhoneVerificationController::class, 'update'])
+        ->middleware('throttle:phone-otp')
+        ->name('verification.phone.update');
+    Route::post('/phone/verification-code', [PhoneVerificationController::class, 'send'])
+        ->middleware('throttle:phone-otp')
+        ->name('verification.phone.send');
+    Route::post('/phone/verification', [PhoneVerificationController::class, 'confirm'])
+        ->middleware('throttle:phone-otp')
+        ->name('verification.phone.confirm');
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
