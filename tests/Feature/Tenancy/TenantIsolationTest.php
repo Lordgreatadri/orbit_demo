@@ -99,6 +99,28 @@ class TenantIsolationTest extends TestCase
     }
 
     #[Test]
+    public function a_platform_super_admin_can_review_members_across_organisations(): void
+    {
+        $superAdmin = User::factory()->platform()->create();
+        $superAdmin->assignRole('platform_super_admin');
+        $member = $this->createMember();
+
+        $this->actingAs($superAdmin)
+            ->get(route('app.members.index'))
+            ->assertOk()
+            ->assertSee($member->email)
+            ->assertSee($member->organization->name)
+            ->assertSee('Read only');
+
+        $this->assertDatabaseHas('activity_log', [
+            'event' => 'platform.members.viewed',
+            'causer_id' => $superAdmin->getKey(),
+        ]);
+
+        $this->actingAs($superAdmin)->get(route('app.organizations.edit', $member->organization))->assertForbidden();
+    }
+
+    #[Test]
     public function every_core_table_uses_numeric_ids_with_public_uuids(): void
     {
         $organization = Organization::factory()->create();

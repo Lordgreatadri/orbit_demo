@@ -9,7 +9,7 @@
         $sections = [
             'register' => ['id-card', 'Register your organisation'],
             'sign-in' => ['lock', 'Sign in and reset your password'],
-            'verify' => ['mail', 'Verify your e-mail'],
+            'verify' => ['mail', 'Verify e-mail and phone'],
             'settings' => ['building', 'Organisation settings'],
             'invite' => ['users', 'Invite members'],
             'theme' => ['sparkles', 'Change the theme'],
@@ -51,8 +51,8 @@
                 <h2 id="sign-in">Sign in and reset your password</h2>
                 <p>Use <a href="{{ route('login') }}">Sign in</a> with your e-mail and password. If you forget your password, choose <em>Forgot your password?</em>; if an account exists for the address you enter, a time-limited reset link is e-mailed to it. Repeated failed attempts temporarily lock sign-in for that account.</p>
 
-                <h2 id="verify">Verify your e-mail</h2>
-                <p>After registering you receive a verification e-mail. Your organisation becomes active once you confirm it. You can request a new link from the verification page.</p>
+                <h2 id="verify">Verify your e-mail and phone</h2>
+                <p>After you sign in, the workspace stays closed until both checks on the verification page are complete. Confirm the link sent to your e-mail. Then confirm your phone with a one-time code. Your organisation becomes active once the responsible contact confirms their e-mail. Text messaging is not connected yet, so the phone code is written to the application log for your technical team to pass on.</p>
 
                 <h2 id="settings">Organisation settings</h2>
                 <p>Administrators can update the organisation name, type, time zone, and contact details from <em>Organisation settings</em>. The time zone determines how attendance times are displayed.</p>

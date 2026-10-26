@@ -53,6 +53,8 @@ class OrganizationRegistrationTest extends TestCase
         $this->assertSame('ama.mensah@example.test', $user->email);
         $this->assertSame('+233201234567', $user->phone);
         $this->assertNull($user->email_verified_at);
+        $this->assertNull($user->phone_verified_at);
+        $this->actingAs($user)->get(route('app.dashboard'))->assertRedirect(route('verification.notice'));
         $this->assertNotNull($user->terms_accepted_at);
         $this->assertSame(config('orbit.terms_version'), $user->terms_version);
         $this->assertTrue($user->hasRole('organization_admin'));

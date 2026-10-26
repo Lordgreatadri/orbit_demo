@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsOperational;
+use App\Http\Middleware\EnsureIdentityIsVerified;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'account.operational' => EnsureAccountIsOperational::class,
+            'identity.verified' => EnsureIdentityIsVerified::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));

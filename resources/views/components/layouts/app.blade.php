@@ -6,7 +6,7 @@
     $navItems = [
         ['route' => 'app.dashboard', 'label' => 'Dashboard', 'can' => true,
             'icon' => 'M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-5H4v5Zm10-9h6V4h-6v7Z'],
-        ['route' => 'app.members.index', 'label' => 'Members', 'can' => $user?->can('members.view'),
+        ['route' => 'app.members.index', 'label' => 'Members', 'can' => $user?->can('viewAny', \App\Models\User::class),
             'icon' => 'M16 19a4 4 0 0 0-8 0M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 8a3 3 0 0 0-3-3m0-4a2.5 2.5 0 0 0 0-5M5 19a3 3 0 0 1 3-3m0-4a2.5 2.5 0 0 1 0-5'],
     ];
     if ($organization && $user->can('view', $organization)) {

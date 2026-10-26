@@ -2,13 +2,15 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Database\Seeders\SystemDemoUserSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
      * Seed reference data required in every environment.
-     * Demo/fictional tenant data is deliberately NOT seeded here (see Stage 3 plan).
+     * Fictional demo tenants are separate: php artisan db:seed --class=SystemDemoUserSeeder
      */
     public function run(): void
     {
@@ -16,5 +18,11 @@ class DatabaseSeeder extends Seeder
             CountryTableSeeder::class,
             RolesAndPermissionsSeeder::class,
         ]);
+
+        if(! app()->isProduction()) {
+            $this->call([
+                SystemDemoUserSeeder::class,
+            ]);
+        }
     }
 }

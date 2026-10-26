@@ -1,5 +1,10 @@
 <x-layouts.app title="Members">
-    <x-page-header title="Members" description="People who belong to {{ $organization->name }}. New members join only through an invitation." />
+    <x-page-header
+        title="Members"
+        :description="$platformDirectory
+            ? 'People across every organisation. Opening this directory is recorded in the audit log.'
+            : 'People who belong to '.$organization->name.'. New members join only through an invitation.'"
+    />
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
@@ -12,6 +17,9 @@
                             <thead class="bg-surface-muted text-xs tracking-wide text-fg-muted uppercase">
                                 <tr>
                                     <th scope="col" class="px-5 py-3 font-medium">Name</th>
+                                    @if ($platformDirectory)
+                                        <th scope="col" class="px-5 py-3 font-medium">Organisation</th>
+                                    @endif
                                     <th scope="col" class="px-5 py-3 font-medium">Role</th>
                                     <th scope="col" class="px-5 py-3 font-medium">Status</th>
                                     <th scope="col" class="px-5 py-3 font-medium">Last sign-in</th>
@@ -24,16 +32,26 @@
                                             <p class="font-medium text-fg">{{ $member->name }}</p>
                                             <p class="text-xs text-fg-subtle">{{ $member->email }}</p>
                                         </td>
+                                        @if ($platformDirectory)
+                                            <td class="px-5 py-3 text-fg-muted">{{ $member->organization?->name }}</td>
+                                        @endif
                                         <td class="px-5 py-3 text-fg-muted">
                                             {{ $member->roles->map(fn ($r) => config('orbit.roles.tenant.'.$r->name, $r->name))->join(', ') ?: '—' }}
                                         </td>
                                         <td class="px-5 py-3">
                                             <x-badge :tone="$member->isActive() ? 'success' : 'danger'">{{ $member->status->label() }}</x-badge>
-                                            @unless ($member->hasVerifiedEmail())
+                                            @unless ($member->hasVerifiedEmail() && $member->hasVerifiedPhone())
                                                 <x-badge tone="warning" class="ml-1">Unverified</x-badge>
                                             @endunless
                                         </td>
-                                        <td class="px-5 py-3 text-fg-muted">{{ $member->last_login_at?->timezone($organization->timezone)->diffForHumans() ?? 'Never' }}</td>
+                                        <td class="px-5 py-3 text-fg-muted">
+                                            @php
+                                                $zone = $platformDirectory
+                                                    ? ($member->organization?->timezone ?? config('app.timezone'))
+                                                    : $organization->timezone;
+                                            @endphp
+                                            {{ $member->last_login_at?->timezone($zone)->diffForHumans() ?? 'Never' }}
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -94,7 +112,9 @@
                         <x-button type="submit" class="w-full" x-bind:disabled="submitting">Send invitation</x-button>
                     </form>
                 </x-card>
-            @elseif (! $organization->isActive())
+            @elseif ($platformDirectory)
+                <x-alert type="info" title="Read only">Invitations stay with each organisation's administrator. This directory does not grant a platform account a tenant workspace.</x-alert>
+            @elseif ($organization && ! $organization->isActive())
                 <x-alert type="info" title="Invitations unavailable">Invitations can be sent once the organisation is active (after e-mail verification).</x-alert>
             @else
                 <x-alert type="info">Only organisation administrators can send invitations.</x-alert>

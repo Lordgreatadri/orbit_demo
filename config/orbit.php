@@ -33,6 +33,14 @@ return [
     'require_email_verification' => (bool) env('ORBIT_REQUIRE_EMAIL_VERIFICATION', true),
 
     /*
+    | When true, workspace routes stay closed until phone_verified_at is set.
+    | The one-time code is delivered through the SMS binding. Until a provider
+    | is configured that binding writes the code to the application log.
+    */
+
+    'require_phone_verification' => (bool) env('ORBIT_REQUIRE_PHONE_VERIFICATION', true),
+
+    /*
     |--------------------------------------------------------------------------
     | Legal
     |--------------------------------------------------------------------------
@@ -83,7 +91,17 @@ return [
     /*
     | Roles an organisation administrator may grant through invitations.
     */
-    'invitable_roles' => ['organization_admin', 'organization_manager', 'member'],
+    'invitable_roles' => ['organization_admin', 'organization_manager', 'member', 'student'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Local demo seed
+    |--------------------------------------------------------------------------
+    | Used only by SystemDemoUserSeeder. Never set a value in production.
+    | The seeder refuses to run when APP_ENV=production.
+    */
+
+    'demo_password' => env('ORBIT_DEMO_PASSWORD'),
 
     /*
     |--------------------------------------------------------------------------

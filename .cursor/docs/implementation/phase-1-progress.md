@@ -36,7 +36,8 @@ Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
 - [x] App shell: dashboard empty state, organisation settings (`{organization:uuid}` + policy), members + pending invitations
 - [x] Audit trail via `App\Support\Audit::log()` (activitylog + `organization_id`)
 - [x] Tests: registration, login, password reset, verification, organisation settings isolation, invitations, tenant isolation, seeding
-- [ ] Phone OTP verification — deferred until an SMS provider is approved (ADR-0007)
+- [x] Local demo seed (not part of `DatabaseSeeder`): `php artisan db:seed --class=SystemDemoUserSeeder`. Fictional EPA Ghana and UPSA tenants, plus one account for every platform and tenant role. Password comes from `ORBIT_DEMO_PASSWORD`. Refuses `APP_ENV=production`.
+- [x] Phone confirmation is required with e-mail before workspace access. One screen shows both checks. The code is logged by `LogSmsSender` until an SMS provider is bound to `App\Contracts\SmsSender`.
 - [ ] Logo upload — deferred (Stage 3, needs media decision)
 
 ## Commands executed and observed results (latest run, 2026-10-24)
@@ -66,8 +67,19 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - **Terms / Privacy** content is a draft for legal review.
 - **Queue**: `InvitationNotification` is queued; local `QUEUE_CONNECTION=database` needs `php artisan queue:work` (or `QUEUE_CONNECTION=sync` in `.env`) for e-mails to leave.
 - **Mail** is `log` driver locally; verification/invitation links appear in `storage/logs/laravel.log`.
-- **Browser QA** covered only the landing and registration pages; the remaining public, auth and app pages need the same pass (keyboard, screen-reader labels, 390 px layout).
+- **Browser QA** of the public navigation covered 390, 768, 820, 1024, and 1280 px on 2026-10-26. Auth and app pages still need the same pass in both themes.
 - `routes/tenant.php`, `routes/superadmin.php`, `routes/webhook.php` are inert placeholders; wire them deliberately in Stage 3.
 
+## Commands executed and observed results (2026-10-26)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact tests/Feature/Database/DemoSeederTest.php` | **3 passed, 114 assertions** (2.7 s) |
+| `php84 artisan test --compact` | **86 tests, 85 passed, 1 failed** (56.7 s). `InvitationTest` failed when the organisation name contained an apostrophe because the accept page escaped it twice. The view now passes the title and description unescaped, and the layout escapes them once. Re-ran `invitee_can_accept_a_valid_invitation` with the name `O'Connell Institute of Testing`: **1 passed** |
+| `php84 vendor/bin/pint` on the new seeder and test paths | Passed, no changes |
+| `php84 artisan db:seed --class=SystemDemoUserSeeder` (PostgreSQL) | Roles 532 ms, EPA organisation 81 ms, UPSA organisation 5 ms, seeder 4.4 s. Confirmed 2 organisations and 10 accounts, one for each role |
+| Cursor browser, public home | No horizontal overflow at 390, 768, 820, 1024, and 1280. Portrait tablets use the menu; inline links start at 1024 px with a short Register label; the full label and theme text appear at 1280 px |
+| `php84 artisan test --compact` (verification and platform directory) | **92 passed, 558 assertions** |
+| `php84 artisan db:seed --class=SystemDemoUserSeeder` | Re-ran with `updateOrCreate`. Same 10 accounts, no duplicate-key error. Phone confirmation set on those accounts |
+
 ## Recommended next task
-Stage 3 — Tenant security hardening and EPA demo foundation: (1) decide the `app/Modules` layout and apply it in one mechanical move; (2) platform admin area (`routes/superadmin.php`) with `platform_super_admin` guard, organisation list/suspend, impersonation decision; (3) fictional "Ghana EPA demo" seed (organisation, members, districts from `ghana-districts.json`); (4) browser QA pass of Stage 1–2 pages in both themes.
+Stage 3 — Tenant security hardening and the rest of the EPA demo: (1) decide the `app/Modules` layout and apply it in one mechanical move; (2) platform admin area (`routes/superadmin.php`) with `platform_super_admin` guard, organisation list/suspend, impersonation decision; (3) attendance modules that read the demo locations and departments already stored on the EPA organisation (districts from `ghana-districts.json` only if a location module needs them); (4) browser QA of the remaining auth and app pages in both themes.

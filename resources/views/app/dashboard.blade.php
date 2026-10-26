@@ -57,6 +57,10 @@
             </ol>
         </section>
     @else
-        <x-empty-state title="Platform account" description="Platform tools are not part of this milestone. Tenant data is not shown to platform accounts without an explicit, audited action." />
+        <x-empty-state title="Platform account" description="{{ $user->hasRole('platform_super_admin') ? 'Open Members for a directory of people across organisations. That view is written to the audit log. Invitations and organisation settings stay with each organisation.' : 'Platform tools for support accounts are limited. Tenant directories are not opened from this account.' }}">
+            @if ($user->hasRole('platform_super_admin'))
+                <x-button :href="route('app.members.index')">Review members</x-button>
+            @endif
+        </x-empty-state>
     @endif
 </x-layouts.app>
