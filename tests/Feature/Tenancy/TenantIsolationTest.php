@@ -59,7 +59,8 @@ class TenantIsolationTest extends TestCase
     {
         $admin = $this->createOrganizationAdmin();
 
-        $this->actingAs($admin)->get(route('app.dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('app.dashboard'))->assertRedirect(route('org.dashboard'));
+        $this->actingAs($admin)->get(route('org.dashboard'))->assertOk();
 
         // The middleware clears the context in terminate(); a guest request leaves it empty.
         $this->assertFalse(app(TenantContext::class)->has());
@@ -87,37 +88,81 @@ class TenantIsolationTest extends TestCase
     }
 
     #[Test]
+    public function tenant_permissions_cannot_be_assigned_to_platform_accounts(): void
+    {
+        $platformUser = User::factory()->platform()->create();
+
+        $this->expectException(InvalidArgumentException::class);
+        $platformUser->givePermissionTo('staff.view');
+    }
+
+    #[Test]
     public function platform_accounts_do_not_gain_tenant_pages_through_tenant_permissions(): void
     {
         $platformUser = User::factory()->platform()->create();
         $platformUser->assignRole('platform_support');
         $organization = Organization::factory()->create();
 
-        $this->actingAs($platformUser)->get(route('app.dashboard'))->assertOk()->assertSee('Platform account');
-        $this->actingAs($platformUser)->get(route('app.members.index'))->assertForbidden();
-        $this->actingAs($platformUser)->get(route('app.organizations.edit', $organization))->assertForbidden();
+        // Platform accounts land in the platform console and are kept out of every tenant route.
+        $this->actingAs($platformUser)->get(route('app.dashboard'))->assertRedirect(route('admin.dashboard'));
+        $this->actingAs($platformUser)->get(route('app.profile'))->assertOk()->assertSee('Platform account');
+        $this->actingAs($platformUser)->get(route('org.dashboard'))->assertForbidden();
+        $this->actingAs($platformUser)->get(route('org.users.index'))->assertForbidden();
+        $this->actingAs($platformUser)->get(route('org.staff.index'))->assertForbidden();
+        $this->actingAs($platformUser)->get(route('org.organizations.edit', $organization))->assertForbidden();
     }
 
     #[Test]
-    public function a_platform_super_admin_can_review_members_across_organisations(): void
+    public function tenant_accounts_cannot_reach_the_platform_console(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.users.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.roles.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.organizations.index'))->assertForbidden();
+    }
+
+    #[Test]
+    public function a_platform_super_admin_can_review_users_across_organisations(): void
     {
         $superAdmin = User::factory()->platform()->create();
         $superAdmin->assignRole('platform_super_admin');
         $member = $this->createMember();
 
         $this->actingAs($superAdmin)
-            ->get(route('app.members.index'))
+            ->get(route('admin.users.index'))
             ->assertOk()
             ->assertSee($member->email)
-            ->assertSee($member->organization->name)
-            ->assertSee('Read only');
+            ->assertSee($member->organization->name);
 
         $this->assertDatabaseHas('activity_log', [
-            'event' => 'platform.members.viewed',
+            'event' => 'platform.users.viewed',
             'causer_id' => $superAdmin->getKey(),
         ]);
 
-        $this->actingAs($superAdmin)->get(route('app.organizations.edit', $member->organization))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('admin.users.show', $member))->assertOk()->assertSee($member->email);
+        $this->assertDatabaseHas('activity_log', [
+            'event' => 'platform.user.viewed',
+            'subject_id' => $member->getKey(),
+            'organization_id' => $member->organization_id,
+        ]);
+
+        // Tenant settings remain with the organisation's own administrators.
+        $this->actingAs($superAdmin)->get(route('org.organizations.edit', $member->organization))->assertForbidden();
+    }
+
+    #[Test]
+    public function tenant_user_routes_resolve_only_accounts_in_the_current_organisation(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $stranger = $this->createMember();
+
+        $this->actingAs($admin)->get(route('org.users.show', $stranger))->assertNotFound();
+        $this->actingAs($admin)->get('/org/users/not-a-uuid')->assertNotFound();
+        $this->actingAs($admin)->put(route('org.users.roles', $stranger), ['roles' => ['organization_admin']])->assertNotFound();
+
+        $this->assertFalse($stranger->fresh()->hasRole('organization_admin'));
     }
 
     #[Test]

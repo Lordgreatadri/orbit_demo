@@ -8,17 +8,17 @@
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="grid gap-10 lg:grid-cols-12">
             <div class="space-y-4 lg:col-span-4">
-                <div class="rounded-2xl border border-edge bg-surface p-6">
+                <div class="card-hover rounded-2xl border border-edge bg-surface p-6">
                     <span class="grid size-11 place-items-center rounded-xl bg-primary-soft text-primary"><x-icon name="mail" class="size-5.5" /></span>
                     <h2 class="mt-4 text-lg font-semibold text-fg">E-mail</h2>
                     <a href="mailto:{{ config('orbit.support_email') }}" class="mt-1 inline-block text-[0.9375rem] font-medium text-primary hover:underline">{{ config('orbit.support_email') }}</a>
                 </div>
-                <div class="rounded-2xl border border-edge bg-surface p-6">
+                <div class="card-hover rounded-2xl border border-edge bg-surface p-6">
                     <span class="grid size-11 place-items-center rounded-xl bg-accent-soft text-accent"><x-icon name="chat" class="size-5.5" /></span>
                     <h2 class="mt-4 text-lg font-semibold text-fg">Response</h2>
                     <p class="mt-1 text-[0.9375rem] leading-relaxed text-fg-muted">We reply by e-mail to the address you provide. Messages are kept only as long as needed to respond.</p>
                 </div>
-                <div class="rounded-2xl border border-edge bg-surface p-6">
+                <div class="card-hover rounded-2xl border border-edge bg-surface p-6">
                     <span class="grid size-11 place-items-center rounded-xl bg-success-soft text-success"><x-icon name="sparkles" class="size-5.5" /></span>
                     <h2 class="mt-4 text-lg font-semibold text-fg">Request a demo</h2>
                     <p class="mt-1 text-[0.9375rem] leading-relaxed text-fg-muted">Tell us about your organisation — campus, offices, or field teams — and we will walk you through ORBIT.</p>

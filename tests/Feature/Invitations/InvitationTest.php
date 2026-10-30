@@ -38,8 +38,8 @@ class InvitationTest extends TestCase
         $admin = $this->createOrganizationAdmin();
 
         $this->actingAs($admin)
-            ->post(route('app.invitations.store'), ['email' => 'New.Member@Example.test', 'role' => 'member'])
-            ->assertRedirect(route('app.members.index'))
+            ->post(route('org.invitations.store'), ['email' => 'New.Member@Example.test', 'role' => 'member'])
+            ->assertRedirect(route('org.users.index'))
             ->assertSessionHas('status');
 
         $invitation = Invitation::withoutTenantScope()->sole();
@@ -71,7 +71,7 @@ class InvitationTest extends TestCase
         $admin = $this->createOrganizationAdmin();
         $other = Organization::factory()->create();
 
-        $this->actingAs($admin)->post(route('app.invitations.store'), [
+        $this->actingAs($admin)->post(route('org.invitations.store'), [
             'email' => 'victim@example.test',
             'role' => 'member',
             'organization_id' => $other->getKey(),
@@ -86,10 +86,10 @@ class InvitationTest extends TestCase
         Notification::fake();
 
         $member = $this->createMember();
-        $this->actingAs($member)->post(route('app.invitations.store'), ['email' => 'x@example.test', 'role' => 'member'])->assertForbidden();
+        $this->actingAs($member)->post(route('org.invitations.store'), ['email' => 'x@example.test', 'role' => 'member'])->assertForbidden();
 
         $manager = $this->createMember(role: 'organization_manager');
-        $this->actingAs($manager)->post(route('app.invitations.store'), ['email' => 'y@example.test', 'role' => 'member'])->assertForbidden();
+        $this->actingAs($manager)->post(route('org.invitations.store'), ['email' => 'y@example.test', 'role' => 'member'])->assertForbidden();
 
         $this->assertDatabaseCount('invitations', 0);
         Notification::assertNothingSent();
@@ -102,7 +102,7 @@ class InvitationTest extends TestCase
         $admin = $this->createOrganizationAdmin();
 
         $this->actingAs($admin)
-            ->post(route('app.invitations.store'), ['email' => 'x@example.test', 'role' => 'platform_super_admin'])
+            ->post(route('org.invitations.store'), ['email' => 'x@example.test', 'role' => 'platform_super_admin'])
             ->assertSessionHasErrors('role');
 
         $this->assertDatabaseCount('invitations', 0);
@@ -116,12 +116,12 @@ class InvitationTest extends TestCase
         $existing = User::factory()->create();
 
         $this->actingAs($admin)
-            ->post(route('app.invitations.store'), ['email' => $existing->email, 'role' => 'member'])
+            ->post(route('org.invitations.store'), ['email' => $existing->email, 'role' => 'member'])
             ->assertSessionHasErrors('email');
 
-        $this->actingAs($admin)->post(route('app.invitations.store'), ['email' => 'pending@example.test', 'role' => 'member']);
+        $this->actingAs($admin)->post(route('org.invitations.store'), ['email' => 'pending@example.test', 'role' => 'member']);
         $this->actingAs($admin)
-            ->post(route('app.invitations.store'), ['email' => 'pending@example.test', 'role' => 'member'])
+            ->post(route('org.invitations.store'), ['email' => 'pending@example.test', 'role' => 'member'])
             ->assertSessionHasErrors('email');
 
         $this->assertDatabaseCount('invitations', 1);
@@ -134,7 +134,7 @@ class InvitationTest extends TestCase
         $admin = $this->createOrganizationAdmin($organization);
 
         // Bypass the verified middleware concern by verifying the user but not the org.
-        $this->actingAs($admin)->post(route('app.invitations.store'), ['email' => 'x@example.test', 'role' => 'member'])->assertForbidden();
+        $this->actingAs($admin)->post(route('org.invitations.store'), ['email' => 'x@example.test', 'role' => 'member'])->assertForbidden();
     }
 
     #[Test]
@@ -240,19 +240,19 @@ class InvitationTest extends TestCase
         $foreign = Invitation::factory()->create(); // another organisation
 
         $this->actingAs($admin)
-            ->delete(route('app.invitations.destroy', $own))
-            ->assertRedirect(route('app.members.index'));
+            ->delete(route('org.invitations.destroy', $own))
+            ->assertRedirect(route('org.users.index'));
         $this->assertNotNull($own->fresh()->revoked_at);
 
         // Tenant-scoped route binding: the foreign invitation does not resolve.
         $this->actingAs($admin)
-            ->delete(route('app.invitations.destroy', $foreign))
+            ->delete(route('org.invitations.destroy', $foreign))
             ->assertNotFound();
         $this->assertNull(Invitation::withoutTenantScope()->find($foreign->getKey())->revoked_at);
     }
 
     #[Test]
-    public function members_page_lists_only_own_organisation_members_and_invitations(): void
+    public function users_page_lists_only_own_organisation_accounts_and_invitations(): void
     {
         $admin = $this->createOrganizationAdmin();
         $colleague = $this->createMember($admin->organization, attributes: ['first_name' => 'Efua', 'last_name' => 'Colleague']);
@@ -262,7 +262,7 @@ class InvitationTest extends TestCase
         Invitation::factory()->create(['email' => 'foreign-invite@example.test']);
 
         $this->actingAs($admin)
-            ->get(route('app.members.index'))
+            ->get(route('org.users.index'))
             ->assertOk()
             ->assertSee('Efua Colleague')
             ->assertDontSee('Kwabena Stranger')

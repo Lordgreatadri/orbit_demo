@@ -68,7 +68,7 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - **Queue**: `InvitationNotification` is queued; local `QUEUE_CONNECTION=database` needs `php artisan queue:work` (or `QUEUE_CONNECTION=sync` in `.env`) for e-mails to leave.
 - **Mail** is `log` driver locally; verification/invitation links appear in `storage/logs/laravel.log`.
 - **Browser QA** of the public navigation covered 390, 768, 820, 1024, and 1280 px on 2026-10-26. Auth and app pages still need the same pass in both themes.
-- `routes/tenant.php`, `routes/superadmin.php`, `routes/webhook.php` are inert placeholders; wire them deliberately in Stage 3.
+- `routes/webhook.php` is still an inert placeholder (no inbound providers in this phase). `routes/tenant.php` and `routes/superadmin.php` are wired.
 
 ## Commands executed and observed results (2026-10-26)
 | Command | Result |
@@ -81,5 +81,15 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 | `php84 artisan test --compact` (verification and platform directory) | **92 passed, 558 assertions** |
 | `php84 artisan db:seed --class=SystemDemoUserSeeder` | Re-ran with `updateOrCreate`. Same 10 accounts, no duplicate-key error. Phone confirmation set on those accounts |
 
+## Stage 3 — Workspace shell, access control, and structure (in progress)
+- [x] Split routes by audience: `/org` tenant workspace, `/admin` platform console, `/app` account-neutral landing + profile
+- [x] Fixed left sidebar (does not scroll with the page), expandable Users & access / Audit & security, mobile drawer, labelled coming-soon pages
+- [x] Staff register separate from login accounts; org admins manage users, roles, and permissions; super admins see every account
+- [x] Platform role/permission CRUD; org admins assign any tenant-scoped role including custom ones
+- [x] Audit trail and sign-in history as separate pages (tenant and platform)
+- [x] Mail header uses `public/images/brand/orbit-lockup-light.png` with `alt="ORBIT"`
+- [ ] Logo upload — deferred (needs media decision)
+- [ ] Attendance / QR / field / schedules / leave / notifications / analytics — labelled placeholders only
+
 ## Recommended next task
-Stage 3 — Tenant security hardening and the rest of the EPA demo: (1) decide the `app/Modules` layout and apply it in one mechanical move; (2) platform admin area (`routes/superadmin.php`) with `platform_super_admin` guard, organisation list/suspend, impersonation decision; (3) attendance modules that read the demo locations and departments already stored on the EPA organisation (districts from `ghana-districts.json` only if a location module needs them); (4) browser QA of the remaining auth and app pages in both themes.
+Stage 4 — Attendance module (QR sessions and field check-in) using the seeded EPA demo locations and departments. Do not implement billing, payroll, BLE, biometrics, or live EPA integrations.

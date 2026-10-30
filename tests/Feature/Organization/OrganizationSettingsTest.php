@@ -34,14 +34,14 @@ class OrganizationSettingsTest extends TestCase
         $organization = $admin->organization;
 
         $this->actingAs($admin)
-            ->get(route('app.organizations.edit', $organization))
+            ->get(route('org.organizations.edit', $organization))
             ->assertOk()
             ->assertSee($organization->name)
             ->assertSee($organization->uuid);
 
         $this->actingAs($admin)
-            ->put(route('app.organizations.update', $organization), $this->payload())
-            ->assertRedirect(route('app.organizations.edit', $organization))
+            ->put(route('org.organizations.update', $organization), $this->payload())
+            ->assertRedirect(route('org.organizations.edit', $organization))
             ->assertSessionHas('status');
 
         $organization->refresh();
@@ -63,11 +63,11 @@ class OrganizationSettingsTest extends TestCase
         $admin = $this->createOrganizationAdmin();
         $organization = $admin->organization;
 
-        $this->assertStringContainsString($organization->uuid, route('app.organizations.edit', $organization));
-        $this->assertStringNotContainsString('/'.$organization->getKey().'/', route('app.organizations.edit', $organization));
+        $this->assertStringContainsString($organization->uuid, route('org.organizations.edit', $organization));
+        $this->assertStringNotContainsString('/'.$organization->getKey().'/', route('org.organizations.edit', $organization));
 
-        $this->actingAs($admin)->get('/app/organisations/'.$organization->getKey().'/settings')->assertNotFound();
-        $this->actingAs($admin)->get('/app/organisations/not-a-uuid/settings')->assertNotFound();
+        $this->actingAs($admin)->get('/org/organisation/'.$organization->getKey().'/settings')->assertNotFound();
+        $this->actingAs($admin)->get('/org/organisation/not-a-uuid/settings')->assertNotFound();
     }
 
     #[Test]
@@ -76,10 +76,10 @@ class OrganizationSettingsTest extends TestCase
         $admin = $this->createOrganizationAdmin();
         $other = Organization::factory()->create(['name' => 'Other Tenant Ltd']);
 
-        $this->actingAs($admin)->get(route('app.organizations.edit', $other))->assertForbidden();
+        $this->actingAs($admin)->get(route('org.organizations.edit', $other))->assertForbidden();
 
         $this->actingAs($admin)
-            ->put(route('app.organizations.update', $other), $this->payload())
+            ->put(route('org.organizations.update', $other), $this->payload())
             ->assertForbidden();
 
         $this->assertSame('Other Tenant Ltd', $other->fresh()->name);
@@ -90,8 +90,8 @@ class OrganizationSettingsTest extends TestCase
     {
         $member = $this->createMember();
 
-        $this->actingAs($member)->get(route('app.organizations.edit', $member->organization))->assertForbidden();
-        $this->actingAs($member)->put(route('app.organizations.update', $member->organization), $this->payload())->assertForbidden();
+        $this->actingAs($member)->get(route('org.organizations.edit', $member->organization))->assertForbidden();
+        $this->actingAs($member)->put(route('org.organizations.update', $member->organization), $this->payload())->assertForbidden();
     }
 
     #[Test]
@@ -99,11 +99,11 @@ class OrganizationSettingsTest extends TestCase
     {
         $manager = $this->createMember(role: 'organization_manager');
 
-        $this->actingAs($manager)->get(route('app.organizations.edit', $manager->organization))
+        $this->actingAs($manager)->get(route('org.organizations.edit', $manager->organization))
             ->assertOk()
             ->assertSee('only an organisation administrator can change them');
 
-        $this->actingAs($manager)->put(route('app.organizations.update', $manager->organization), $this->payload())->assertForbidden();
+        $this->actingAs($manager)->put(route('org.organizations.update', $manager->organization), $this->payload())->assertForbidden();
     }
 
     #[Test]
@@ -112,15 +112,15 @@ class OrganizationSettingsTest extends TestCase
         $admin = $this->createOrganizationAdmin();
 
         $this->actingAs($admin)
-            ->from(route('app.organizations.edit', $admin->organization))
-            ->put(route('app.organizations.update', $admin->organization), $this->payload([
+            ->from(route('org.organizations.edit', $admin->organization))
+            ->put(route('org.organizations.update', $admin->organization), $this->payload([
                 'name' => 'A',
                 'type' => 'nope',
                 'timezone' => 'Nowhere/Land',
                 'contact_email' => 'bad',
                 'contact_phone' => 'phone',
             ]))
-            ->assertRedirect(route('app.organizations.edit', $admin->organization))
+            ->assertRedirect(route('org.organizations.edit', $admin->organization))
             ->assertSessionHasErrors(['name', 'type', 'timezone', 'contact_email', 'contact_phone']);
     }
 
@@ -129,6 +129,6 @@ class OrganizationSettingsTest extends TestCase
     {
         $organization = Organization::factory()->create();
 
-        $this->get(route('app.organizations.edit', $organization))->assertRedirect(route('login'));
+        $this->get(route('org.organizations.edit', $organization))->assertRedirect(route('login'));
     }
 }

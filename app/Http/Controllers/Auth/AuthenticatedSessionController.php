@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Support\Audit;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,10 +27,7 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
-        if ($user = $request->user()) {
-            Audit::log('auth.logout', $user, [], $user);
-        }
-
+        // The Logout event is recorded in login_events by RecordLoginEvent.
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

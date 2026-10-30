@@ -4,20 +4,34 @@ namespace App\Providers;
 
 use App\Contracts\SmsSender;
 use App\Integrations\Sms\LogSmsSender;
+use App\Listeners\RecordLoginEvent;
+use App\Models\Department;
 use App\Models\Invitation;
+use App\Models\Location;
 use App\Models\Organization;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\StaffMember;
 use App\Models\User;
+use App\Policies\DepartmentPolicy;
 use App\Policies\InvitationPolicy;
+use App\Policies\LocationPolicy;
 use App\Policies\OrganizationPolicy;
+use App\Policies\PermissionPolicy;
+use App\Policies\RolePolicy;
+use App\Policies\StaffMemberPolicy;
 use App\Policies\UserPolicy;
 use App\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configurePasswords();
         $this->configureRateLimiting();
         $this->configurePolicies();
+        $this->configureRouteBindings();
+        $this->configureEvents();
         $this->configureQueueTenantReset();
     }
 
@@ -66,6 +82,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('phone-otp', fn (Request $request) => Limit::perMinute(5)->by($request->user()?->getKey() ?: $request->ip()));
         RateLimiter::for('invitation-accept', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('invitation-send', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip()));
+        // Access-control writes (roles, permissions, status) are low-volume by nature.
+        RateLimiter::for('access-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
     }
 
     private function configurePolicies(): void
@@ -73,6 +91,37 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(Invitation::class, InvitationPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(StaffMember::class, StaffMemberPolicy::class);
+        Gate::policy(Department::class, DepartmentPolicy::class);
+        Gate::policy(Location::class, LocationPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Permission::class, PermissionPolicy::class);
+    }
+
+    /**
+     * Tenant screens address user accounts by UUID but must never resolve a
+     * user from another organisation; a foreign or malformed UUID is a 404.
+     * (StaffMember, Department, Location, Invitation are scoped by their global
+     * scope; User is not tenant-owned by trait because platform accounts exist.)
+     */
+    private function configureRouteBindings(): void
+    {
+        Route::bind('orgUser', function (string $value): User {
+            abort_unless(Str::isUuid($value), 404);
+
+            $tenantId = $this->app->make(TenantContext::class)->id();
+            abort_if($tenantId === null, 404);
+
+            return User::query()
+                ->where('organization_id', $tenantId)
+                ->where('uuid', $value)
+                ->firstOrFail();
+        });
+    }
+
+    private function configureEvents(): void
+    {
+        Event::subscribe(RecordLoginEvent::class);
     }
 
     /**

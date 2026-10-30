@@ -14,4 +14,13 @@ enum UserStatus: string
             self::Suspended => 'Suspended',
         };
     }
+
+    /** Badge tone used by the UI. */
+    public function tone(): string
+    {
+        return match ($this) {
+            self::Active => 'success',
+            self::Suspended => 'danger',
+        };
+    }
 }

@@ -49,7 +49,7 @@
                     <div class="p-5">
                         <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             @foreach ([['Present', 'success', 'bg-success w-4/5'], ['Late', 'warning', 'bg-warning w-2/5'], ['Absent', 'danger', 'bg-danger w-1/5'], ['On leave', 'accent', 'bg-accent w-1/4']] as [$label, $tone, $bar])
-                                <div class="rounded-xl border border-edge bg-page p-3">
+                                <div class="rounded-xl border border-edge bg-page p-3 shadow-float">
                                     <dt class="text-xs font-medium text-fg-muted">{{ $label }}</dt>
                                     <dd class="mt-2"><x-badge :tone="$tone">{{ $label }}</x-badge></dd>
                                     <dd class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted" aria-hidden="true">
@@ -59,7 +59,7 @@
                             @endforeach
                         </dl>
 
-                        <ul class="mt-4 divide-y divide-edge rounded-xl border border-edge">
+                        <ul class="mt-4 divide-y divide-edge rounded-xl border border-edge shadow-float">
                             @foreach ([
                                 ['Head office', 'QR session · location verified', 'qr', 'bg-success'],
                                 ['Field team', 'GPS check-in · geofence', 'map-pin', 'bg-success'],
@@ -165,7 +165,7 @@
             </div>
 
             <div class="lg:col-span-6">
-                <div class="rounded-3xl border border-edge bg-surface p-7 shadow-card sm:p-9">
+                <div class="rounded-3xl border border-edge bg-surface p-7 shadow-float sm:p-9">
                     <p class="eyebrow">Onboarding</p>
                     <h2 class="mt-3 text-2xl font-semibold tracking-tight text-fg sm:text-3xl">How onboarding works</h2>
                     <ol class="relative mt-8 space-y-7 before:absolute before:top-3 before:bottom-3 before:left-[1.1rem] before:w-px before:bg-edge">
@@ -196,7 +196,7 @@
                         ['eye-off', 'No background tracking', 'Location is captured only on explicit check-in.'],
                         ['document-check', 'Audited actions', 'Administrative changes are recorded.'],
                     ] as [$icon, $title, $text])
-                        <li class="rounded-2xl border border-edge bg-surface-muted/50 p-4">
+                        <li class="card-hover rounded-2xl border border-edge bg-surface-muted/50 p-4">
                             <x-icon :name="$icon" class="size-5 text-primary" />
                             <p class="mt-3 text-sm font-semibold text-fg">{{ $title }}</p>
                             <p class="mt-1 text-sm text-fg-muted">{{ $text }}</p>
