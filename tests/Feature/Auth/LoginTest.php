@@ -31,7 +31,41 @@ class LoginTest extends TestCase
         $response->assertRedirect(route('app.dashboard', absolute: false));
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull($user->fresh()->last_login_at);
-        $this->assertDatabaseHas('activity_log', ['event' => 'auth.login', 'causer_id' => $user->getKey()]);
+
+        // Sign-in history lives in login_events, not in the audit trail.
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'login',
+            'user_id' => $user->getKey(),
+            'organization_id' => $user->organization_id,
+            'email' => $user->email,
+        ]);
+        $this->assertDatabaseMissing('activity_log', ['event' => 'auth.login']);
+    }
+
+    #[Test]
+    public function failed_attempts_and_lockouts_are_recorded_in_login_history(): void
+    {
+        $user = $this->createOrganizationAdmin();
+
+        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password']);
+
+        $this->assertDatabaseHas('login_events', ['event' => 'failed', 'user_id' => $user->getKey(), 'email' => $user->email]);
+
+        $this->post(route('login.store'), ['email' => 'nobody@example.test', 'password' => 'wrong-password']);
+
+        $this->assertDatabaseHas('login_events', ['event' => 'failed', 'user_id' => null, 'organization_id' => null, 'email' => 'nobody@example.test']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password']);
+        }
+
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'lockout',
+            'email' => $user->email,
+            'user_id' => $user->getKey(),
+            'organization_id' => $user->organization_id,
+        ]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
     }
 
     #[Test]
@@ -109,11 +143,11 @@ class LoginTest extends TestCase
         $organization = Organization::factory()->create();
         $user = $this->createOrganizationAdmin($organization);
 
-        $this->actingAs($user)->get(route('app.dashboard'))->assertOk();
+        $this->actingAs($user)->get(route('org.dashboard'))->assertOk();
 
         $organization->forceFill(['status' => 'suspended'])->save();
 
-        $this->get(route('app.dashboard'))->assertRedirect(route('login'));
+        $this->get(route('org.dashboard'))->assertRedirect(route('login'));
         $this->assertGuest();
     }
 
@@ -124,13 +158,17 @@ class LoginTest extends TestCase
 
         $this->actingAs($user)->post(route('logout'))->assertRedirect(route('home'));
         $this->assertGuest();
+        $this->assertDatabaseHas('login_events', ['event' => 'logout', 'user_id' => $user->getKey()]);
     }
 
     #[Test]
     public function guests_are_redirected_from_protected_pages(): void
     {
         $this->get(route('app.dashboard'))->assertRedirect(route('login'));
-        $this->get(route('app.members.index'))->assertRedirect(route('login'));
-        $this->post(route('app.invitations.store'))->assertRedirect(route('login'));
+        $this->get(route('org.dashboard'))->assertRedirect(route('login'));
+        $this->get(route('org.users.index'))->assertRedirect(route('login'));
+        $this->post(route('org.invitations.store'))->assertRedirect(route('login'));
+        $this->get(route('admin.dashboard'))->assertRedirect(route('login'));
+        $this->get(route('admin.users.index'))->assertRedirect(route('login'));
     }
 }

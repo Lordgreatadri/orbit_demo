@@ -37,7 +37,10 @@ class SeedingTest extends TestCase
     {
         $this->seed(RolesAndPermissionsSeeder::class);
 
-        foreach (config('orbit.permissions') as $permission => $roles) {
+        foreach (config('orbit.permissions') as $permission => [$description, $roles]) {
+            $this->assertNotSame('', $description, "Permission [{$permission}] needs a description.");
+            $this->assertSame(Permission::moduleFromName($permission), Permission::findByName($permission)->module);
+
             foreach ($roles as $roleName) {
                 $this->assertTrue(
                     Role::findByName($roleName)->hasPermissionTo($permission),
@@ -46,7 +49,28 @@ class SeedingTest extends TestCase
             }
         }
 
-        $this->assertFalse(Role::findByName('member')->hasPermissionTo('members.invite'));
+        $this->assertFalse(Role::findByName('member')->hasPermissionTo('users.invite'));
         $this->assertFalse(Role::findByName('organization_admin')->hasPermissionTo('platform.access'));
+        $this->assertFalse(Role::findByName('platform_support')->hasPermissionTo('users.view'));
+
+        // Roles carry their scope and are marked as system-managed.
+        $this->assertSame('platform', Role::findByName('platform_super_admin')->scope->value);
+        $this->assertSame('tenant', Role::findByName('organization_admin')->scope->value);
+        $this->assertTrue(Role::findByName('member')->is_system);
+        $this->assertTrue(Permission::findByName('platform.access')->is_system);
+    }
+
+    #[Test]
+    public function platform_permissions_are_never_granted_to_tenant_roles(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        foreach (Role::query()->tenant()->get() as $role) {
+            $this->assertSame(
+                0,
+                $role->permissions()->where('module', 'platform')->count(),
+                "Tenant role [{$role->name}] must not hold platform permissions."
+            );
+        }
     }
 }

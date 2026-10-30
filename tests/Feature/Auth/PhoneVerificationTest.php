@@ -55,7 +55,7 @@ class PhoneVerificationTest extends TestCase
             ->assertRedirect(route('app.dashboard', absolute: false));
 
         $this->assertNotNull($user->fresh()->phone_verified_at);
-        $this->actingAs($user->fresh())->get(route('app.dashboard'))->assertOk();
+        $this->actingAs($user->fresh())->get(route('app.dashboard'))->assertRedirect(route('org.dashboard'));
     }
 
     #[Test]

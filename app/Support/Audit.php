@@ -24,8 +24,14 @@ class Audit
         ?int $organizationId = null,
         string $logName = 'orbit',
     ): Activity {
+        // Not every subject is tenant-owned (roles, permissions); avoid the strict
+        // missing-attribute exception by checking the loaded attributes first.
+        $subjectOrganizationId = $subject !== null && array_key_exists('organization_id', $subject->getAttributes())
+            ? $subject->getAttributes()['organization_id']
+            : null;
+
         $organizationId ??= $causer?->organization_id
-            ?? ($subject?->getAttribute('organization_id'))
+            ?? $subjectOrganizationId
             ?? app(TenantContext::class)->id();
 
         $logger = activity($logName)->event($event)->withProperties($properties);

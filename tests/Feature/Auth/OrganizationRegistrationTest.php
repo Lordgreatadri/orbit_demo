@@ -59,7 +59,7 @@ class OrganizationRegistrationTest extends TestCase
         $this->assertSame(config('orbit.terms_version'), $user->terms_version);
         $this->assertTrue($user->hasRole('organization_admin'));
         $this->assertTrue($user->can('organization.update'));
-        $this->assertTrue($user->can('members.invite'));
+        $this->assertTrue($user->can('users.invite'));
 
         Notification::assertSentTo($user, VerifyEmail::class);
 

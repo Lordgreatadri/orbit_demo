@@ -19,6 +19,17 @@ enum OrganizationStatus: string
         };
     }
 
+    /** Badge tone used by the UI. */
+    public function tone(): string
+    {
+        return match ($this) {
+            self::PendingVerification => 'warning',
+            self::Active => 'success',
+            self::Suspended => 'danger',
+            self::Closed => 'neutral',
+        };
+    }
+
     public function isOperational(): bool
     {
         return in_array($this, [self::PendingVerification, self::Active], true);

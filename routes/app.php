@@ -1,35 +1,23 @@
 <?php
 
-use App\Http\Controllers\App\DashboardController;
-use App\Http\Controllers\App\InvitationController;
-use App\Http\Controllers\App\MemberController;
-use App\Http\Controllers\App\OrganizationSettingsController;
+use App\Http\Controllers\App\ProfileController;
+use App\Http\Controllers\App\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated application
+| Account-neutral authenticated routes
 |--------------------------------------------------------------------------
-| Externally addressable entities are bound by UUID. Tenant context is set by
-| the global SetTenantContext middleware; policies re-check organisation
-| membership on every action.
+| /app is the single post-login landing point. It sends organisation accounts
+| to the organisation workspace (routes/tenant.php) and platform accounts to
+| the platform console (routes/superadmin.php). Pages that belong to the
+| signed-in person regardless of account type (profile) also live here.
 */
 
-$middleware = ['auth', 'account.operational', 'identity.verified'];
-
-Route::prefix('app')->middleware($middleware)->name('app.')->group(function (): void {
-    Route::get('/', DashboardController::class)->name('dashboard');
-
-    Route::get('/organisations/{organization:uuid}/settings', [OrganizationSettingsController::class, 'edit'])
-        ->name('organizations.edit');
-    Route::put('/organisations/{organization:uuid}/settings', [OrganizationSettingsController::class, 'update'])
-        ->name('organizations.update');
-
-    Route::get('/members', [MemberController::class, 'index'])->name('members.index');
-
-    Route::post('/invitations', [InvitationController::class, 'store'])
-        ->middleware('throttle:invitation-send')
-        ->name('invitations.store');
-    Route::delete('/invitations/{invitation:uuid}', [InvitationController::class, 'destroy'])
-        ->name('invitations.destroy');
-});
+Route::prefix('app')
+    ->middleware(['auth', 'account.operational', 'identity.verified'])
+    ->name('app.')
+    ->group(function (): void {
+        Route::get('/', WorkspaceController::class)->name('dashboard');
+        Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
+    });

@@ -48,6 +48,8 @@
 
     --focus: #0f766e;
     --shadow: 0 1px 2px rgb(16 33 43 / 0.06), 0 4px 16px -8px rgb(16 33 43 / 0.12);
+    /* "Floating" card: a soft contact shadow plus a wider, faint ambient shadow. */
+    --shadow-float: 0 1px 1px rgb(16 33 43 / 0.04), 0 6px 14px -6px rgb(16 33 43 / 0.14), 0 14px 32px -18px rgb(16 33 43 / 0.18);
     --shadow-lift: 0 2px 4px rgb(16 33 43 / 0.06), 0 18px 40px -16px rgb(16 33 43 / 0.22);
 
     /* Brand constants shared by both themes (taken from the ORBIT logo lockups). */
@@ -97,6 +99,7 @@
 
     --focus: #63e0d0;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+    --shadow-float: 0 1px 1px rgb(0 0 0 / 0.3), 0 8px 18px -8px rgb(0 0 0 / 0.5), 0 18px 40px -20px rgb(0 0 0 / 0.6);
     --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -16px rgb(0 0 0 / 0.65);
 
     --mesh-a: rgb(52 209 189 / 0.16);
@@ -147,6 +150,7 @@
     --color-brand-mint: var(--brand-mint);
 
     --shadow-card: var(--shadow);
+    --shadow-float: var(--shadow-float);
     --shadow-lift: var(--shadow-lift);
 }
 
@@ -190,6 +194,23 @@
 
     [x-cloak] {
         display: none !important;
+    }
+
+    /*
+     * Tailwind 4 preflight resets buttons to `cursor: default`. Interactive
+     * controls should read as clickable everywhere in the product.
+     */
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']),
+    input[type='submit']:not(:disabled),
+    input[type='button']:not(:disabled),
+    select:not(:disabled),
+    summary,
+    label[for],
+    label:has(input),
+    label:has(select),
+    label:has(textarea) {
+        cursor: pointer;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -241,13 +262,55 @@
         color: transparent;
     }
 
+    /*
+     * Standard surface card. Every card in the product sits slightly above the
+     * page (shadow-float) so grouped content reads as discrete, "floating" panels.
+     */
+    .card {
+        @apply border-edge bg-surface shadow-float rounded-xl border;
+    }
+
     /* Card that lifts on hover; respects reduced-motion via the base layer. */
     .card-hover {
-        @apply transition-[transform,box-shadow,border-color] duration-300 ease-out;
+        @apply shadow-float transition-[transform,box-shadow,border-color] duration-300 ease-out;
     }
 
     .card-hover:hover {
         @apply border-primary/40 shadow-lift -translate-y-0.5;
+    }
+
+    /* Links that behave like cards (whole surface is the target). */
+    .card-link {
+        @apply border-edge bg-surface shadow-float block rounded-xl border transition-[transform,box-shadow,border-color] duration-300 ease-out focus-visible:outline-2;
+    }
+
+    .card-link:hover {
+        @apply border-primary/40 shadow-lift -translate-y-0.5;
+    }
+
+    /* Dense table used across the authenticated workspace. */
+    .data-table {
+        @apply w-full text-left text-sm;
+    }
+
+    .data-table thead {
+        @apply bg-surface-muted text-fg-muted text-xs tracking-wide uppercase;
+    }
+
+    .data-table th {
+        @apply px-4 py-3 font-medium;
+    }
+
+    .data-table td {
+        @apply px-4 py-3 align-top;
+    }
+
+    .data-table tbody {
+        @apply divide-edge divide-y;
+    }
+
+    .data-table tbody tr:hover {
+        @apply bg-surface-muted/50;
     }
 
     .eyebrow {

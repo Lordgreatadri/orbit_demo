@@ -74,9 +74,9 @@ class DemoSeederTest extends TestCase
 
         $expectations = [
             'platform.admin@orbit-demo.test' => ['platform_super_admin', null, 'platform.access'],
-            'platform.support@orbit-demo.test' => ['platform_support', null, 'members.view'],
-            'ama.mensah@epa.orbit-demo.test' => ['organization_admin', $epa->getKey(), 'members.invite'],
-            'esi.quaye@epa.orbit-demo.test' => ['organization_manager', $epa->getKey(), 'members.view'],
+            'platform.support@orbit-demo.test' => ['platform_support', null, 'platform.users.view'],
+            'ama.mensah@epa.orbit-demo.test' => ['organization_admin', $epa->getKey(), 'users.invite'],
+            'esi.quaye@epa.orbit-demo.test' => ['organization_manager', $epa->getKey(), 'users.view'],
             'kojo.appiah@epa.orbit-demo.test' => ['member', $epa->getKey(), null],
             'abena.darko@epa.orbit-demo.test' => ['member', $epa->getKey(), null],
             'akua.sarpong@upsa.orbit-demo.test' => ['organization_admin', $upsa->getKey(), 'organization.update'],
@@ -103,10 +103,10 @@ class DemoSeederTest extends TestCase
             }
         }
 
-        $this->assertFalse(User::query()->where('email', 'esi.quaye@epa.orbit-demo.test')->firstOrFail()->hasPermissionTo('members.invite'));
-        $this->assertFalse(User::query()->where('email', 'maame.owusu@upsa.orbit-demo.test')->firstOrFail()->hasPermissionTo('members.manage'));
+        $this->assertFalse(User::query()->where('email', 'esi.quaye@epa.orbit-demo.test')->firstOrFail()->hasPermissionTo('users.invite'));
+        $this->assertFalse(User::query()->where('email', 'maame.owusu@upsa.orbit-demo.test')->firstOrFail()->hasPermissionTo('users.manage'));
         $this->assertFalse(User::query()->where('email', 'kojo.appiah@epa.orbit-demo.test')->firstOrFail()->hasPermissionTo('platform.access'));
-        $this->assertFalse(User::query()->where('email', 'platform.support@orbit-demo.test')->firstOrFail()->hasPermissionTo('members.manage'));
+        $this->assertFalse(User::query()->where('email', 'platform.support@orbit-demo.test')->firstOrFail()->hasPermissionTo('users.manage'));
 
         DemoAccount::user([
             'first_name' => 'Ama',

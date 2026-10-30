@@ -8,7 +8,7 @@
     @endphp
 
     <div class="space-y-4">
-        <section class="rounded-xl border border-edge bg-surface p-5" aria-labelledby="verify-email-heading">
+        <section class="rounded-xl border border-edge bg-surface p-5 shadow-float" aria-labelledby="verify-email-heading">
             <h2 id="verify-email-heading" class="text-base font-semibold text-fg">Verify your e-mail address</h2>
             @if (! $emailRequired || $account->hasVerifiedEmail())
                 <p class="mt-2 text-sm text-fg-muted">{{ $account->email }} is confirmed.</p>
@@ -22,7 +22,7 @@
             @endif
         </section>
 
-        <section class="rounded-xl border border-edge bg-surface p-5" aria-labelledby="verify-phone-heading">
+        <section class="rounded-xl border border-edge bg-surface p-5 shadow-float" aria-labelledby="verify-phone-heading">
             <h2 id="verify-phone-heading" class="text-base font-semibold text-fg">Verify your phone</h2>
             @if (! $phoneRequired || $account->hasVerifiedPhone())
                 <p class="mt-2 text-sm text-fg-muted">{{ $account->phone ?: 'No phone number' }} is confirmed.</p>

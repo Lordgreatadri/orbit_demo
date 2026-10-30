@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\RoleScope;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
@@ -9,6 +10,10 @@ use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Idempotent: safe to run on every deploy. Source of truth is config/orbit.php.
+ *
+ * Only rows flagged `is_system` are managed here. Roles and permissions created
+ * by a platform super administrator (is_system = false) are left untouched, and
+ * system permissions that disappear from config are removed.
  */
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -18,19 +23,33 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $guard = config('auth.defaults.guard', 'web');
 
-        $roleNames = array_merge(
-            array_keys(config('orbit.roles.platform', [])),
-            array_keys(config('orbit.roles.tenant', [])),
-        );
-
+        /** @var array<string, Role> $roles */
         $roles = [];
 
-        foreach ($roleNames as $name) {
-            $roles[$name] = Role::findOrCreate($name, $guard);
+        foreach (['platform' => RoleScope::Platform, 'tenant' => RoleScope::Tenant] as $key => $scope) {
+            foreach (config("orbit.roles.{$key}", []) as $name => $label) {
+                $role = Role::query()->firstOrNew(['name' => $name, 'guard_name' => $guard]);
+                $role->forceFill([
+                    'scope' => $scope,
+                    'description' => config('orbit.role_descriptions.'.$name),
+                    'is_system' => true,
+                ])->save();
+
+                $roles[$name] = $role;
+            }
         }
 
-        foreach (config('orbit.permissions', []) as $permissionName => $grantedTo) {
-            $permission = Permission::findOrCreate($permissionName, $guard);
+        $configured = [];
+
+        foreach (config('orbit.permissions', []) as $permissionName => [$description, $grantedTo]) {
+            $configured[] = $permissionName;
+
+            $permission = Permission::query()->firstOrNew(['name' => $permissionName, 'guard_name' => $guard]);
+            $permission->forceFill([
+                'module' => Permission::moduleFromName($permissionName),
+                'description' => $description,
+                'is_system' => true,
+            ])->save();
 
             foreach ($grantedTo as $roleName) {
                 if (isset($roles[$roleName]) && ! $roles[$roleName]->hasPermissionTo($permission)) {
@@ -38,6 +57,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 }
             }
         }
+
+        // Retired system permissions (renamed or removed from config).
+        Permission::query()
+            ->where('guard_name', $guard)
+            ->where('is_system', true)
+            ->whereNotIn('name', $configured)
+            ->get()
+            ->each(fn (Permission $stale) => $stale->delete());
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

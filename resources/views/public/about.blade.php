@@ -23,7 +23,7 @@
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="grid gap-12 lg:grid-cols-12">
             <aside class="lg:col-span-3">
-                <nav aria-label="On this page" class="rounded-2xl border border-edge bg-surface p-5 lg:sticky lg:top-28">
+                <nav aria-label="On this page" class="rounded-2xl border border-edge bg-surface p-5 shadow-float lg:sticky lg:top-28">
                     <p class="text-xs font-semibold tracking-[0.14em] text-fg uppercase">On this page</p>
                     <ul class="mt-4 space-y-1 text-[0.9375rem]">
                         @foreach ($sections as $id => $label)
@@ -44,7 +44,7 @@
                         ['document-check', 'Manager / approver', 'Permissions for defined workflows such as leave approval.'],
                         ['users', 'Member', 'An employee, staff member, student, lecturer, or field officer, depending on your institution.'],
                     ] as [$icon, $title, $text])
-                        <li class="rounded-2xl border border-edge bg-surface p-5">
+                        <li class="card-hover rounded-2xl border border-edge bg-surface p-5">
                             <span class="grid size-10 place-items-center rounded-lg bg-primary-soft text-primary"><x-icon :name="$icon" class="size-5" /></span>
                             <h3 class="mt-4 font-semibold text-fg">{{ $title }}</h3>
                             <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-fg-muted">{{ $text }}</p>
@@ -62,7 +62,7 @@
                         'The member signs in on their phone browser and scans the code.',
                         'The server verifies the session, expiry, organisation, location, member eligibility, and duplicate rules before recording attendance.',
                     ] as $i => $step)
-                        <li class="flex gap-4 rounded-2xl border border-edge bg-surface p-5">
+                        <li class="card-hover flex gap-4 rounded-2xl border border-edge bg-surface p-5">
                             <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-fg">{{ $i + 1 }}</span>
                             <p class="text-[0.9375rem] leading-relaxed text-fg-muted">{{ $step }}</p>
                         </li>
@@ -79,7 +79,7 @@
                         'Coordinates and reported accuracy are sent once, and the server checks them against the approved geofence.',
                         'The result — accepted or rejected with a clear reason — is recorded.',
                     ] as $i => $step)
-                        <li class="flex gap-4 rounded-2xl border border-edge bg-surface p-5">
+                        <li class="card-hover flex gap-4 rounded-2xl border border-edge bg-surface p-5">
                             <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-fg">{{ $i + 1 }}</span>
                             <p class="text-[0.9375rem] leading-relaxed text-fg-muted">{{ $step }}</p>
                         </li>
@@ -106,7 +106,7 @@
                         ['id-card', 'Public links use non-sequential identifiers.'],
                         ['document-check', 'Administrative actions are recorded in an audit trail.'],
                     ] as [$icon, $text])
-                        <li class="flex gap-4 rounded-2xl border border-edge bg-surface p-5">
+                        <li class="card-hover flex gap-4 rounded-2xl border border-edge bg-surface p-5">
                             <span class="grid size-10 shrink-0 place-items-center rounded-lg bg-success-soft text-success"><x-icon :name="$icon" class="size-5" /></span>
                             <p class="text-[0.9375rem] leading-relaxed text-fg-muted">{{ $text }}</p>
                         </li>

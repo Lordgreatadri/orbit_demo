@@ -3,6 +3,7 @@
 namespace App\Actions\Invitations;
 
 use App\Models\Invitation;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\InvitationNotification;
 use App\Support\Audit;
@@ -24,7 +25,7 @@ class CreateInvitation
             throw ValidationException::withMessages(['email' => __('Only organisation accounts can invite members.')]);
         }
 
-        if (! in_array($role, config('orbit.invitable_roles', []), true)) {
+        if (! Role::query()->tenant()->where('name', $role)->exists()) {
             throw ValidationException::withMessages(['role' => __('That role cannot be granted by invitation.')]);
         }
 

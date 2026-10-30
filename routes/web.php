@@ -21,5 +21,4 @@ Route::post('/contact', [ContactController::class, 'store'])
     ->middleware('throttle:contact')
     ->name('contact.store');
 
-require __DIR__.'/auth.php';
-require __DIR__.'/app.php';
+// auth.php, app.php, tenant.php and superadmin.php are registered in bootstrap/app.php.
