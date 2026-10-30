@@ -20,7 +20,7 @@
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="grid gap-12 lg:grid-cols-12">
             <aside class="lg:col-span-3">
-                <nav aria-label="Guide sections" class="rounded-2xl border border-edge bg-surface p-5 lg:sticky lg:top-28">
+                <nav aria-label="Guide sections" class="rounded-2xl border border-edge bg-surface p-5 shadow-float lg:sticky lg:top-28">
                     <p class="text-xs font-semibold tracking-[0.14em] text-fg uppercase">On this page</p>
                     <ul class="mt-4 space-y-1 text-[0.9375rem]">
                         @foreach ($sections as $id => [$icon, $label])
@@ -38,7 +38,7 @@
                 </nav>
             </aside>
 
-            <div class="prose-orbit lg:col-span-9">
+            <div class="prose-orbit card p-6 sm:p-8 lg:col-span-9">
                 <h2 id="register">Register your organisation</h2>
                 <ol>
                     <li>Open <a href="{{ route('register') }}">Register your organisation</a>.</li>
@@ -59,7 +59,7 @@
 
                 <h2 id="invite">Invite members</h2>
                 <ol>
-                    <li>Open <em>Members</em> and choose <em>Invite member</em>.</li>
+                    <li>Open <em>Users &amp; access → User accounts</em> and choose <em>Invite user</em>.</li>
                     <li>Enter the person's e-mail address and choose a role.</li>
                     <li>They receive an e-mail with a single-use link that expires after {{ config('orbit.invitation_ttl_days') }} days.</li>
                     <li>When they open the link they set their name and password and join your organisation with the role you chose.</li>
@@ -70,7 +70,7 @@
                 <p>Use the theme button in the header to switch between the default light theme and the deep teal theme. Your choice is remembered on this device.</p>
 
                 <h2 id="planned">Planned modules</h2>
-                <p>Locations and departments, attendance sessions and QR check-in, field monitoring, schedules, leave, notifications, and analytics are delivered in later stages. This guide is updated as each module becomes available.</p>
+                <p>The staff register, user accounts, roles, locations, and departments are available now. Attendance sessions and QR check-in, field monitoring, schedules, leave, notifications, and analytics are delivered in later stages. This guide is updated as each module becomes available.</p>
             </div>
         </div>
     </div>

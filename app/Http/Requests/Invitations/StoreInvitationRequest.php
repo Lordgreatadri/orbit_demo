@@ -26,7 +26,7 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email:rfc', 'max:255'],
-            'role' => ['required', 'string', Rule::in(config('orbit.invitable_roles', []))],
+            'role' => ['required', 'string', Rule::exists('roles', 'name')->where('scope', 'tenant')],
         ];
     }
 }

@@ -21,6 +21,7 @@
         class="sticky top-0 z-40 border-b border-edge/80 bg-surface/85 backdrop-blur-md supports-[backdrop-filter]:bg-surface/70"
         x-data="{ open: false, scrolled: false }"
         @scroll.window.passive="scrolled = window.scrollY > 8"
+        x-effect="document.documentElement.classList.toggle('overflow-hidden', open)"
         :class="scrolled && 'shadow-[0_1px_0_0_var(--edge),0_8px_24px_-16px_rgb(0_0_0/0.25)]'"
     >
         <div class="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
@@ -57,7 +58,7 @@
                 </div>
                 <button
                     type="button"
-                    class="inline-flex size-10 items-center justify-center rounded-lg border border-edge text-fg-muted lg:hidden"
+                    class="inline-flex size-10 items-center justify-center rounded-lg border border-edge text-fg-muted hover:bg-surface-muted hover:text-fg lg:hidden"
                     @click="open = !open"
                     :aria-expanded="open.toString()"
                     aria-controls="mobile-nav"
@@ -69,7 +70,7 @@
             </div>
         </div>
 
-        <nav id="mobile-nav" aria-label="Mobile" x-show="open" x-cloak x-transition.opacity @keydown.escape.window="open = false" class="border-t border-edge bg-surface px-4 py-4 lg:hidden">
+        <nav id="mobile-nav" aria-label="Mobile" x-show="open" x-cloak x-transition.opacity @keydown.escape.window="open = false" class="border-t border-edge bg-surface px-4 py-4 shadow-float lg:hidden">
             <ul class="space-y-1">
                 @foreach ($primaryNav as $routeName => $label)
                     <li>

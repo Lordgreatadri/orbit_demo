@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
-use App\Support\Audit;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -70,9 +69,9 @@ class LoginRequest extends FormRequest
 
         RateLimiter::clear($this->throttleKey());
 
+        // Sign-in history (login_events) is written by RecordLoginEvent from the
+        // framework's auth events; the audit trail is reserved for data changes.
         $user->forceFill(['last_login_at' => now()])->save();
-
-        Audit::log('auth.login', $user, ['ip' => $this->ip()], $user);
 
         return $user;
     }

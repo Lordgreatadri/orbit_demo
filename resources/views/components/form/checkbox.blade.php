@@ -3,7 +3,7 @@
 @php $hasError = $errors->has($name); @endphp
 
 <div {{ $attributes->merge(['class' => 'space-y-1.5']) }}>
-    <label class="flex items-start gap-3 text-sm text-fg">
+    <label for="{{ $name }}" class="flex cursor-pointer items-start gap-3 text-sm text-fg">
         <input
             id="{{ $name }}"
             name="{{ $name }}"

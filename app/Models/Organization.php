@@ -55,6 +55,31 @@ class Organization extends Model
         return $this->hasMany(Invitation::class);
     }
 
+    public function departments(): HasMany
+    {
+        return $this->hasMany(Department::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(Location::class);
+    }
+
+    public function staffMembers(): HasMany
+    {
+        return $this->hasMany(StaffMember::class);
+    }
+
+    public function loginEvents(): HasMany
+    {
+        return $this->hasMany(LoginEvent::class);
+    }
+
+    public function isDemo(): bool
+    {
+        return (bool) ($this->settings['demo'] ?? false);
+    }
+
     public function isActive(): bool
     {
         return $this->status === OrganizationStatus::Active;

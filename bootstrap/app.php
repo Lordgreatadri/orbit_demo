@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAccountIsOperational;
 use App\Http\Middleware\EnsureIdentityIsVerified;
+use App\Http\Middleware\EnsurePlatformUser;
+use App\Http\Middleware\EnsureTenantUser;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -11,7 +13,19 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
+        // Route files are split by audience (ADR-0010):
+        //   web.php        public pages
+        //   auth.php       guest + verification flows
+        //   app.php        account-neutral authenticated routes (/app)
+        //   tenant.php     organisation workspace (/org, name org.*)
+        //   superadmin.php platform console (/admin, name admin.*)
+        web: [
+            __DIR__.'/../routes/web.php',
+            __DIR__.'/../routes/auth.php',
+            __DIR__.'/../routes/app.php',
+            __DIR__.'/../routes/tenant.php',
+            __DIR__.'/../routes/superadmin.php',
+        ],
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -27,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'account.operational' => EnsureAccountIsOperational::class,
             'identity.verified' => EnsureIdentityIsVerified::class,
+            'tenant' => EnsureTenantUser::class,
+            'platform' => EnsurePlatformUser::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));
