@@ -14,13 +14,32 @@ use Illuminate\Support\Str;
  */
 class OrganizationFactory extends Factory
 {
-    /**
-     * @return array<string, mixed>
-     */
+    /** @var array<int, true> */
+    private static array $skipWorkspaceObjectIds = [];
+
     public function configure(): static
     {
         return $this->afterCreating(function (Organization $organization): void {
+            $objectId = spl_object_id($organization);
+
+            if (isset(self::$skipWorkspaceObjectIds[$objectId])) {
+                unset(self::$skipWorkspaceObjectIds[$objectId]);
+
+                return;
+            }
+
             app(ProvisionOrganizationWorkspace::class)->handle($organization);
+        });
+    }
+
+    /**
+     * Create the organisation row only — used by branding/domain factories
+     * that then attach their own workspace records via updateOrCreate.
+     */
+    public function withoutWorkspace(): static
+    {
+        return $this->afterMaking(function (Organization $organization): void {
+            self::$skipWorkspaceObjectIds[spl_object_id($organization)] = true;
         });
     }
 

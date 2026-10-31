@@ -14,6 +14,13 @@ use Throwable;
  */
 class TrustHostList
 {
+    public const CUSTOM_DOMAINS_CACHE_KEY = 'organization.domains.trusted-custom';
+
+    public static function forgetCustomDomains(): void
+    {
+        Cache::forget(self::CUSTOM_DOMAINS_CACHE_KEY);
+    }
+
     /**
      * @return list<string|null>
      */
@@ -45,7 +52,7 @@ class TrustHostList
                 return [];
             }
 
-            return Cache::remember('organization.domains.trusted-custom', 300, function (): array {
+            return Cache::remember(self::CUSTOM_DOMAINS_CACHE_KEY, 300, function (): array {
                 return OrganizationDomain::query()
                     ->where('type', DomainType::CustomDomain->value)
                     ->where('is_verified', true)

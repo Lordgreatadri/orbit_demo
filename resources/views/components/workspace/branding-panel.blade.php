@@ -51,7 +51,7 @@
                 <x-form.input name="logo_light" type="file" label="Logo for light backgrounds" accept="image/png,image/jpeg,image/webp" />
                 <x-form.input name="logo_dark" type="file" label="Logo for dark backgrounds" accept="image/png,image/jpeg,image/webp" />
                 <x-form.input name="favicon" type="file" label="Favicon" accept="image/png,image/x-icon,image/webp" />
-                <x-form.input name="login_image" type="file" label="Login panel image" accept="image/png,image/jpeg,image/webp" />
+                <x-form.input name="login_image" type="file" label="Login panel image" accept="image/png,image/jpeg,image/webp" hint="Shown behind the sign-in panel once published." />
             </div>
         </x-card>
 

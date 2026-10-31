@@ -12,6 +12,7 @@ use App\Tenancy\BrandColor;
 use App\Tenancy\BrandingService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrganizationBranding
@@ -59,7 +60,7 @@ class UpdateOrganizationBranding
         foreach (self::SLOTS as $input => $column) {
             $file = $files[$input] ?? null;
             if ($file instanceof UploadedFile) {
-                $draft[$column] = $this->storeFile($organization, $input, $file, $record->{$column});
+                $draft[$column] = $this->storeFile($organization, $input, $file, $draft[$column] ?? null);
             }
         }
 
@@ -84,13 +85,13 @@ class UpdateOrganizationBranding
             ]);
         }
 
-        $directory = 'organizations/'.$organization->uuid.'/branding';
-        $name = str_replace('_', '-', $slot).'.'.$extension;
+        $directory = 'organizations/'.$organization->uuid.'/branding/draft';
+        $name = str_replace('_', '-', $slot).'-'.Str::uuid().'.'.$extension;
         $path = $directory.'/'.$name;
 
         Storage::disk('organizations')->put($path, $file->getContent());
 
-        if ($previous && $previous !== $path) {
+        if (is_string($previous) && $previous !== $path && str_contains($previous, '/branding/draft/')) {
             Storage::disk('organizations')->delete($previous);
         }
 

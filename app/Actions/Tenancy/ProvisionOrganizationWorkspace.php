@@ -47,19 +47,18 @@ class ProvisionOrganizationWorkspace
 
     public function ensureBranding(Organization $organization, ?int $actorId = null): void
     {
-        if ($organization->branding()->exists()) {
-            return;
-        }
-
-        $organization->branding()->create([
-            'display_name' => $organization->name,
-            'theme_mode' => 'user',
-            'font_family' => 'instrument-sans',
-            'support_email' => $organization->contact_email,
-            'support_phone' => $organization->contact_phone,
-            'created_by' => $actorId,
-            'updated_by' => $actorId,
-        ]);
+        $organization->branding()->firstOrCreate(
+            ['organization_id' => $organization->getKey()],
+            [
+                'display_name' => $organization->name,
+                'theme_mode' => 'user',
+                'font_family' => 'instrument-sans',
+                'support_email' => $organization->contact_email,
+                'support_phone' => $organization->contact_phone,
+                'created_by' => $actorId,
+                'updated_by' => $actorId,
+            ],
+        );
     }
 
     private function allocatePrimaryHost(Organization $organization): string
@@ -67,12 +66,12 @@ class ProvisionOrganizationWorkspace
         $candidates = [];
         $slug = $organization->slug;
 
-        if ($slug !== '' && ! Hostname::isReservedSubdomain($slug)) {
+        if (Hostname::isValidPlatformLabel($slug)) {
             $candidates[] = $slug;
         }
 
         $fromName = Str::limit(Str::slug($organization->name), 40, '');
-        if ($fromName !== '' && $fromName !== $slug && ! Hostname::isReservedSubdomain($fromName)) {
+        if ($fromName !== '' && $fromName !== $slug && Hostname::isValidPlatformLabel($fromName)) {
             $candidates[] = $fromName;
         }
 
@@ -84,8 +83,9 @@ class ProvisionOrganizationWorkspace
         }
 
         do {
-            $host = Hostname::platformHostFor(Str::slug(Str::limit($organization->name, 24, '')).'-'.Str::lower(Str::random(4)));
-        } while (OrganizationDomain::query()->where('domain', $host)->exists() || Hostname::isReservedSubdomain(explode('.', $host)[0]));
+            $label = Str::slug(Str::limit($organization->name, 24, '')).'-'.Str::lower(Str::random(4));
+            $host = Hostname::platformHostFor($label);
+        } while (! Hostname::isValidPlatformLabel($label) || OrganizationDomain::query()->where('domain', $host)->exists());
 
         return $host;
     }

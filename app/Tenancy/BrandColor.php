@@ -36,11 +36,23 @@ final class BrandColor
     }
 
     /**
-     * Black or white ink that meets a 4.5:1 contrast ratio against $hex.
+     * True black or white ink, choosing the pair with the higher contrast
+     * against $hex so tenant button text stays at or above 4.5:1.
      */
     public static function ink(string $hex): string
     {
-        return self::relativeLuminance($hex) > 0.45 ? '#16212B' : '#FFFFFF';
+        $white = self::contrastRatio($hex, '#FFFFFF');
+        $black = self::contrastRatio($hex, '#000000');
+
+        return $black >= $white ? '#000000' : '#FFFFFF';
+    }
+
+    public static function contrastRatio(string $a, string $b): float
+    {
+        $lighter = max(self::relativeLuminance($a), self::relativeLuminance($b));
+        $darker = min(self::relativeLuminance($a), self::relativeLuminance($b));
+
+        return ($lighter + 0.05) / ($darker + 0.05);
     }
 
     public static function hover(string $hex): string

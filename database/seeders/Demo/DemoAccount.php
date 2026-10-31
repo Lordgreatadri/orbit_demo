@@ -8,6 +8,7 @@ use App\Enums\OrganizationStatus;
 use App\Enums\UserStatus;
 use App\Models\Organization;
 use App\Models\User;
+use App\Tenancy\BrandingService;
 use App\Tenancy\Hostname;
 use Illuminate\Support\Str;
 
@@ -95,5 +96,7 @@ class DemoAccount
                 'verified_at' => now(),
             ],
         );
+
+        app(BrandingService::class)->forget($organization);
     }
 }

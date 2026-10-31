@@ -10,7 +10,6 @@ use App\Jobs\ProcessTenantMail;
 use App\Models\Invitation;
 use App\Models\Organization;
 use App\Models\OrganizationDomain;
-use App\Models\User;
 use App\Tenancy\BrandingService;
 use App\Tenancy\Hostname;
 use App\Tenancy\Origin;
@@ -65,6 +64,21 @@ class HostnameRoutingTest extends TestCase
         $this->assertSame($organization->getKey(), $admin->organization_id);
         $this->assertTrue($organization->domains()->where('domain', $alias)->where('type', DomainType::Alias)->exists());
         $this->assertNotSame($alias, $organization->fresh()->primaryHost());
+    }
+
+    #[Test]
+    public function login_forms_on_an_alias_stay_on_that_hostname(): void
+    {
+        $organization = Organization::factory()->create(['name' => 'Mobile Content Ltd']);
+        $alias = Hostname::platformHostFor('mcc');
+        OrganizationDomain::factory()->for($organization)->alias('mcc')->create();
+
+        $this->fromHost($alias)
+            ->get('/login')
+            ->assertOk()
+            ->assertSee('action="http://'.$alias.'/login"', false)
+            ->assertDontSee('action="http://'.$organization->primaryHost().'/login"', false)
+            ->assertSee('http://orbit.test/terms', false);
     }
 
     #[Test]
@@ -224,6 +238,8 @@ class HostnameRoutingTest extends TestCase
         $this->actingAs($stranger)->get(route('org.organizations.domains', $admin->organization))->assertForbidden();
 
         $this->actingAs($admin)->get(route('org.organizations.domains', $admin->organization))->assertOk();
-        $this->actingAs($admin)->get(route('org.organizations.branding', $admin->organization))->assertOk();
+        $this->actingAs($admin)->get(route('org.organizations.branding', $admin->organization))
+            ->assertOk()
+            ->assertSee('Primary colour picker', false);
     }
 }

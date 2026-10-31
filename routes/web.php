@@ -3,6 +3,7 @@
 use App\Http\Controllers\Branding\BrandingAssetController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\PublicPageController;
+use App\Http\Controllers\Tenancy\BrandingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,6 +25,11 @@ Route::middleware('central.host')->group(function (): void {
         ->middleware('throttle:contact')
         ->name('contact.store');
 });
+
+Route::get('/branding/preview/{organization:uuid}/{slot}', [BrandingController::class, 'previewAsset'])
+    ->middleware('auth')
+    ->whereIn('slot', ['logo', 'logo-light', 'logo-dark', 'favicon', 'login-image'])
+    ->name('branding.preview-asset');
 
 Route::get('/branding/{slot}', BrandingAssetController::class)
     ->whereIn('slot', ['logo', 'logo-light', 'logo-dark', 'favicon', 'login-image'])

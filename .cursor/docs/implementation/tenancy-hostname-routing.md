@@ -58,7 +58,15 @@ Link the site as `orbit.test`. Herd resolves `*.orbit.test`.
 
 Do not set `SESSION_DOMAIN=.orbit.test`. Cookies stay host-only.
 
-## 7. Outstanding risks
+## 7. Review follow-up (2026-10-31)
+
+- Existing organisations are provisioned by `OrganizationWorkspaceBackfillSeeder` (idempotent, called from `DatabaseSeeder` and the demo seeder). Migrations stay schema-only.
+- `IdentifyTenant` forces the **current** hostname for in-page URLs so alias and secondary-central forms keep CSRF/session. Invitation and notification mail still use the primary origin (`Origin::of()`).
+- Draft branding files live under `branding/draft/`; publish copies them to stable public slots and deletes unused files. Draft binaries are served only from `branding.preview-asset` (auth + `manageWorkspace`). `/branding/{slot}` reads published paths only.
+- Changing the primary hostname forgets the branding cache. Activate/deactivate/delete/verify forget `TrustHostList::CUSTOM_DOMAINS_CACHE_KEY`.
+- Cross-host sign-in is rejected **before** `Auth::attempt`, so history records `failed` rather than `login` + `logout`.
+
+## 8. Outstanding risks
 
 - Custom domains need a TXT record `_orbit-verify.{domain}` before activation; production DNS is owner-managed (`dns-and-tls.md`).
 - After registration the responsible contact still has a session on the central host until they sign in on the workspace hostname.

@@ -3,7 +3,9 @@
 namespace Tests\Feature\Tenancy;
 
 use App\Enums\OrganizationType;
+use App\Enums\RoleScope;
 use App\Models\Organization;
+use App\Models\Role;
 use App\Tenancy\RoleAudience;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -45,5 +47,27 @@ class AcademicRoleAudienceTest extends TestCase
             ->get(route('org.users.index'))
             ->assertOk()
             ->assertSee('Student');
+    }
+
+    #[Test]
+    public function a_custom_tenant_role_is_offered_when_inviting(): void
+    {
+        $organization = Organization::factory()->create(['type' => OrganizationType::Business]);
+        $admin = $this->createOrganizationAdmin($organization);
+
+        Role::query()->create([
+            'name' => 'field_supervisor',
+            'guard_name' => config('auth.defaults.guard', 'web'),
+            'scope' => RoleScope::Tenant,
+            'description' => 'Custom field role',
+            'is_system' => false,
+        ]);
+
+        $this->assertArrayHasKey('field_supervisor', RoleAudience::invitableOptions($organization));
+
+        $this->actingAs($admin)
+            ->get(route('org.users.index'))
+            ->assertOk()
+            ->assertSee('Field supervisor');
     }
 }

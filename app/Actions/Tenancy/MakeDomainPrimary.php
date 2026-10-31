@@ -5,6 +5,7 @@ namespace App\Actions\Tenancy;
 use App\Models\OrganizationDomain;
 use App\Models\User;
 use App\Support\Audit;
+use App\Tenancy\BrandingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +25,8 @@ class MakeDomainPrimary
                 'updated_by' => $actor->getKey(),
             ])->save();
         });
+
+        app(BrandingService::class)->forget($domain->organization);
 
         Audit::log('organization.domain.primary', $domain, ['domain' => $domain->domain], $actor, $domain->organization_id);
     }

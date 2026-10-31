@@ -3,7 +3,7 @@
 
     <x-coming-soon :module="$module">
         <x-button :href="route('org.dashboard')" variant="secondary" size="sm"><x-icon name="home" class="size-4" /> Back to dashboard</x-button>
-        <x-button :href="route('guide')" variant="ghost" size="sm"><x-icon name="book" class="size-4" /> Read the user guide</x-button>
+        <x-button :href="\App\Tenancy\Origin::centralUrl('/user-guide')" variant="ghost" size="sm"><x-icon name="book" class="size-4" /> Read the user guide</x-button>
     </x-coming-soon>
 
     <x-card title="What you can prepare now" description="Data entered today is used by this module when it ships.">

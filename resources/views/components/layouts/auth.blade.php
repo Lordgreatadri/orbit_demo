@@ -8,12 +8,18 @@
 <body class="min-h-svh">
     <div class="grid min-h-svh lg:grid-cols-12">
         {{-- Brand panel: fixed brand colour so the official lockup sits seamlessly in both themes. --}}
-        <aside class="bg-brand-panel relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:col-span-5 lg:flex xl:col-span-5" aria-label="About ORBIT">
+        <aside class="bg-brand-panel relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:col-span-5 lg:flex xl:col-span-5" aria-label="About {{ ($workspaceBranding ?? \App\Tenancy\WorkspaceBranding::platform())->displayName }}">
+            @php $branding = $workspaceBranding ?? \App\Tenancy\WorkspaceBranding::platform(); @endphp
+            @if ($branding->loginImageUrl)
+                <div class="absolute inset-0" aria-hidden="true">
+                    <img src="{{ $branding->loginImageUrl }}" alt="" class="size-full object-cover" decoding="async">
+                    <div class="absolute inset-0 bg-brand-panel/75"></div>
+                </div>
+            @endif
             <div aria-hidden="true" class="absolute -right-32 -bottom-40 size-[36rem] rounded-full border border-white/10"></div>
             <div aria-hidden="true" class="absolute -right-16 -bottom-24 size-[26rem] rounded-full border border-white/10"></div>
             <div aria-hidden="true" class="absolute right-10 -bottom-6 size-[16rem] rounded-full border border-white/10"></div>
 
-            @php $branding = $workspaceBranding ?? \App\Tenancy\WorkspaceBranding::platform(); @endphp
             <a href="{{ $branding->organization ? route('login') : route('home') }}" class="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-white" aria-label="{{ $branding->displayName }}">
                 @if ($branding->logoDarkUrl || $branding->logoUrl)
                     <img src="{{ $branding->logoDarkUrl ?? $branding->logoUrl }}" alt="{{ $branding->displayName }}" class="h-20 w-auto object-contain" decoding="async">
@@ -72,9 +78,9 @@
             </main>
 
             <footer class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-fg-subtle">
-                <a href="{{ route('terms') }}" class="hover:text-fg">Terms</a>
-                <a href="{{ route('privacy') }}" class="hover:text-fg">Privacy</a>
-                <a href="{{ route('contact') }}" class="hover:text-fg">Contact</a>
+                <a href="{{ \App\Tenancy\Origin::centralUrl('/terms') }}" class="hover:text-fg">Terms</a>
+                <a href="{{ \App\Tenancy\Origin::centralUrl('/privacy') }}" class="hover:text-fg">Privacy</a>
+                <a href="{{ \App\Tenancy\Origin::centralUrl('/contact') }}" class="hover:text-fg">Contact</a>
             </footer>
         </div>
     </div>

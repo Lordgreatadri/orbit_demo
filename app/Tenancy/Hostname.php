@@ -8,6 +8,8 @@ namespace App\Tenancy;
  */
 final class Hostname
 {
+    public const LABEL_MAX_LENGTH = 63;
+
     public static function normalize(?string $host): string
     {
         $host = strtolower(trim((string) $host));
@@ -71,6 +73,24 @@ final class Hostname
     public static function isReservedSubdomain(string $label): bool
     {
         return in_array(strtolower($label), config('orbit.tenancy.reserved_subdomains', []), true);
+    }
+
+    /**
+     * A single DNS label that can be used as `{label}.{base_domain}`.
+     */
+    public static function isValidPlatformLabel(string $label): bool
+    {
+        if ($label === '' || strlen($label) > self::LABEL_MAX_LENGTH || str_contains($label, '.')) {
+            return false;
+        }
+
+        if (self::isReservedSubdomain($label)) {
+            return false;
+        }
+
+        $host = self::platformHostFor($label);
+
+        return $host !== '' && self::normalize($host) === $host;
     }
 
     /**

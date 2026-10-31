@@ -14,6 +14,8 @@ use App\Tenancy\WorkspaceBranding;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 class BrandingController extends Controller
 {
@@ -67,12 +69,40 @@ class BrandingController extends Controller
     {
         $this->authorize('manageWorkspace', $organization);
 
-        $request->merge(['branding_preview' => true]);
+        $preview = $branding->for($organization, preview: true);
+        $branding->sharePreview($preview);
 
         return view('auth.login', [
             'preview' => true,
-            'workspaceBranding' => $branding->for($organization, preview: true),
+            'workspaceBranding' => $preview,
         ]);
+    }
+
+    public function previewAsset(Organization $organization, string $slot): Response
+    {
+        $this->authorize('manageWorkspace', $organization);
+
+        $record = $organization->branding;
+        abort_if($record === null, 404);
+
+        $draft = is_array($record->draft) ? $record->draft : [];
+        $column = match ($slot) {
+            'logo' => 'logo_path',
+            'logo-light' => 'logo_light_path',
+            'logo-dark' => 'logo_dark_path',
+            'favicon' => 'favicon_path',
+            'login-image' => 'login_image_path',
+            default => abort(404),
+        };
+
+        $path = $draft[$column] ?? null;
+        abort_if(! is_string($path) || $path === '', 404);
+
+        $prefix = 'organizations/'.$organization->uuid.'/';
+        abort_unless(str_starts_with($path, $prefix), 404);
+        abort_unless(Storage::disk('organizations')->exists($path), 404);
+
+        return Storage::disk('organizations')->response($path);
     }
 
     private function view(Request $request): string

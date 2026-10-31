@@ -58,8 +58,12 @@ abstract class TestCase extends BaseTestCase
 
     protected function fromTenant(Organization $organization): static
     {
-        $host = $organization->primaryHost();
-        Origin::force(Origin::of($organization));
+        return $this->fromHost($organization->primaryHost());
+    }
+
+    protected function fromHost(string $host): static
+    {
+        Origin::force(Origin::forHost($host));
 
         return $this->withServerVariables([
             'HTTP_HOST' => $host,

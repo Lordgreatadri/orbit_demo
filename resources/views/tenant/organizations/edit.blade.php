@@ -39,7 +39,7 @@
                     <div class="flex justify-between gap-2"><dt class="text-fg-muted">Verified</dt><dd class="text-fg">{{ $organization->verified_at?->toFormattedDateString() ?? 'Pending' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-fg-muted">Created</dt><dd class="text-fg">{{ $organization->created_at->toFormattedDateString() }}</dd></div>
                 </dl>
-                <p class="mt-4 text-xs text-fg-subtle">Suspension, closure, and plan changes are handled by platform support. <a href="{{ route('contact') }}" class="text-primary hover:underline">Contact support</a>.</p>
+                <p class="mt-4 text-xs text-fg-subtle">Suspension, closure, and plan changes are handled by platform support. <a href="{{ \App\Tenancy\Origin::centralUrl('/contact') }}" class="text-primary hover:underline">Contact support</a>.</p>
             </x-card>
             <x-card title="Structure">
                 <ul class="space-y-2 text-sm">

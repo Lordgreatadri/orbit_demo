@@ -162,6 +162,47 @@ class LoginTest extends TestCase
     }
 
     #[Test]
+    public function a_correct_password_on_the_wrong_workspace_is_a_failed_attempt(): void
+    {
+        $epa = Organization::factory()->create(['name' => 'EPA Demo']);
+        $mcc = Organization::factory()->create(['name' => 'Mobile Content Ltd']);
+        $epaAdmin = $this->createOrganizationAdmin($epa);
+
+        $this->fromTenant($mcc)
+            ->from(route('login'))
+            ->post(route('login.store'), ['email' => $epaAdmin->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'failed',
+            'user_id' => $epaAdmin->getKey(),
+            'email' => $epaAdmin->email,
+        ]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
+        $this->assertDatabaseMissing('login_events', ['event' => 'logout']);
+    }
+
+    #[Test]
+    public function an_organisation_member_cannot_sign_in_on_the_central_host(): void
+    {
+        $user = $this->createOrganizationAdmin();
+
+        $this->fromCentral()
+            ->from(route('login'))
+            ->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'failed',
+            'user_id' => $user->getKey(),
+            'email' => $user->email,
+        ]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
+    }
+
+    #[Test]
     public function guests_are_redirected_from_protected_pages(): void
     {
         $this->get(route('app.dashboard'))->assertRedirect(route('login'));

@@ -5,11 +5,18 @@ namespace App\Tenancy;
 use App\Models\Organization;
 use App\Models\OrganizationBranding;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\View;
 
 class BrandingService
 {
+    private ?WorkspaceBranding $requestPreview = null;
+
     public function for(?Organization $organization, bool $preview = false): WorkspaceBranding
     {
+        if ($this->requestPreview !== null) {
+            return $this->requestPreview;
+        }
+
         if ($organization === null) {
             return WorkspaceBranding::platform();
         }
@@ -29,6 +36,17 @@ class BrandingService
         });
     }
 
+    public function sharePreview(WorkspaceBranding $branding): void
+    {
+        $this->requestPreview = $branding;
+        View::share('workspaceBranding', $branding);
+    }
+
+    public function clearPreview(): void
+    {
+        $this->requestPreview = null;
+    }
+
     public function forget(Organization $organization): void
     {
         Cache::forget($this->cacheKey($organization));
@@ -41,12 +59,15 @@ class BrandingService
 
     public function record(Organization $organization): OrganizationBranding
     {
-        return $organization->branding ?? $organization->branding()->create([
-            'theme_mode' => 'user',
-            'font_family' => 'instrument-sans',
-            'display_name' => $organization->name,
-            'support_email' => $organization->contact_email,
-            'support_phone' => $organization->contact_phone,
-        ]);
+        return $organization->branding ?? $organization->branding()->firstOrCreate(
+            ['organization_id' => $organization->getKey()],
+            [
+                'theme_mode' => 'user',
+                'font_family' => 'instrument-sans',
+                'display_name' => $organization->name,
+                'support_email' => $organization->contact_email,
+                'support_phone' => $organization->contact_phone,
+            ],
+        );
     }
 }

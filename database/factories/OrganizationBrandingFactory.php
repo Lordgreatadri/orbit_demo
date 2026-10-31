@@ -13,13 +13,36 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class OrganizationBrandingFactory extends Factory
 {
+    public function configure(): static
+    {
+        return $this->afterMaking(function (OrganizationBranding $branding): void {
+            if ($branding->organization_id === null) {
+                return;
+            }
+
+            $existing = OrganizationBranding::query()
+                ->where('organization_id', $branding->organization_id)
+                ->first();
+
+            if ($existing === null) {
+                return;
+            }
+
+            $branding->forceFill([
+                'id' => $existing->getKey(),
+                'uuid' => $existing->uuid,
+            ]);
+            $branding->exists = true;
+        });
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
-            'organization_id' => Organization::factory(),
+            'organization_id' => Organization::factory()->withoutWorkspace(),
             'display_name' => fake()->company(),
             'primary_color' => '#0F766E',
             'secondary_color' => '#0D3B43',

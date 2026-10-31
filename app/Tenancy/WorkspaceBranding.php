@@ -71,19 +71,28 @@ final class WorkspaceBranding
     }
 
     /**
-     * Preview uses unpublished draft values when present.
+     * Preview uses unpublished draft values when present, including nulls
+     * (cleared fields) and draft asset paths.
      */
     public static function preview(Organization $organization, OrganizationBranding $record): self
     {
         $draft = is_array($record->draft) ? $record->draft : [];
         $merged = $record->replicate();
-        foreach (['display_name', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'font_family', 'login_heading', 'login_message', 'support_email', 'support_phone', 'footer_text'] as $field) {
-            if (array_key_exists($field, $draft) && $draft[$field] !== null && $draft[$field] !== '') {
+
+        foreach ([
+            'display_name', 'primary_color', 'secondary_color', 'accent_color',
+            'theme_mode', 'font_family', 'login_heading', 'login_message',
+            'support_email', 'support_phone', 'footer_text',
+            'logo_path', 'logo_light_path', 'logo_dark_path', 'favicon_path', 'login_image_path',
+        ] as $field) {
+            if (array_key_exists($field, $draft)) {
                 $merged->{$field} = $draft[$field];
             }
         }
 
-        return self::for($organization, $merged);
+        $dto = self::for($organization, $merged);
+
+        return $dto->withAssets($organization, $merged, preview: true);
     }
 
     /**
@@ -125,11 +134,15 @@ final class WorkspaceBranding
         );
     }
 
-    public function withAssets(Organization $organization, ?OrganizationBranding $record): self
+    public function withAssets(Organization $organization, ?OrganizationBranding $record, bool $preview = false): self
     {
-        $url = function (?string $slot) use ($organization): ?string {
+        $url = function (?string $slot) use ($organization, $preview): ?string {
             if ($slot === null || $slot === '') {
                 return null;
+            }
+
+            if ($preview) {
+                return url('/branding/preview/'.$organization->uuid.'/'.$slot);
             }
 
             return Origin::url($organization, '/branding/'.$slot);

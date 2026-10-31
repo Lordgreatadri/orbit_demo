@@ -31,6 +31,7 @@ class IdentifyTenant
     public function handle(Request $request, Closure $next): Response
     {
         $this->context->clear();
+        $this->branding->clearPreview();
         Origin::restore();
 
         $resolution = $this->finder->resolve($request);
@@ -49,11 +50,11 @@ class IdentifyTenant
 
         if ($resolution->isTenant() && $resolution->organization) {
             $this->context->set($resolution->organization);
-            Origin::force(Origin::of($resolution->organization));
+            Origin::force(Origin::forHost($resolution->host));
             $this->shareBranding($resolution->organization, $request);
             $this->guardAuthenticatedUser($request, $resolution->organization->getKey());
         } else {
-            Origin::force(Origin::central());
+            Origin::force(Origin::forHost($resolution->host));
             $this->shareBranding(null, $request);
         }
 
@@ -65,6 +66,7 @@ class IdentifyTenant
     public function terminate(Request $request, Response $response): void
     {
         $this->context->clear();
+        $this->branding->clearPreview();
         // Root URL stays on the request origin so post-request assertions and
         // follow-up redirects in the same test match Location headers. The
         // next request's handle() resets Origin before routing.

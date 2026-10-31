@@ -32,6 +32,7 @@ class SystemDemoUserSeeder extends Seeder
             EpaOrganizationSeeder::class,
             UpsaOrganizationSeeder::class,
             ReviewInstituteSeeder::class,
+            OrganizationWorkspaceBackfillSeeder::class,
         ]);
 
         $epa = Organization::query()->where('slug', EpaOrganizationSeeder::SLUG)->firstOrFail();

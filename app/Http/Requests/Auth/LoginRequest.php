@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use App\Models\User;
 use App\Tenancy\TenantContext;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,12 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        $attempted = User::query()->where('email', $this->input('email'))->first();
+
+        if ($attempted instanceof User && ! $this->accountBelongsOnThisHost($attempted)) {
+            $this->rejectForHost($attempted);
+        }
+
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
@@ -67,8 +74,6 @@ class LoginRequest extends FormRequest
                 'email' => __('This account is not currently able to sign in. Contact your organisation administrator.'),
             ]);
         }
-
-        $this->assertHostMatchesAccount($user);
 
         RateLimiter::clear($this->throttleKey());
 
@@ -110,30 +115,32 @@ class LoginRequest extends FormRequest
      * sign in on a hostname registered to their organisation. Host-only
      * cookies mean a successful login cannot be reused on another host.
      */
-    private function assertHostMatchesAccount(User $user): void
+    private function accountBelongsOnThisHost(User $user): bool
     {
         $tenantId = app(TenantContext::class)->id();
 
         if ($tenantId === null) {
-            if ($user->isPlatformUser()) {
-                return;
-            }
-
-            Auth::logout();
-            RateLimiter::hit($this->throttleKey());
-
-            throw ValidationException::withMessages([
-                'email' => __('Organisation members sign in at their workspace URL, not on the ORBIT platform site.'),
-            ]);
+            return $user->isPlatformUser();
         }
 
-        if ($user->isPlatformUser() || (int) $user->organization_id !== $tenantId) {
-            Auth::logout();
-            RateLimiter::hit($this->throttleKey());
+        return ! $user->isPlatformUser() && (int) $user->organization_id === $tenantId;
+    }
 
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
+    /**
+     * @throws ValidationException
+     */
+    private function rejectForHost(User $user): never
+    {
+        RateLimiter::hit($this->throttleKey());
+
+        event(new Failed(Auth::getDefaultDriver(), $user, $this->only('email', 'password')));
+
+        $message = app(TenantContext::class)->id() === null && ! $user->isPlatformUser()
+            ? __('Organisation members sign in at their workspace URL, not on the ORBIT platform site.')
+            : __('auth.failed');
+
+        throw ValidationException::withMessages([
+            'email' => $message,
+        ]);
     }
 }

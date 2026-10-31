@@ -28,6 +28,22 @@ final class Origin
         return self::central().'/'.ltrim($path, '/');
     }
 
+    /**
+     * Request-local origin. Form actions and in-page links stay on the
+     * hostname the visitor is actually using (alias or secondary central
+     * host). Invitation and notification mail still use {@see of()}.
+     */
+    public static function forHost(string $host): string
+    {
+        $normalized = Hostname::normalize($host);
+
+        if ($normalized === '') {
+            return self::central();
+        }
+
+        return self::scheme().'://'.$normalized;
+    }
+
     public static function of(Organization $organization): string
     {
         return self::scheme().'://'.$organization->primaryHost();

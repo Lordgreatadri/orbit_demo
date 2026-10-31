@@ -7,7 +7,7 @@ use App\Enums\DomainType;
 use App\Models\OrganizationDomain;
 use App\Models\User;
 use App\Support\Audit;
-use Illuminate\Support\Facades\Cache;
+use App\Tenancy\TrustHostList;
 use Illuminate\Validation\ValidationException;
 
 class VerifyCustomDomain
@@ -36,7 +36,7 @@ class VerifyCustomDomain
             'updated_by' => $actor->getKey(),
         ])->save();
 
-        Cache::forget('organization.domains.trusted-custom');
+        TrustHostList::forgetCustomDomains();
 
         Audit::log('organization.domain.verified', $domain, ['domain' => $domain->domain], $actor, $domain->organization_id);
     }

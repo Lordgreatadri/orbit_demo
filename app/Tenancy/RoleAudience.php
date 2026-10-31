@@ -46,11 +46,8 @@ final class RoleAudience
      */
     public static function invitableOptions(Organization $organization): array
     {
-        $allowed = self::tenantRolesFor($organization)->pluck('name')->all();
-
-        return collect(config('orbit.invitable_roles', []))
-            ->filter(fn (string $name) => in_array($name, $allowed, true))
-            ->mapWithKeys(fn (string $name) => [$name => config('orbit.roles.tenant.'.$name, $name)])
+        return self::tenantRolesFor($organization)
+            ->mapWithKeys(fn (Role $role) => [$role->name => $role->label()])
             ->all();
     }
 }

@@ -17,6 +17,11 @@ enum BrandThemeMode: string
         };
     }
 
+    public function isLocked(): bool
+    {
+        return $this !== self::User;
+    }
+
     /**
      * @return array<string, string>
      */

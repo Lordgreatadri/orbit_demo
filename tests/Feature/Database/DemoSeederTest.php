@@ -54,6 +54,10 @@ class DemoSeederTest extends TestCase
         $upsa = Organization::query()->where('slug', UpsaOrganizationSeeder::SLUG)->firstOrFail();
 
         $this->assertSame(4, Organization::query()->count());
+        Organization::query()->with(['branding', 'domains'])->each(function (Organization $organization): void {
+            $this->assertTrue($organization->domains->contains(fn ($domain) => $domain->is_primary), $organization->slug);
+            $this->assertNotNull($organization->branding, $organization->slug);
+        });
         $this->assertSame('Environmental Protection Agency — Ghana', $epa->name);
         $this->assertSame('public_institution', $epa->type->value);
         $this->assertTrue($epa->isActive());

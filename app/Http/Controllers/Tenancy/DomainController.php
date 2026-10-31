@@ -37,7 +37,7 @@ class DomainController extends Controller
 
     public function store(StoreOrganizationDomainRequest $request, Organization $organization, RegisterOrganizationDomain $register): RedirectResponse
     {
-        $register->handle(
+        $domain = $register->handle(
             $organization,
             $request->string('domain')->toString(),
             DomainType::from($request->string('type')->toString()),
@@ -45,7 +45,13 @@ class DomainController extends Controller
             $request->boolean('make_primary'),
         );
 
-        return back()->with('status', __('Hostname registered.'));
+        $status = match (true) {
+            $domain->is_primary => __('Hostname registered and set as the primary workspace URL.'),
+            $domain->type === DomainType::CustomDomain => __('Hostname registered. Add the TXT record shown below, then choose Check DNS. This address stays offline until it is verified.'),
+            default => __('Hostname registered. This address is active and visitors can use it now.'),
+        };
+
+        return back()->with('status', $status);
     }
 
     public function primary(Request $request, Organization $organization, OrganizationDomain $domain, MakeDomainPrimary $makePrimary): RedirectResponse
@@ -55,7 +61,7 @@ class DomainController extends Controller
 
         $makePrimary->handle($domain, $request->user());
 
-        return back()->with('status', __('Primary workspace URL updated.'));
+        return back()->with('status', __('Primary workspace URL updated. Branding links now use this hostname.'));
     }
 
     public function verify(Request $request, Organization $organization, OrganizationDomain $domain, VerifyCustomDomain $verify): RedirectResponse
@@ -65,7 +71,7 @@ class DomainController extends Controller
 
         $verify->handle($domain, $request->user());
 
-        return back()->with('status', __('Custom domain verified and activated.'));
+        return back()->with('status', __('Custom domain verified and activated. It now accepts workspace traffic.'));
     }
 
     public function deactivate(Request $request, Organization $organization, OrganizationDomain $domain, UpdateOrganizationDomain $update): RedirectResponse
@@ -75,7 +81,7 @@ class DomainController extends Controller
 
         $update->deactivate($domain, $request->user());
 
-        return back()->with('status', __('Hostname deactivated.'));
+        return back()->with('status', __('Hostname deactivated. This address no longer accepts workspace traffic.'));
     }
 
     public function activate(Request $request, Organization $organization, OrganizationDomain $domain, UpdateOrganizationDomain $update): RedirectResponse
@@ -85,7 +91,7 @@ class DomainController extends Controller
 
         $update->activate($domain, $request->user());
 
-        return back()->with('status', __('Hostname activated.'));
+        return back()->with('status', __('Hostname activated. Trusted hosts were refreshed — this address now accepts workspace traffic.'));
     }
 
     public function destroy(Request $request, Organization $organization, OrganizationDomain $domain, UpdateOrganizationDomain $update): RedirectResponse
@@ -95,7 +101,7 @@ class DomainController extends Controller
 
         $update->delete($domain, $request->user());
 
-        return back()->with('status', __('Hostname removed.'));
+        return back()->with('status', __('Hostname removed. It will no longer resolve to this workspace.'));
     }
 
     private function view(Request $request, string $page): string

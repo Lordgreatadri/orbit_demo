@@ -5,6 +5,7 @@ namespace App\Actions\Tenancy;
 use App\Models\OrganizationDomain;
 use App\Models\User;
 use App\Support\Audit;
+use App\Tenancy\TrustHostList;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrganizationDomain
@@ -20,6 +21,8 @@ class UpdateOrganizationDomain
             'updated_by' => $actor->getKey(),
         ])->save();
 
+        TrustHostList::forgetCustomDomains();
+
         Audit::log('organization.domain.deactivated', $domain, ['domain' => $domain->domain], $actor, $domain->organization_id);
     }
 
@@ -34,6 +37,8 @@ class UpdateOrganizationDomain
             'updated_by' => $actor->getKey(),
         ])->save();
 
+        TrustHostList::forgetCustomDomains();
+
         Audit::log('organization.domain.activated', $domain, ['domain' => $domain->domain], $actor, $domain->organization_id);
     }
 
@@ -46,6 +51,8 @@ class UpdateOrganizationDomain
         $host = $domain->domain;
         $organizationId = $domain->organization_id;
         $domain->delete();
+
+        TrustHostList::forgetCustomDomains();
 
         Audit::log('organization.domain.deleted', $actor, ['domain' => $host], $actor, $organizationId);
     }

@@ -29,13 +29,12 @@
 @endif
 <link rel="manifest" href="{{ asset('site.webmanifest') }}">
 
-<style>:root { {!! $branding->cssVariables() !!} }</style>
-
 {{-- Apply the stored theme before first paint to avoid a flash of the wrong theme. --}}
 <script>
     (function () {
         try {
             var locked = @json($branding->themeMode->value);
+            document.documentElement.dataset.themeLock = locked;
             if (locked === 'plum') { document.documentElement.setAttribute('data-theme', 'plum'); return; }
             if (locked === 'light') { document.documentElement.removeAttribute('data-theme'); return; }
             var t = window.localStorage.getItem('orbit-theme');
@@ -44,3 +43,5 @@
     })();
 </script>
 @vite(['resources/css/app.css', 'resources/js/app.js'])
+{{-- After Vite so tenant tokens override the unlayered :root / [data-theme] rules. --}}
+<style>:root, [data-theme='plum'] { {!! $branding->cssVariables() !!} }</style>
