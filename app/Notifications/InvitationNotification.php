@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Invitation;
+use App\Tenancy\Origin;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -45,6 +46,6 @@ class InvitationNotification extends Notification implements ShouldQueue
 
     public function acceptUrl(): string
     {
-        return route('invitations.show', ['token' => $this->rawToken]);
+        return Origin::url($this->invitation->organization, '/invitations/'.$this->rawToken);
     }
 }

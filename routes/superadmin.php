@@ -8,6 +8,8 @@ use App\Http\Controllers\Platform\PermissionController;
 use App\Http\Controllers\Platform\RoleController;
 use App\Http\Controllers\Platform\UserAccessController;
 use App\Http\Controllers\Platform\UserController;
+use App\Http\Controllers\Tenancy\BrandingController;
+use App\Http\Controllers\Tenancy\DomainController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,7 +22,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('admin')
-    ->middleware(['auth', 'account.operational', 'identity.verified', 'platform'])
+    ->middleware(['auth', 'central.host', 'account.operational', 'identity.verified', 'platform'])
     ->name('admin.')
     ->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
@@ -31,6 +33,17 @@ Route::prefix('admin')
         Route::patch('/organisations/{organization:uuid}/status', [OrganizationController::class, 'updateStatus'])
             ->middleware('throttle:access-write')
             ->name('organizations.status');
+        Route::get('/organisations/{organization:uuid}/domains', [DomainController::class, 'edit'])->name('organizations.domains');
+        Route::post('/organisations/{organization:uuid}/domains', [DomainController::class, 'store'])->middleware('throttle:access-write')->name('organizations.domains.store');
+        Route::post('/organisations/{organization:uuid}/domains/{domain:uuid}/primary', [DomainController::class, 'primary'])->middleware('throttle:access-write')->name('organizations.domains.primary');
+        Route::post('/organisations/{organization:uuid}/domains/{domain:uuid}/verify', [DomainController::class, 'verify'])->middleware('throttle:access-write')->name('organizations.domains.verify');
+        Route::post('/organisations/{organization:uuid}/domains/{domain:uuid}/activate', [DomainController::class, 'activate'])->middleware('throttle:access-write')->name('organizations.domains.activate');
+        Route::post('/organisations/{organization:uuid}/domains/{domain:uuid}/deactivate', [DomainController::class, 'deactivate'])->middleware('throttle:access-write')->name('organizations.domains.deactivate');
+        Route::delete('/organisations/{organization:uuid}/domains/{domain:uuid}', [DomainController::class, 'destroy'])->middleware('throttle:access-write')->name('organizations.domains.destroy');
+        Route::get('/organisations/{organization:uuid}/branding', [BrandingController::class, 'edit'])->name('organizations.branding');
+        Route::put('/organisations/{organization:uuid}/branding', [BrandingController::class, 'update'])->middleware('throttle:access-write')->name('organizations.branding.update');
+        Route::post('/organisations/{organization:uuid}/branding/publish', [BrandingController::class, 'publish'])->middleware('throttle:access-write')->name('organizations.branding.publish');
+        Route::get('/organisations/{organization:uuid}/branding/preview', [BrandingController::class, 'preview'])->name('organizations.branding.preview');
 
         // Users (system-wide) and platform account provisioning
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -61,6 +74,6 @@ Route::prefix('admin')
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
         Route::get('/audit/sign-ins', [AuditController::class, 'logins'])->name('audit.logins');
 
-        // Later stages
         Route::get('/settings', [ModuleController::class, 'show'])->defaults('module', 'platform-settings')->name('settings.index');
+        Route::get('/modules/{module}', [ModuleController::class, 'show'])->name('modules.show');
     });

@@ -47,6 +47,18 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Organisation branding assets. Private disk; files are served only
+         * by BrandingAssetController after the hostname has identified the tenant.
+         */
+        'organizations' => [
+            'driver' => 'local',
+            'root' => storage_path('app/organizations'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

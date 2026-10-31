@@ -7,9 +7,8 @@ use App\Models\Organization;
 /**
  * Request/job-scoped holder for the current tenant.
  *
- * The context is only ever populated from the authenticated user (see
- * SetTenantContext middleware) or by an explicit, audited call inside a job.
- * It must never be populated from browser-supplied input.
+ * Populated from the request hostname (IdentifyTenant) or restored from a
+ * job payload (RestoreTenantContext). Never from a user-supplied parameter.
  */
 class TenantContext
 {

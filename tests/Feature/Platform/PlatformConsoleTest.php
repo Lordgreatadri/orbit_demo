@@ -219,9 +219,9 @@ class PlatformConsoleTest extends TestCase
         $adminA = $this->createOrganizationAdmin();
         $adminB = $this->createOrganizationAdmin();
 
-        $this->post(route('login.store'), ['email' => $adminA->email, 'password' => 'password']);
+        $this->postLogin($adminA);
         $this->post(route('logout'));
-        $this->post(route('login.store'), ['email' => $adminB->email, 'password' => 'wrong']);
+        $this->postLogin($adminB, 'wrong');
 
         $superAdmin = $this->superAdmin();
 

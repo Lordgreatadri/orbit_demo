@@ -13,12 +13,12 @@
         <x-data-table :paginator="$organizations" caption="Organisations">
             <thead>
                 <tr>
-                    <th scope="col">Organisation</th>
-                    <th scope="col" class="hidden md:table-cell">Type</th>
+                    <x-data-table.sort column="name" :sort="$sort">Organisation</x-data-table.sort>
+                    <x-data-table.sort column="type" :sort="$sort" class="hidden md:table-cell">Type</x-data-table.sort>
                     <th scope="col" class="hidden lg:table-cell">Contact</th>
                     <th scope="col">Accounts</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" class="hidden sm:table-cell">Registered</th>
+                    <x-data-table.sort column="status" :sort="$sort">Status</x-data-table.sort>
+                    <x-data-table.sort column="created" :sort="$sort" class="hidden sm:table-cell">Registered</x-data-table.sort>
                     <th scope="col"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
@@ -27,7 +27,7 @@
                     <tr>
                         <td>
                             <a href="{{ route('admin.organizations.show', $org) }}" class="font-medium text-fg hover:text-primary hover:underline">{{ $org->name }}</a>
-                            <p class="font-mono text-[0.7rem] text-fg-subtle">{{ $org->slug }}@if ($org->isDemo()) · <span class="text-warning">demo</span>@endif</p>
+                            <p class="font-mono text-[0.7rem] text-fg-subtle">{{ $org->primaryHost() }}@if ($org->isDemo()) · <span class="text-warning">demo</span>@endif</p>
                         </td>
                         <td class="hidden md:table-cell">{{ $org->type->label() }}</td>
                         <td class="hidden truncate lg:table-cell">{{ $org->contact_email }}</td>

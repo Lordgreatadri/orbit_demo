@@ -24,8 +24,8 @@
         <x-form.input name="password_confirmation" label="Confirm password" type="password" required autocomplete="new-password" />
 
         <x-form.checkbox name="terms" required>
-            I accept the <a href="{{ route('terms') }}" class="text-primary hover:underline" target="_blank" rel="noopener">Terms and Conditions</a> and
-            <a href="{{ route('privacy') }}" class="text-primary hover:underline" target="_blank" rel="noopener">Privacy Policy</a>.
+            I accept the <a href="{{ \App\Tenancy\Origin::centralUrl('/terms') }}" class="text-primary hover:underline" target="_blank" rel="noopener">Terms and Conditions</a> and
+            <a href="{{ \App\Tenancy\Origin::centralUrl('/privacy') }}" class="text-primary hover:underline" target="_blank" rel="noopener">Privacy Policy</a>.
         </x-form.checkbox>
 
         <x-button type="submit" class="w-full" x-bind:disabled="submitting">Create my account</x-button>

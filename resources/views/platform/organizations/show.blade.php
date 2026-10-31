@@ -6,6 +6,8 @@
         @endcan
     </x-page-header>
 
+    <x-workspace.settings-tabs :organization="$organization" current="profile" />
+
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <x-stat label="User accounts" :value="number_format($counts['users'])" :hint="$counts['users_suspended'] > 0 ? $counts['users_suspended'].' suspended' : $counts['users_active'].' active'" icon="key" />
         <x-stat label="Staff records" :value="number_format($counts['staff'])" icon="id-card" tone="success" />

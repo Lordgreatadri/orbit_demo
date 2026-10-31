@@ -13,7 +13,12 @@ class ModuleController extends Controller
         $config = config("orbit.modules.{$module}");
 
         abort_if($config === null, 404);
-        abort_unless($request->user()->can($config['permission']), 403);
+
+        $permission = $config['permission'];
+        $allowed = str_starts_with((string) $permission, 'platform.')
+            ? $request->user()->can($permission)
+            : $request->user()->can('platform.access');
+        abort_unless($allowed, 403);
 
         return view('platform.modules.show', [
             'module' => $config + ['key' => $module],

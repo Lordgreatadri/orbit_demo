@@ -12,6 +12,7 @@ use App\Models\Organization;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\TableSort;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,9 @@ class UserController extends Controller
 
         Audit::log('platform.users.viewed', $actor, array_filter($filters), $actor);
 
+        $allowed = ['name' => 'last_name', 'email' => 'email', 'status' => 'status', 'signed_in' => 'last_login_at'];
+        $sort = TableSort::from($request, $allowed, 'name');
+
         $users = User::query()
             ->with(['organization:id,uuid,name,timezone', 'roles:id,name,scope'])
             ->search($filters['q'] ?? null)
@@ -43,8 +47,9 @@ class UserController extends Controller
             ->when(($filters['kind'] ?? null) === 'tenant', fn ($q) => $q->whereNotNull('organization_id'))
             ->when($filters['organization'] ?? null, fn ($q, $uuid) => $q->whereHas('organization', fn ($o) => $o->where('uuid', $uuid)))
             ->when($filters['role'] ?? null, fn ($q, $role) => $q->role($role))
-            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->orderBy('last_name')
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
+        $sort->apply($users, $allowed);
+        $users = $users
             ->orderBy('first_name')
             ->paginate(25)
             ->withQueryString();
@@ -56,6 +61,7 @@ class UserController extends Controller
             'roles' => Role::query()->orderBy('scope')->orderBy('name')->get()->mapWithKeys(fn (Role $r) => [$r->name => $r->label().' ('.$r->scope->label().')'])->all(),
             'statuses' => collect(UserStatus::cases())->mapWithKeys(fn (UserStatus $s) => [$s->value => $s->label()])->all(),
             'canCreate' => $actor->can('createPlatformAccount', User::class),
+            'sort' => $sort,
         ]);
     }
 

@@ -4,7 +4,10 @@ namespace Tests;
 
 use App\Models\Organization;
 use App\Models\User;
+use App\Tenancy\Hostname;
+use App\Tenancy\Origin;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -23,6 +26,69 @@ abstract class TestCase extends BaseTestCase
 
         // Views must render without a compiled asset manifest.
         $this->withoutVite();
+        $this->fromCentral();
+    }
+
+    /**
+     * Organisation accounts issue requests against their workspace hostname.
+     */
+    public function actingAs(Authenticatable $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        if ($user instanceof User && $user->organization_id) {
+            $user->loadMissing('organization.domains');
+
+            return $this->fromTenant($user->organization);
+        }
+
+        return $this->fromCentral();
+    }
+
+    protected function fromCentral(): static
+    {
+        $host = Hostname::centralHosts()[0];
+        Origin::force(Origin::central());
+
+        return $this->withServerVariables([
+            'HTTP_HOST' => $host,
+            'SERVER_NAME' => $host,
+        ]);
+    }
+
+    protected function fromTenant(Organization $organization): static
+    {
+        return $this->fromHost($organization->primaryHost());
+    }
+
+    protected function fromHost(string $host): static
+    {
+        Origin::force(Origin::forHost($host));
+
+        return $this->withServerVariables([
+            'HTTP_HOST' => $host,
+            'SERVER_NAME' => $host,
+        ]);
+    }
+
+    protected function tenantUrl(Organization $organization, string $path = '/'): string
+    {
+        return Origin::url($organization, $path);
+    }
+
+    protected function postLogin(User $user, string $password = 'password', array $extra = [])
+    {
+        if ($user->organization_id) {
+            $user->loadMissing('organization.domains');
+            $this->fromTenant($user->organization);
+        } else {
+            $this->fromCentral();
+        }
+
+        return $this->post(route('login.store'), array_merge([
+            'email' => $user->email,
+            'password' => $password,
+        ], $extra));
     }
 
     protected function createOrganizationAdmin(?Organization $organization = null, array $attributes = []): User
