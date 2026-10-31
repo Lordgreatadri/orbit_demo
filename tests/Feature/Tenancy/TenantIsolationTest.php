@@ -55,17 +55,16 @@ class TenantIsolationTest extends TestCase
     }
 
     #[Test]
-    public function tenant_context_is_derived_from_the_authenticated_user_per_request(): void
+    public function tenant_context_is_derived_from_the_hostname_and_cleared_after_the_request(): void
     {
         $admin = $this->createOrganizationAdmin();
 
         $this->actingAs($admin)->get(route('app.dashboard'))->assertRedirect(route('org.dashboard'));
         $this->actingAs($admin)->get(route('org.dashboard'))->assertOk();
 
-        // The middleware clears the context in terminate(); a guest request leaves it empty.
         $this->assertFalse(app(TenantContext::class)->has());
 
-        $this->get(route('home'))->assertOk();
+        $this->fromCentral()->get(route('home'))->assertOk();
         $this->assertFalse(app(TenantContext::class)->has());
     }
 

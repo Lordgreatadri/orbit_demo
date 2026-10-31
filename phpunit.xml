@@ -19,6 +19,9 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <env name="APP_URL" value="http://orbit.test"/>
+        <env name="ORBIT_TENANT_BASE_DOMAIN" value="orbit.test"/>
+        <env name="ORBIT_CENTRAL_HOSTS" value="orbit.test,www.orbit.test,localhost,127.0.0.1"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

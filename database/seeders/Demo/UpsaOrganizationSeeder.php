@@ -17,7 +17,7 @@ class UpsaOrganizationSeeder extends Seeder
 
     public function run(): void
     {
-        DemoAccount::organization(self::SLUG, [
+        $organization = DemoAccount::organization(self::SLUG, [
             'name' => 'University of Professional Studies, Accra (Demo)',
             'type' => OrganizationType::EducationalInstitution,
             'contact_email' => 'demo.registry@upsa.orbit-demo.test',
@@ -70,5 +70,7 @@ class UpsaOrganizationSeeder extends Seeder
                 ],
             ],
         ]);
+
+        DemoAccount::preferSubdomain($organization, 'upsa');
     }
 }

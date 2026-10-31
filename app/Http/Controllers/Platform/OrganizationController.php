@@ -11,6 +11,7 @@ use App\Models\Organization;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\TableSort;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,15 +26,20 @@ class OrganizationController extends Controller
 
         $filters = $request->only(['q', 'status', 'type']);
 
+        $allowed = ['name' => 'name', 'status' => 'status', 'type' => 'type', 'created' => 'id'];
+        $sort = TableSort::from($request, $allowed, 'created', 'desc');
+
         $organizations = Organization::query()
             ->withCount('users')
+            ->with('domains')
             ->when($filters['q'] ?? null, function ($q, $term): void {
                 $like = '%'.mb_strtolower(trim($term)).'%';
                 $q->where(fn ($w) => $w->whereRaw('LOWER(name) LIKE ?', [$like])->orWhereRaw('LOWER(contact_email) LIKE ?', [$like])->orWhereRaw('LOWER(slug) LIKE ?', [$like]));
             })
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->when($filters['type'] ?? null, fn ($q, $type) => $q->where('type', $type))
-            ->latest('id')
+            ->when($filters['type'] ?? null, fn ($q, $type) => $q->where('type', $type));
+        $sort->apply($organizations, $allowed);
+        $organizations = $organizations
             ->paginate(25)
             ->withQueryString();
 
@@ -42,6 +48,7 @@ class OrganizationController extends Controller
             'filters' => $filters,
             'statuses' => collect(OrganizationStatus::cases())->mapWithKeys(fn (OrganizationStatus $s) => [$s->value => $s->label()])->all(),
             'types' => OrganizationType::options(),
+            'sort' => $sort,
         ]);
     }
 

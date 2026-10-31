@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Actions\Tenancy\ProvisionOrganizationWorkspace;
 use App\Enums\OrganizationStatus;
 use App\Enums\OrganizationType;
 use App\Models\Organization;
@@ -16,6 +17,13 @@ class OrganizationFactory extends Factory
     /**
      * @return array<string, mixed>
      */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Organization $organization): void {
+            app(ProvisionOrganizationWorkspace::class)->handle($organization);
+        });
+    }
+
     public function definition(): array
     {
         $name = fake()->unique()->company();

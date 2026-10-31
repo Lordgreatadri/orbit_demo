@@ -6,6 +6,8 @@ use App\Models\Organization;
 use Database\Seeders\Demo\DemoAccount;
 use Database\Seeders\Demo\DemoGuard;
 use Database\Seeders\Demo\EpaOrganizationSeeder;
+use Database\Seeders\Demo\MobileContentOrganizationSeeder;
+use Database\Seeders\Demo\ReviewInstituteSeeder;
 use Database\Seeders\Demo\UpsaOrganizationSeeder;
 use Illuminate\Database\Seeder;
 
@@ -26,14 +28,18 @@ class SystemDemoUserSeeder extends Seeder
 
         $this->call([
             RolesAndPermissionsSeeder::class,
+            MobileContentOrganizationSeeder::class,
             EpaOrganizationSeeder::class,
             UpsaOrganizationSeeder::class,
+            ReviewInstituteSeeder::class,
         ]);
 
         $epa = Organization::query()->where('slug', EpaOrganizationSeeder::SLUG)->firstOrFail();
         $upsa = Organization::query()->where('slug', UpsaOrganizationSeeder::SLUG)->firstOrFail();
+        $mcc = Organization::query()->where('slug', MobileContentOrganizationSeeder::SLUG)->firstOrFail();
+        $review = Organization::query()->where('slug', ReviewInstituteSeeder::SLUG)->firstOrFail();
 
-        foreach ($this->accounts($epa, $upsa) as $account) {
+        foreach ($this->accounts($epa, $upsa, $mcc, $review) as $account) {
             DemoAccount::user($account['profile'], $account['role'], $account['organization']);
         }
 
@@ -43,7 +49,7 @@ class SystemDemoUserSeeder extends Seeder
     /**
      * @return array<int, array{profile: array{first_name: string, last_name: string, email: string, phone: string}, role: string, organization: ?Organization}>
      */
-    private function accounts(Organization $epa, Organization $upsa): array
+    private function accounts(Organization $epa, Organization $upsa, Organization $mcc, Organization $review): array
     {
         return [
             [
@@ -95,6 +101,16 @@ class SystemDemoUserSeeder extends Seeder
                 'profile' => ['first_name' => 'Maame', 'last_name' => 'Owusu', 'email' => 'maame.owusu@upsa.orbit-demo.test', 'phone' => '+233303000214'],
                 'role' => 'student',
                 'organization' => $upsa,
+            ],
+            [
+                'profile' => ['first_name' => 'Rexford', 'last_name' => 'Mensah', 'email' => 'rexford.mensah@mcc.orbit-demo.test', 'phone' => '+233302000302'],
+                'role' => 'organization_admin',
+                'organization' => $mcc,
+            ],
+            [
+                'profile' => ['first_name' => 'Ama', 'last_name' => 'Review', 'email' => 'ama.review@review.orbit-demo.test', 'phone' => '+233302000402'],
+                'role' => 'organization_admin',
+                'organization' => $review,
             ],
         ];
     }

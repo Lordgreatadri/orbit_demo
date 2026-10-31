@@ -57,6 +57,9 @@ class WorkspaceShellTest extends TestCase
 
         $this->assertTrue($platformLabels->contains('Organisations'));
         $this->assertTrue($platformLabels->contains('Roles'));
+        $this->assertTrue($platformLabels->contains('Attendance records'));
+        $this->assertTrue($platformLabels->contains('QR sessions'));
+        $this->assertTrue($platformLabels->contains('Field monitoring'));
         $this->assertFalse($platformLabels->contains('Staff register'));
     }
 
@@ -80,7 +83,7 @@ class WorkspaceShellTest extends TestCase
         $admin = $this->createOrganizationAdmin();
         $manager = $this->createMember($admin->organization, role: 'organization_manager');
 
-        $this->post(route('login.store'), ['email' => $admin->email, 'password' => 'password']);
+        $this->postLogin($admin);
         $this->post(route('logout'));
 
         $this->actingAs($admin)->post(route('org.departments.store'), ['name' => 'Audit Dept']);
@@ -100,7 +103,7 @@ class WorkspaceShellTest extends TestCase
 
         // Other organisations' events never appear.
         $stranger = $this->createOrganizationAdmin();
-        $this->post(route('login.store'), ['email' => $stranger->email, 'password' => 'wrong']);
+        $this->postLogin($stranger, 'wrong');
         $this->actingAs($admin)->get(route('org.audit.logins'))->assertOk()->assertDontSee($stranger->email);
 
         $this->actingAs($manager)->get(route('org.audit.index'))->assertForbidden();

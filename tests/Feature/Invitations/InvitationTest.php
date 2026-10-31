@@ -150,13 +150,13 @@ class InvitationTest extends TestCase
             'role' => 'organization_manager',
         ]);
 
-        $this->get(route('invitations.show', ['token' => $raw]))
+        $this->fromTenant($organization)->get(route('invitations.show', ['token' => $raw]))
             ->assertOk()
             ->assertSee($organization->name)
             ->assertSee('yaw.asare@example.test')
             ->assertSee('Organisation manager');
 
-        $this->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())
+        $this->fromTenant($organization)->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())
             ->assertRedirect(route('app.dashboard'));
 
         $this->assertAuthenticated();
@@ -189,8 +189,8 @@ class InvitationTest extends TestCase
         foreach (['b', 'c', 'd', 'z'] as $char) {
             $raw = str_repeat($char, 64);
 
-            $this->get(route('invitations.show', ['token' => $raw]))->assertOk()->assertSee('This invitation is not valid');
-            $this->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertOk()->assertSee('This invitation is not valid');
+            $this->fromTenant($organization)->get(route('invitations.show', ['token' => $raw]))->assertOk()->assertSee('This invitation is not valid');
+            $this->fromTenant($organization)->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertOk()->assertSee('This invitation is not valid');
         }
 
         $this->assertGuest();
@@ -205,10 +205,10 @@ class InvitationTest extends TestCase
         $raw = str_repeat('e', 64);
         Invitation::factory()->forOrganization($organization)->withRawToken($raw)->create(['email' => 'once@example.test']);
 
-        $this->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertRedirect(route('app.dashboard'));
+        $this->fromTenant($organization)->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertRedirect(route('app.dashboard'));
         auth()->logout();
 
-        $this->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertOk()->assertSee('This invitation is not valid');
+        $this->fromTenant($organization)->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload())->assertOk()->assertSee('This invitation is not valid');
         $this->assertSame(1, User::query()->where('email', 'once@example.test')->count());
     }
 
@@ -216,9 +216,10 @@ class InvitationTest extends TestCase
     public function acceptance_validation_failures_create_no_account(): void
     {
         $raw = str_repeat('f', 64);
-        Invitation::factory()->withRawToken($raw)->create(['email' => 'strict@example.test']);
+        $invitation = Invitation::factory()->withRawToken($raw)->create(['email' => 'strict@example.test']);
 
-        $this->from(route('invitations.show', ['token' => $raw]))
+        $this->fromTenant($invitation->organization)
+            ->from(route('invitations.show', ['token' => $raw]))
             ->post(route('invitations.accept', ['token' => $raw]), $this->acceptPayload([
                 'first_name' => '',
                 'password' => 'short',

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -67,6 +68,8 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $this->assertHostMatchesAccount($user);
+
         RateLimiter::clear($this->throttleKey());
 
         // Sign-in history (login_events) is written by RecordLoginEvent from the
@@ -100,5 +103,37 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+    }
+
+    /**
+     * Platform accounts sign in on the central host. Organisation accounts
+     * sign in on a hostname registered to their organisation. Host-only
+     * cookies mean a successful login cannot be reused on another host.
+     */
+    private function assertHostMatchesAccount(User $user): void
+    {
+        $tenantId = app(TenantContext::class)->id();
+
+        if ($tenantId === null) {
+            if ($user->isPlatformUser()) {
+                return;
+            }
+
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => __('Organisation members sign in at their workspace URL, not on the ORBIT platform site.'),
+            ]);
+        }
+
+        if ($user->isPlatformUser() || (int) $user->organization_id !== $tenantId) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
     }
 }

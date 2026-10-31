@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Invitations;
 use App\Actions\Invitations\AcceptInvitation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invitations\AcceptInvitationRequest;
+use App\Tenancy\Origin;
+use App\Tenancy\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,11 +18,20 @@ use Illuminate\Support\Facades\Auth;
  */
 class InvitationAcceptanceController extends Controller
 {
-    public function show(Request $request, string $token, AcceptInvitation $acceptInvitation): View
+    public function show(Request $request, string $token, AcceptInvitation $acceptInvitation): View|RedirectResponse
     {
         $invitation = $acceptInvitation->findPending($token);
 
         if ($invitation === null) {
+            return view('auth.invitation-invalid');
+        }
+
+        $context = app(TenantContext::class);
+        if (! $context->has()) {
+            return redirect()->away(Origin::url($invitation->organization, '/invitations/'.$token));
+        }
+
+        if ($context->id() !== $invitation->organization_id) {
             return view('auth.invitation-invalid');
         }
 

@@ -2,10 +2,13 @@
 
 namespace Database\Seeders\Demo;
 
+use App\Actions\Tenancy\ProvisionOrganizationWorkspace;
+use App\Enums\DomainType;
 use App\Enums\OrganizationStatus;
 use App\Enums\UserStatus;
 use App\Models\Organization;
 use App\Models\User;
+use App\Tenancy\Hostname;
 use Illuminate\Support\Str;
 
 /**
@@ -22,7 +25,7 @@ class DemoAccount
 
         $existing = Organization::query()->where('slug', $slug)->first();
 
-        return Organization::query()->updateOrCreate(
+        $organization = Organization::query()->updateOrCreate(
             ['slug' => $slug],
             array_merge([
                 'timezone' => config('orbit.default_timezone'),
@@ -33,6 +36,10 @@ class DemoAccount
                 'verified_at' => $existing?->verified_at ?? now(),
             ]),
         );
+
+        app(ProvisionOrganizationWorkspace::class)->handle($organization);
+
+        return $organization;
     }
 
     /**
@@ -67,5 +74,26 @@ class DemoAccount
         $user->syncRoles([$role]);
 
         return $user;
+    }
+
+    /**
+     * Make `{label}.{base}` the primary hostname, keeping any slug-based host as an alias.
+     */
+    public static function preferSubdomain(Organization $organization, string $label): void
+    {
+        $host = Hostname::platformHostFor($label);
+
+        $organization->domains()->update(['is_primary' => false]);
+
+        $organization->domains()->updateOrCreate(
+            ['domain' => $host],
+            [
+                'type' => DomainType::PlatformSubdomain,
+                'is_primary' => true,
+                'is_active' => true,
+                'is_verified' => true,
+                'verified_at' => now(),
+            ],
+        );
     }
 }

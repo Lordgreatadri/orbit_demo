@@ -6,6 +6,7 @@ use App\Enums\RoleScope;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Tenancy\RoleAudience;
 use Illuminate\Support\Collection;
 
 /**
@@ -36,6 +37,10 @@ class GrantResolver
             $scope = $target->isPlatformUser() ? RoleScope::Platform : RoleScope::Tenant;
             $roles = Role::query()->where('scope', $scope->value)->orderBy('name')->get();
 
+            if ($scope === RoleScope::Tenant && $target->organization) {
+                $roles = $roles->filter(fn (Role $role) => RoleAudience::allows($role->name, $target->organization->type))->values();
+            }
+
             return $this->withoutSuperAdminUnlessActorIsOne($actor, $roles);
         }
 
@@ -43,7 +48,13 @@ class GrantResolver
             return collect();
         }
 
-        return Role::query()->tenant()->orderBy('name')->get();
+        $target->loadMissing('organization');
+
+        if ($target->organization === null) {
+            return collect();
+        }
+
+        return RoleAudience::tenantRolesFor($target->organization);
     }
 
     /**

@@ -258,4 +258,62 @@ return [
     'default_timezone' => 'Africa/Accra',
     'default_country' => 'GH',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Role audiences
+    |--------------------------------------------------------------------------
+    | Tenant roles omitted here are available to every organisation type.
+    | `student` is for schools and universities only (not EPA-style agencies).
+    */
+
+    'role_audiences' => [
+        'student' => ['educational_institution'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Hostname tenancy (ADR-0011)
+    |--------------------------------------------------------------------------
+    | The organisation slug is not the public URL. Hostnames live in
+    | organization_domains. Central hosts serve the public site and /admin.
+    */
+
+    'tenancy' => [
+        'base_domain' => env('ORBIT_TENANT_BASE_DOMAIN', 'orbit.test'),
+        'central_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'ORBIT_CENTRAL_HOSTS',
+            'orbit.test,www.orbit.test,localhost,127.0.0.1'
+        ))))),
+        'reserved_subdomains' => [
+            'www', 'api', 'admin', 'app', 'mail', 'ftp', 'smtp', 'pop', 'imap',
+            'ns', 'ns1', 'ns2', 'cdn', 'static', 'assets', 'status', 'health',
+            'support', 'help', 'docs', 'blog', 'shop', 'store', 'billing', 'pay',
+            'identity', 'auth', 'sso', 'login', 'register', 'dashboard',
+            'platform', 'orbit', 'localhost', 'cpanel', 'webmail', 'mx',
+            'staging', 'preview', 'beta', 'test', 'owner', 'root', 'webmaster',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default branding (used until an organisation publishes its own)
+    |--------------------------------------------------------------------------
+    */
+
+    'branding' => [
+        'defaults' => [
+            'display_name' => env('APP_NAME', 'ORBIT'),
+            'primary_color' => '#0F766E',
+            'secondary_color' => '#0D3B43',
+            'accent_color' => '#3B6EA5',
+            'theme_mode' => 'user',
+            'font_family' => 'instrument-sans',
+            'login_heading' => 'Sign in',
+            'login_message' => 'Welcome back. Sign in to your organisation\'s workspace.',
+            'support_email' => env('ORBIT_SUPPORT_EMAIL', 'hello@orbit.example'),
+            'support_phone' => null,
+            'footer_text' => null,
+        ],
+    ],
+
 ];

@@ -19,11 +19,11 @@
                 <x-data-table :paginator="$users" caption="User accounts">
                     <thead>
                         <tr>
-                            <th scope="col">Account</th>
+                            <x-data-table.sort column="name" :sort="$sort">Account</x-data-table.sort>
                             <th scope="col" class="hidden md:table-cell">Roles</th>
                             <th scope="col" class="hidden lg:table-cell">Staff record</th>
-                            <th scope="col">Status</th>
-                            <th scope="col" class="hidden sm:table-cell">Last sign-in</th>
+                            <x-data-table.sort column="status" :sort="$sort">Status</x-data-table.sort>
+                            <x-data-table.sort column="signed_in" :sort="$sort" class="hidden sm:table-cell">Last sign-in</x-data-table.sort>
                             <th scope="col"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>

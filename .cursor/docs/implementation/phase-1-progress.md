@@ -26,7 +26,7 @@ Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
 
 ## Stage 2 — Registration, authentication, tenant foundation
 - [x] Schema: `organizations`, `users` (uuid + `organization_id`), `contact_messages`, `invitations`, spatie tables, `activity_log.organization_id`
-- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `SetTenantContext` (runs **before** `SubstituteBindings`)
+- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `IdentifyTenant` (hostname → tenant, runs **before** `SubstituteBindings`)
 - [x] Organisation registration (`RegisterOrganization` action, transactional, creates org + admin + role + audit)
 - [x] Login/logout (rate-limited, generic errors, inactive user / non-operational org blocked), `EnsureAccountIsOperational`
 - [x] Password reset (broker, generic response, `throttle:password-reset`)
@@ -88,7 +88,9 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - [x] Platform role/permission CRUD; org admins assign any tenant-scoped role including custom ones
 - [x] Audit trail and sign-in history as separate pages (tenant and platform)
 - [x] Mail header uses `public/images/brand/orbit-lockup-light.png` with `alt="ORBIT"`
-- [ ] Logo upload — deferred (needs media decision)
+- [x] Hostname tenancy + domain registry + organisation branding (ADR-0011). Spatie/stancl not installed; native resolver on shared DB.
+- [x] Sortable table headers and visible “Showing x–y of z” counts on large lists
+- [x] `student` role limited to educational institutions; super-admin product-module placeholders restored
 - [ ] Attendance / QR / field / schedules / leave / notifications / analytics — labelled placeholders only
 
 ## Recommended next task

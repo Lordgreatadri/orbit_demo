@@ -12,6 +12,7 @@ use App\Models\Location;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\TableSort;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,13 +25,17 @@ class StaffMemberController extends Controller
 
         $filters = $request->only(['q', 'department', 'work_type', 'status']);
 
+        $allowed = ['name' => 'last_name', 'number' => 'staff_number', 'status' => 'status', 'type' => 'work_type'];
+        $sort = TableSort::from($request, $allowed, 'name');
+
         $staff = StaffMember::query()
             ->with(['department:id,name', 'primaryLocation:id,name', 'user:id,uuid,status,last_login_at'])
             ->search($filters['q'] ?? null)
             ->when($filters['department'] ?? null, fn ($q, $uuid) => $q->whereHas('department', fn ($d) => $d->where('uuid', $uuid)))
             ->when($filters['work_type'] ?? null, fn ($q, $type) => $q->where('work_type', $type))
-            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->orderBy('last_name')
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
+        $sort->apply($staff, $allowed);
+        $staff = $staff
             ->orderBy('first_name')
             ->paginate(25)
             ->withQueryString();
@@ -43,6 +48,7 @@ class StaffMemberController extends Controller
             'statuses' => StaffStatus::options(),
             'canCreate' => $request->user()->can('create', StaffMember::class),
             'timezone' => $request->user()->organization->timezone,
+            'sort' => $sort,
         ]);
     }
 

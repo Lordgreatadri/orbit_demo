@@ -39,7 +39,7 @@
 
         @if ($organization)
             <div class="shrink-0 border-b border-edge px-4 py-3">
-                <p class="truncate text-sm font-semibold text-fg" title="{{ $organization->name }}">{{ $organization->name }}</p>
+                <p class="truncate text-sm font-semibold text-fg" title="{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}">{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}</p>
                 <p class="mt-0.5 flex items-center gap-1.5 text-xs text-fg-subtle">
                     <span>{{ $organization->type->label() }}</span>
                     @if ($organization->isDemo())

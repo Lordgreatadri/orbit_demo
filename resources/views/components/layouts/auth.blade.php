@@ -13,13 +13,18 @@
             <div aria-hidden="true" class="absolute -right-16 -bottom-24 size-[26rem] rounded-full border border-white/10"></div>
             <div aria-hidden="true" class="absolute right-10 -bottom-6 size-[16rem] rounded-full border border-white/10"></div>
 
-            <a href="{{ route('home') }}" class="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-white" aria-label="{{ config('orbit.product_name') }} home">
-                <img src="{{ asset('images/brand/orbit-lockup-dark.png') }}" alt="ORBIT — Track · Manage · Empower" width="736" height="278" class="h-20 w-auto" decoding="async">
+            @php $branding = $workspaceBranding ?? \App\Tenancy\WorkspaceBranding::platform(); @endphp
+            <a href="{{ $branding->organization ? route('login') : route('home') }}" class="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-white" aria-label="{{ $branding->displayName }}">
+                @if ($branding->logoDarkUrl || $branding->logoUrl)
+                    <img src="{{ $branding->logoDarkUrl ?? $branding->logoUrl }}" alt="{{ $branding->displayName }}" class="h-20 w-auto object-contain" decoding="async">
+                @else
+                    <img src="{{ asset('images/brand/orbit-lockup-dark.png') }}" alt="ORBIT — Track · Manage · Empower" width="736" height="278" class="h-20 w-auto" decoding="async">
+                @endif
             </a>
 
             <div class="relative max-w-md">
                 <p class="text-xs font-semibold tracking-[0.18em] text-brand-mint uppercase">{{ config('orbit.product_tagline') }}</p>
-                <h2 class="mt-4 text-3xl font-semibold tracking-tight text-balance xl:text-4xl">One clear view of attendance, schedules, and where work happens.</h2>
+                <h2 class="mt-4 text-3xl font-semibold tracking-tight text-balance xl:text-4xl">{{ $branding->loginHeading === 'Sign in' ? 'One clear view of attendance, schedules, and where work happens.' : $branding->loginHeading }}</h2>
                 <ul class="mt-8 space-y-4 text-[0.9375rem] text-white/80">
                     @foreach ([
                         ['qr', 'Time-limited QR sessions; static codes are never used.'],
@@ -34,7 +39,7 @@
                 </ul>
             </div>
 
-            <p class="relative text-xs text-white/50">&copy; {{ date('Y') }} {{ config('orbit.product_name') }}. Designed for ministries, universities, agencies, NGOs, and businesses.</p>
+            <p class="relative text-xs text-white/50">{{ $branding->footerText }}</p>
         </aside>
 
         {{-- Form column --}}
