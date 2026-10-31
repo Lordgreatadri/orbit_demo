@@ -3,7 +3,7 @@
         <p>Ask your organisation administrator to send a new invitation. Invitations expire after {{ config('orbit.invitation_ttl_days') }} days and can only be used once.</p>
         <div class="flex flex-wrap gap-3">
             <x-button :href="route('login')" variant="secondary">Sign in</x-button>
-            <x-button :href="route('contact')" variant="ghost">Contact support</x-button>
+            <x-button :href="\App\Tenancy\Origin::centralUrl('/contact')" variant="ghost">Contact support</x-button>
         </div>
     </div>
 </x-layouts.auth>

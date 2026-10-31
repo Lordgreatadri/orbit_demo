@@ -193,7 +193,7 @@ class UserAccessTest extends TestCase
 
         // The suspended account cannot sign in (guard state is asserted, not the session store).
         $this->post(route('logout'));
-        $this->post(route('login.store'), ['email' => $member->email, 'password' => 'password']);
+        $this->postLogin($member);
         $this->assertGuest();
 
         $this->actingAs($admin)->patch(route('org.users.status', $member), ['status' => 'active'])->assertRedirect(route('org.users.show', $member));
@@ -222,7 +222,7 @@ class UserAccessTest extends TestCase
     {
         $admin = $this->createOrganizationAdmin();
 
-        $this->post(route('login.store'), ['email' => $admin->email, 'password' => 'password']);
+        $this->postLogin($admin);
 
         $this->actingAs($admin)
             ->get(route('app.profile'))

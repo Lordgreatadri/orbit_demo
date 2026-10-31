@@ -2,36 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
-use App\Tenancy\TenantContext;
-use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-
 /**
- * Derives the tenant from the authenticated user only (ADR-0002/0009).
- * Always resets the context first so nothing leaks between requests that
- * share a container (tests, long-running workers).
+ * @deprecated Use IdentifyTenant. Hostname resolution replaced user-derived
+ * tenant context (ADR-0011). This subclass remains so older references resolve.
  */
-class SetTenantContext
-{
-    public function __construct(private readonly TenantContext $context) {}
-
-    public function handle(Request $request, Closure $next): Response
-    {
-        $this->context->clear();
-
-        $user = $request->user();
-
-        if ($user instanceof User && $user->organization_id !== null) {
-            $this->context->set($user->organization);
-        }
-
-        return $next($request);
-    }
-
-    public function terminate(Request $request, Response $response): void
-    {
-        $this->context->clear();
-    }
-}
+class SetTenantContext extends IdentifyTenant {}

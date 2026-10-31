@@ -23,7 +23,7 @@ class LoginTest extends TestCase
     {
         $user = $this->createOrganizationAdmin();
 
-        $response = $this->post(route('login.store'), [
+        $response = $this->fromTenant($user->organization)->post(route('login.store'), [
             'email' => strtoupper($user->email),
             'password' => 'password',
         ]);
@@ -47,7 +47,7 @@ class LoginTest extends TestCase
     {
         $user = $this->createOrganizationAdmin();
 
-        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password']);
+        $this->postLogin($user, 'wrong-password');
 
         $this->assertDatabaseHas('login_events', ['event' => 'failed', 'user_id' => $user->getKey(), 'email' => $user->email]);
 
@@ -56,7 +56,7 @@ class LoginTest extends TestCase
         $this->assertDatabaseHas('login_events', ['event' => 'failed', 'user_id' => null, 'organization_id' => null, 'email' => 'nobody@example.test']);
 
         for ($i = 0; $i < 5; $i++) {
-            $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password']);
+            $this->postLogin($user, 'wrong-password');
         }
 
         $this->assertDatabaseHas('login_events', [
@@ -73,7 +73,8 @@ class LoginTest extends TestCase
     {
         $user = $this->createOrganizationAdmin();
 
-        $this->from(route('login'))
+        $this->fromTenant($user->organization)
+            ->from(route('login'))
             ->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password'])
             ->assertRedirect(route('login'))
             ->assertSessionHasErrors('email');
@@ -88,10 +89,12 @@ class LoginTest extends TestCase
 
         $generic = __('auth.failed');
 
-        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password'])
+        $this->fromTenant($user->organization)
+            ->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password'])
             ->assertSessionHasErrors(['email' => $generic]);
 
-        $this->post(route('login.store'), ['email' => 'nobody@example.test', 'password' => 'wrong-password'])
+        $this->fromTenant($user->organization)
+            ->post(route('login.store'), ['email' => 'nobody@example.test', 'password' => 'wrong-password'])
             ->assertSessionHasErrors(['email' => $generic]);
 
         // Neither variant leaks whether the address is registered.
@@ -105,11 +108,10 @@ class LoginTest extends TestCase
         $user = $this->createOrganizationAdmin();
 
         for ($i = 0; $i < 5; $i++) {
-            $this->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password']);
+            $this->postLogin($user, 'wrong-password');
         }
 
-        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+        $this->postLogin($user)->assertSessionHasErrors('email');
 
         $this->assertGuest();
     }
@@ -119,8 +121,7 @@ class LoginTest extends TestCase
     {
         $user = User::factory()->suspended()->create();
 
-        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+        $this->postLogin($user)->assertSessionHasErrors('email');
 
         $this->assertGuest();
     }
@@ -131,8 +132,7 @@ class LoginTest extends TestCase
         $organization = Organization::factory()->suspended()->create();
         $user = $this->createOrganizationAdmin($organization);
 
-        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+        $this->postLogin($user)->assertSessionHasErrors('email');
 
         $this->assertGuest();
     }
@@ -156,9 +156,50 @@ class LoginTest extends TestCase
     {
         $user = $this->createOrganizationAdmin();
 
-        $this->actingAs($user)->post(route('logout'))->assertRedirect(route('home'));
+        $this->actingAs($user)->post(route('logout'))->assertRedirect(route('login'));
         $this->assertGuest();
         $this->assertDatabaseHas('login_events', ['event' => 'logout', 'user_id' => $user->getKey()]);
+    }
+
+    #[Test]
+    public function a_correct_password_on_the_wrong_workspace_is_a_failed_attempt(): void
+    {
+        $epa = Organization::factory()->create(['name' => 'EPA Demo']);
+        $mcc = Organization::factory()->create(['name' => 'Mobile Content Ltd']);
+        $epaAdmin = $this->createOrganizationAdmin($epa);
+
+        $this->fromTenant($mcc)
+            ->from(route('login'))
+            ->post(route('login.store'), ['email' => $epaAdmin->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'failed',
+            'user_id' => $epaAdmin->getKey(),
+            'email' => $epaAdmin->email,
+        ]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
+        $this->assertDatabaseMissing('login_events', ['event' => 'logout']);
+    }
+
+    #[Test]
+    public function an_organisation_member_cannot_sign_in_on_the_central_host(): void
+    {
+        $user = $this->createOrganizationAdmin();
+
+        $this->fromCentral()
+            ->from(route('login'))
+            ->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'failed',
+            'user_id' => $user->getKey(),
+            'email' => $user->email,
+        ]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
     }
 
     #[Test]

@@ -1,6 +1,8 @@
 <x-layouts.app title="Organisation settings">
     <x-page-header title="Organisation settings" description="Details shown to your users and used for time-zone-aware records. Changes are written to the audit trail." eyebrow="Administration" />
 
+    <x-workspace.settings-tabs :organization="$organization" current="profile" />
+
     <div class="grid gap-6 lg:grid-cols-3">
         <form method="POST" action="{{ route('org.organizations.update', $organization) }}" class="space-y-6 lg:col-span-2">
             @csrf
@@ -33,11 +35,11 @@
             <x-card title="Account">
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between gap-2"><dt class="text-fg-muted">Status</dt><dd><x-badge :tone="$organization->status->tone()">{{ $organization->status->label() }}</x-badge></dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-fg-muted">Workspace</dt><dd class="font-mono text-xs text-fg">{{ $organization->slug }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-fg-muted">Workspace URL</dt><dd class="font-mono text-xs text-fg">{{ $organization->primaryHost() }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-fg-muted">Verified</dt><dd class="text-fg">{{ $organization->verified_at?->toFormattedDateString() ?? 'Pending' }}</dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-fg-muted">Created</dt><dd class="text-fg">{{ $organization->created_at->toFormattedDateString() }}</dd></div>
                 </dl>
-                <p class="mt-4 text-xs text-fg-subtle">Suspension, closure, and plan changes are handled by platform support. <a href="{{ route('contact') }}" class="text-primary hover:underline">Contact support</a>.</p>
+                <p class="mt-4 text-xs text-fg-subtle">Suspension, closure, and plan changes are handled by platform support. <a href="{{ \App\Tenancy\Origin::centralUrl('/contact') }}" class="text-primary hover:underline">Contact support</a>.</p>
             </x-card>
             <x-card title="Structure">
                 <ul class="space-y-2 text-sm">

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Notifications\InvitationNotification;
 use App\Support\Audit;
+use App\Tenancy\RoleAudience;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,7 @@ class CreateInvitation
             throw ValidationException::withMessages(['email' => __('Only organisation accounts can invite members.')]);
         }
 
-        if (! Role::query()->tenant()->where('name', $role)->exists()) {
+        if (! Role::query()->tenant()->where('name', $role)->exists() || ! RoleAudience::allows($role, $organization->type)) {
             throw ValidationException::withMessages(['role' => __('That role cannot be granted by invitation.')]);
         }
 

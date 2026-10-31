@@ -19,7 +19,7 @@ class EpaOrganizationSeeder extends Seeder
 
     public function run(): void
     {
-        DemoAccount::organization(self::SLUG, [
+        $organization = DemoAccount::organization(self::SLUG, [
             'name' => 'Environmental Protection Agency — Ghana',
             'type' => OrganizationType::PublicInstitution,
             'contact_email' => 'demo.registry@epa.orbit-demo.test',
@@ -85,6 +85,8 @@ class EpaOrganizationSeeder extends Seeder
                 ],
             ],
         ]);
+
+        DemoAccount::preferSubdomain($organization, 'epa');
     }
 
     public static function organization(): Organization

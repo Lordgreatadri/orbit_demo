@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Tenancy\TenantContext;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +48,12 @@ class LoginRequest extends FormRequest
     public function authenticate(): User
     {
         $this->ensureIsNotRateLimited();
+
+        $attempted = User::query()->where('email', $this->input('email'))->first();
+
+        if ($attempted instanceof User && ! $this->accountBelongsOnThisHost($attempted)) {
+            $this->rejectForHost($attempted);
+        }
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
@@ -100,5 +108,39 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+    }
+
+    /**
+     * Platform accounts sign in on the central host. Organisation accounts
+     * sign in on a hostname registered to their organisation. Host-only
+     * cookies mean a successful login cannot be reused on another host.
+     */
+    private function accountBelongsOnThisHost(User $user): bool
+    {
+        $tenantId = app(TenantContext::class)->id();
+
+        if ($tenantId === null) {
+            return $user->isPlatformUser();
+        }
+
+        return ! $user->isPlatformUser() && (int) $user->organization_id === $tenantId;
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function rejectForHost(User $user): never
+    {
+        RateLimiter::hit($this->throttleKey());
+
+        event(new Failed(Auth::getDefaultDriver(), $user, $this->only('email', 'password')));
+
+        $message = app(TenantContext::class)->id() === null && ! $user->isPlatformUser()
+            ? __('Organisation members sign in at their workspace URL, not on the ORBIT platform site.')
+            : __('auth.failed');
+
+        throw ValidationException::withMessages([
+            'email' => $message,
+        ]);
     }
 }

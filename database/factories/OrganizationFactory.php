@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Actions\Tenancy\ProvisionOrganizationWorkspace;
 use App\Enums\OrganizationStatus;
 use App\Enums\OrganizationType;
 use App\Models\Organization;
@@ -13,9 +14,35 @@ use Illuminate\Support\Str;
  */
 class OrganizationFactory extends Factory
 {
+    /** @var array<int, true> */
+    private static array $skipWorkspaceObjectIds = [];
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Organization $organization): void {
+            $objectId = spl_object_id($organization);
+
+            if (isset(self::$skipWorkspaceObjectIds[$objectId])) {
+                unset(self::$skipWorkspaceObjectIds[$objectId]);
+
+                return;
+            }
+
+            app(ProvisionOrganizationWorkspace::class)->handle($organization);
+        });
+    }
+
     /**
-     * @return array<string, mixed>
+     * Create the organisation row only — used by branding/domain factories
+     * that then attach their own workspace records via updateOrCreate.
      */
+    public function withoutWorkspace(): static
+    {
+        return $this->afterMaking(function (Organization $organization): void {
+            self::$skipWorkspaceObjectIds[spl_object_id($organization)] = true;
+        });
+    }
+
     public function definition(): array
     {
         $name = fake()->unique()->company();

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Tenancy\BrandingController;
+use App\Http\Controllers\Tenancy\DomainController;
 use App\Http\Controllers\Tenant\AuditController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\DepartmentController;
@@ -17,23 +19,30 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Organisation workspace  (/org, name prefix org.)
 |--------------------------------------------------------------------------
-| Every route requires an organisation account (`tenant` middleware). Tenant
-| context is set by SetTenantContext before bindings resolve, so tenant-owned
-| models bind only inside the current organisation; `{orgUser}` is a custom
-| binding that does the same for user accounts. Policies re-check ownership.
+| Every route requires a tenant hostname (`tenant.host`) and an organisation
+| account (`tenant`). IdentifyTenant sets context before bindings resolve.
 */
 
 Route::prefix('org')
-    ->middleware(['auth', 'account.operational', 'identity.verified', 'tenant'])
+    ->middleware(['auth', 'tenant.host', 'account.operational', 'identity.verified', 'tenant'])
     ->name('org.')
     ->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
 
-        // Organisation settings (UUID-addressed; policy limits to own organisation)
         Route::get('/organisation/{organization:uuid}/settings', [OrganizationSettingsController::class, 'edit'])->name('organizations.edit');
         Route::put('/organisation/{organization:uuid}/settings', [OrganizationSettingsController::class, 'update'])->name('organizations.update');
+        Route::get('/organisation/{organization:uuid}/domains', [DomainController::class, 'edit'])->name('organizations.domains');
+        Route::post('/organisation/{organization:uuid}/domains', [DomainController::class, 'store'])->middleware('throttle:access-write')->name('organizations.domains.store');
+        Route::post('/organisation/{organization:uuid}/domains/{domain:uuid}/primary', [DomainController::class, 'primary'])->middleware('throttle:access-write')->name('organizations.domains.primary');
+        Route::post('/organisation/{organization:uuid}/domains/{domain:uuid}/verify', [DomainController::class, 'verify'])->middleware('throttle:access-write')->name('organizations.domains.verify');
+        Route::post('/organisation/{organization:uuid}/domains/{domain:uuid}/activate', [DomainController::class, 'activate'])->middleware('throttle:access-write')->name('organizations.domains.activate');
+        Route::post('/organisation/{organization:uuid}/domains/{domain:uuid}/deactivate', [DomainController::class, 'deactivate'])->middleware('throttle:access-write')->name('organizations.domains.deactivate');
+        Route::delete('/organisation/{organization:uuid}/domains/{domain:uuid}', [DomainController::class, 'destroy'])->middleware('throttle:access-write')->name('organizations.domains.destroy');
+        Route::get('/organisation/{organization:uuid}/branding', [BrandingController::class, 'edit'])->name('organizations.branding');
+        Route::put('/organisation/{organization:uuid}/branding', [BrandingController::class, 'update'])->middleware('throttle:access-write')->name('organizations.branding.update');
+        Route::post('/organisation/{organization:uuid}/branding/publish', [BrandingController::class, 'publish'])->middleware('throttle:access-write')->name('organizations.branding.publish');
+        Route::get('/organisation/{organization:uuid}/branding/preview', [BrandingController::class, 'preview'])->name('organizations.branding.preview');
 
-        // Staff register (people records)
         Route::get('/staff', [StaffMemberController::class, 'index'])->name('staff.index');
         Route::get('/staff/create', [StaffMemberController::class, 'create'])->name('staff.create');
         Route::post('/staff', [StaffMemberController::class, 'store'])->name('staff.store');
@@ -42,7 +51,6 @@ Route::prefix('org')
         Route::put('/staff/{staff:uuid}', [StaffMemberController::class, 'update'])->name('staff.update');
         Route::delete('/staff/{staff:uuid}', [StaffMemberController::class, 'destroy'])->name('staff.destroy');
 
-        // Structure
         Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
         Route::post('/departments', [DepartmentController::class, 'store'])->name('departments.store');
         Route::put('/departments/{department:uuid}', [DepartmentController::class, 'update'])->name('departments.update');
@@ -53,7 +61,6 @@ Route::prefix('org')
         Route::put('/locations/{location:uuid}', [LocationController::class, 'update'])->name('locations.update');
         Route::delete('/locations/{location:uuid}', [LocationController::class, 'destroy'])->name('locations.destroy');
 
-        // Users & access (login accounts, roles, permissions, invitations)
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::get('/users/{orgUser}', [UserController::class, 'show'])->name('users.show');
         Route::middleware('throttle:access-write')->group(function (): void {
@@ -69,11 +76,9 @@ Route::prefix('org')
 
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
 
-        // Audit trail and sign-in history
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
         Route::get('/audit/sign-ins', [AuditController::class, 'logins'])->name('audit.logins');
 
-        // Modules delivered in later stages: labelled placeholders, never dead links.
         Route::get('/attendance', [ModuleController::class, 'show'])->defaults('module', 'attendance')->name('attendance.index');
         Route::get('/attendance/sessions', [ModuleController::class, 'show'])->defaults('module', 'attendance-sessions')->name('attendance.sessions');
         Route::get('/field', [ModuleController::class, 'show'])->defaults('module', 'field')->name('field.index');

@@ -38,6 +38,7 @@
         'login' => 'M10 17l5-5-5-5m5 5H3m9-9h7a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-7',
         'logout' => 'M16 17l5-5-5-5m5 5H9m3 9H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7',
         'chevron-down' => 'm6 9 6 6 6-6',
+        'chevron-up' => 'm18 15-6-6-6 6',
         'chevron-right' => 'm9 6 6 6-6 6',
         'chevron-left' => 'm15 6-6 6 6 6',
         'plus' => 'M12 5v14m-7-7h14',

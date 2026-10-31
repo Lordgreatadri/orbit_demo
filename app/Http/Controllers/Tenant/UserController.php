@@ -10,6 +10,8 @@ use App\Models\Invitation;
 use App\Models\LoginEvent;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\TableSort;
+use App\Tenancy\RoleAudience;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -29,13 +31,17 @@ class UserController extends Controller
         $organization = $actor->organization;
         $filters = $request->only(['q', 'role', 'status']);
 
+        $allowed = ['name' => 'last_name', 'email' => 'email', 'status' => 'status', 'signed_in' => 'last_login_at'];
+        $sort = TableSort::from($request, $allowed, 'name');
+
         $users = User::query()
             ->where('organization_id', $organization->getKey())
             ->with(['roles:id,name,scope', 'staffMember:id,user_id,staff_number'])
             ->search($filters['q'] ?? null)
             ->when($filters['role'] ?? null, fn ($q, $role) => $q->role($role))
-            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->orderBy('last_name')
+            ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
+        $sort->apply($users, $allowed);
+        $users = $users
             ->orderBy('first_name')
             ->paginate(25)
             ->withQueryString();
@@ -53,12 +59,13 @@ class UserController extends Controller
             'organization' => $organization,
             'users' => $users,
             'filters' => $filters,
-            'roles' => Role::query()->tenant()->orderBy('name')->get()->mapWithKeys(fn (Role $r) => [$r->name => $r->label()])->all(),
+            'roles' => RoleAudience::tenantRolesFor($organization)->mapWithKeys(fn (Role $r) => [$r->name => $r->label()])->all(),
             'statuses' => collect(UserStatus::cases())->mapWithKeys(fn (UserStatus $s) => [$s->value => $s->label()])->all(),
             'invitations' => $invitations,
-            'invitableRoles' => Role::query()->tenant()->orderBy('name')->get()->mapWithKeys(fn (Role $r) => [$r->name => $r->label()])->all(),
+            'invitableRoles' => RoleAudience::invitableOptions($organization),
             'canInvite' => $actor->can('create', Invitation::class),
             'timezone' => $organization->timezone,
+            'sort' => $sort,
         ]);
     }
 

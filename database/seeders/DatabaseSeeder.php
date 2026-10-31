@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Database\Seeders\SystemDemoUserSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -17,9 +15,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CountryTableSeeder::class,
             RolesAndPermissionsSeeder::class,
+            OrganizationWorkspaceBackfillSeeder::class,
         ]);
 
-        if(! app()->isProduction()) {
+        if (! app()->isProduction() && filled(config('orbit.demo_password'))) {
             $this->call([
                 SystemDemoUserSeeder::class,
             ]);

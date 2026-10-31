@@ -20,8 +20,7 @@ Livewire starter kits (Fortify-backed) or hand-written controllers on framework 
   tenant checks go through `User::organization_id` / `TenantContext`.
 
 ### 2. Tenant context is derived, never supplied
-- `App\Tenancy\TenantContext` (request-scoped singleton) is set by the `SetTenantContext` middleware from
-  the authenticated user and cleared after each request and before/after each queued job.
+- `App\Tenancy\TenantContext` (scoped binding) is set by `IdentifyTenant` from the request hostname (ADR-0011). The authenticated user's `organization_id` must match that host. Context is cleared after each request and before/after each queued job.
 - `App\Models\Concerns\BelongsToOrganization` adds a global scope (`organization_id = current`) and fills
   `organization_id` on create. `platform_super_admin` may open `/app/members`, which lists every organisation's members and writes `platform.members.viewed`. `platform_support` cannot. Other tenant rows stay closed to platform accounts.
 - Policies additionally compare `organization_id` so that a missing scope cannot silently widen access.

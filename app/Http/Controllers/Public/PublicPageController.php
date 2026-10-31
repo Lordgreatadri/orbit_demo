@@ -3,12 +3,21 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Tenancy\TenantContext;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class PublicPageController extends Controller
 {
-    public function home(): View
+    public function home(Request $request, TenantContext $context): View|RedirectResponse
     {
+        if ($context->has()) {
+            return $request->user()
+                ? redirect()->route('org.dashboard')
+                : redirect()->route('login');
+        }
+
         return view('public.home');
     }
 

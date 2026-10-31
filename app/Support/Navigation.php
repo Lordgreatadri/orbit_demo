@@ -110,6 +110,15 @@ class Navigation
                 ['label' => 'Audit trail', 'route' => 'admin.audit.index', 'icon' => 'shield-check', 'active' => 'admin.audit.index', 'can' => $user->can('platform.audit.view')],
                 ['label' => 'Sign-in history', 'route' => 'admin.audit.logins', 'icon' => 'login', 'active' => 'admin.audit.logins', 'can' => $user->can('platform.audit.view')],
             ]],
+            ['heading' => 'Product modules', 'items' => [
+                ['label' => 'Attendance records', 'route' => 'admin.modules.show', 'params' => ['module' => 'attendance'], 'icon' => 'clock', 'active' => 'admin.modules.show', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'QR sessions', 'route' => 'admin.modules.show', 'params' => ['module' => 'attendance-sessions'], 'icon' => 'qr', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Field monitoring', 'route' => 'admin.modules.show', 'params' => ['module' => 'field'], 'icon' => 'map-pin', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Schedules', 'route' => 'admin.modules.show', 'params' => ['module' => 'schedules'], 'icon' => 'calendar', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Leave', 'route' => 'admin.modules.show', 'params' => ['module' => 'leave'], 'icon' => 'document-check', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Notifications', 'route' => 'admin.modules.show', 'params' => ['module' => 'notifications'], 'icon' => 'bell', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Analytics', 'route' => 'admin.modules.show', 'params' => ['module' => 'analytics'], 'icon' => 'chart', 'soon' => true, 'can' => $user->can('platform.access')],
+            ]],
             ['heading' => 'Platform', 'items' => [
                 ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'settings', 'active' => 'admin.settings.*', 'soon' => true, 'can' => $user->can('platform.settings.manage')],
             ]],
@@ -125,6 +134,10 @@ class Navigation
 
         foreach ($patterns as $pattern) {
             if (request()->routeIs($pattern)) {
+                if (isset($item['params']['module']) && request()->route('module') !== $item['params']['module']) {
+                    continue;
+                }
+
                 return true;
             }
         }

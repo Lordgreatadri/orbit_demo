@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Tenancy\RoleAudience;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,8 @@ class RoleController extends Controller
 
         $organizationId = $request->user()->organization_id;
 
-        $roles = Role::query()->tenant()->with('permissions:id,name,module,description')->orderBy('name')->get();
+        $roles = RoleAudience::tenantRolesFor($request->user()->organization)
+            ->load('permissions:id,name,module,description');
 
         // Members per role inside this organisation only (one grouped query).
         $usage = DB::table('model_has_roles')

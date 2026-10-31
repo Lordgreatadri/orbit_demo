@@ -45,4 +45,16 @@ class OrganizationPolicy
     {
         return $user->isPlatformUser() && $user->can('platform.organizations.manage');
     }
+
+    /**
+     * Domains, aliases, branding, and login presentation.
+     */
+    public function manageWorkspace(User $user, Organization $organization): bool
+    {
+        if ($user->isPlatformUser()) {
+            return $user->can('platform.organizations.manage');
+        }
+
+        return $this->update($user, $organization);
+    }
 }

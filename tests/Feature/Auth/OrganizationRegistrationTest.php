@@ -48,6 +48,9 @@ class OrganizationRegistrationTest extends TestCase
         $this->assertSame('ama.mensah@example.test', $organization->contact_email);
         $this->assertNotNull($organization->uuid);
         $this->assertNotEmpty($organization->slug);
+        $this->assertNotNull($organization->primaryDomain());
+        $this->assertTrue($organization->primaryDomain()->is_verified);
+        $this->assertTrue($organization->domains()->where('domain', $organization->primaryHost())->exists());
 
         $this->assertSame($organization->getKey(), $user->organization_id);
         $this->assertSame('ama.mensah@example.test', $user->email);
@@ -60,6 +63,15 @@ class OrganizationRegistrationTest extends TestCase
         $this->assertTrue($user->hasRole('organization_admin'));
         $this->assertTrue($user->can('organization.update'));
         $this->assertTrue($user->can('users.invite'));
+
+        $this->assertDatabaseHas('organization_domains', [
+            'organization_id' => $organization->getKey(),
+            'is_primary' => true,
+            'is_verified' => true,
+        ]);
+        $this->assertDatabaseHas('organization_brandings', [
+            'organization_id' => $organization->getKey(),
+        ]);
 
         Notification::assertSentTo($user, VerifyEmail::class);
 

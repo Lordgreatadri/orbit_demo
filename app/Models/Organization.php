@@ -9,7 +9,10 @@ use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Tenancy\Hostname;
+use App\Tenancy\Origin;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -75,6 +78,40 @@ class Organization extends Model
         return $this->hasMany(LoginEvent::class);
     }
 
+    public function domains(): HasMany
+    {
+        return $this->hasMany(OrganizationDomain::class);
+    }
+
+    public function branding(): HasOne
+    {
+        return $this->hasOne(OrganizationBranding::class);
+    }
+
+    public function primaryDomain(): ?OrganizationDomain
+    {
+        if ($this->relationLoaded('domains')) {
+            return $this->domains->firstWhere('is_primary', true) ?? $this->domains->first();
+        }
+
+        return $this->domains()->primary()->first() ?? $this->domains()->first();
+    }
+
+    public function primaryHost(): string
+    {
+        return $this->primaryDomain()?->domain ?? Hostname::platformHostFor($this->slug);
+    }
+
+    public function workspaceUrl(string $path = '/'): string
+    {
+        return Origin::url($this, $path);
+    }
+
+    public function isEducational(): bool
+    {
+        return $this->type === OrganizationType::EducationalInstitution;
+    }
+
     public function isDemo(): bool
     {
         return (bool) ($this->settings['demo'] ?? false);
@@ -106,9 +143,12 @@ class Organization extends Model
     public static function uniqueSlugFor(string $name): string
     {
         $base = Str::limit(Str::slug($name), 150, '') ?: 'organisation';
+        if (Hostname::isReservedSubdomain($base)) {
+            $base .= '-org';
+        }
         $slug = $base;
 
-        while (static::query()->where('slug', $slug)->exists()) {
+        while (static::query()->where('slug', $slug)->exists() || Hostname::isReservedSubdomain($slug)) {
             $slug = $base.'-'.Str::lower(Str::random(6));
         }
 
