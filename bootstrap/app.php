@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsOperational;
+use App\Http\Middleware\EnsureCentralHost;
 use App\Http\Middleware\EnsureIdentityIsVerified;
 use App\Http\Middleware\EnsurePlatformUser;
+use App\Http\Middleware\EnsureTenantHost;
 use App\Http\Middleware\EnsureTenantUser;
-use App\Http\Middleware\SetTenantContext;
+use App\Http\Middleware\IdentifyTenant;
+use App\Tenancy\TrustHostList;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -30,19 +33,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Tenant context is derived from the authenticated user on every web request.
-        // It must run *before* route-model binding so the OrganizationScope is
-        // already active when `{organization:uuid}` / `{invitation:uuid}` resolve.
+        // Hostname → tenant (ADR-0011). Must run before route-model binding so
+        // OrganizationScope is active when `{organization:uuid}` resolves.
         $middleware->web(append: [
-            SetTenantContext::class,
+            IdentifyTenant::class,
         ]);
-        $middleware->prependToPriorityList(SubstituteBindings::class, SetTenantContext::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, IdentifyTenant::class);
+
+        $middleware->trustHosts(at: fn () => app(TrustHostList::class)->hosts());
 
         $middleware->alias([
             'account.operational' => EnsureAccountIsOperational::class,
             'identity.verified' => EnsureIdentityIsVerified::class,
             'tenant' => EnsureTenantUser::class,
             'platform' => EnsurePlatformUser::class,
+            'tenant.host' => EnsureTenantHost::class,
+            'central.host' => EnsureCentralHost::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));

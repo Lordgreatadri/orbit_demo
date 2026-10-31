@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Invitations;
 
 use App\Models\Invitation;
+use App\Tenancy\RoleAudience;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -26,7 +27,7 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email:rfc', 'max:255'],
-            'role' => ['required', 'string', Rule::exists('roles', 'name')->where('scope', 'tenant')],
+            'role' => ['required', 'string', Rule::in(array_keys(RoleAudience::invitableOptions($this->user()->organization)))],
         ];
     }
 }

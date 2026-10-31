@@ -26,7 +26,7 @@ Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
 
 ## Stage 2 — Registration, authentication, tenant foundation
 - [x] Schema: `organizations`, `users` (uuid + `organization_id`), `contact_messages`, `invitations`, spatie tables, `activity_log.organization_id`
-- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `SetTenantContext` (runs **before** `SubstituteBindings`)
+- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `IdentifyTenant` (hostname → tenant, runs **before** `SubstituteBindings`)
 - [x] Organisation registration (`RegisterOrganization` action, transactional, creates org + admin + role + audit)
 - [x] Login/logout (rate-limited, generic errors, inactive user / non-operational org blocked), `EnsureAccountIsOperational`
 - [x] Password reset (broker, generic response, `throttle:password-reset`)
@@ -88,8 +88,17 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - [x] Platform role/permission CRUD; org admins assign any tenant-scoped role including custom ones
 - [x] Audit trail and sign-in history as separate pages (tenant and platform)
 - [x] Mail header uses `public/images/brand/orbit-lockup-light.png` with `alt="ORBIT"`
-- [ ] Logo upload — deferred (needs media decision)
+- [x] Hostname tenancy + domain registry + organisation branding (ADR-0011). Spatie/stancl not installed; native resolver on shared DB.
+- [x] Sortable table headers and visible “Showing x–y of z” counts on large lists
+- [x] `student` role limited to educational institutions; super-admin product-module placeholders restored
+- [x] Tenancy review pass (2026-10-31): idempotent workspace backfill seeder (not a migration), branding/trusted-host cache eviction, DNS label limit, draft vs published assets + authorised preview route, request-local origins for CSRF, host check before `Auth::attempt`, WCAG 4.5:1 ink, custom tenant roles in invitations, preview merge of nulls/assets, factory `updateOrCreate` reuse, colour-picker name, branding CSS after Vite, locked theme toggle, login panel image, central terms/privacy/guide links
 - [ ] Attendance / QR / field / schedules / leave / notifications / analytics — labelled placeholders only
+
+## Commands executed and observed results (2026-10-31 review pass)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | 1 unused import removed in `HostnameRoutingTest`; clean afterwards |
+| `php84 artisan test --compact` | **175 tests, 175 passed, 1,306 assertions** |
 
 ## Recommended next task
 Stage 4 — Attendance module (QR sessions and field check-in) using the seeded EPA demo locations and departments. Do not implement billing, payroll, BLE, biometrics, or live EPA integrations.

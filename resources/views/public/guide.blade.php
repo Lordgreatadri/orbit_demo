@@ -11,6 +11,7 @@
             'sign-in' => ['lock', 'Sign in and reset your password'],
             'verify' => ['mail', 'Verify e-mail and phone'],
             'settings' => ['building', 'Organisation settings'],
+            'workspace' => ['globe', 'Workspace URL and branding'],
             'invite' => ['users', 'Invite members'],
             'theme' => ['sparkles', 'Change the theme'],
             'planned' => ['layers', 'Planned modules'],
@@ -49,13 +50,18 @@
                 <p>Only the responsible contact registers. Employees, staff, students, and field officers do not sign up themselves — they are invited (see below).</p>
 
                 <h2 id="sign-in">Sign in and reset your password</h2>
-                <p>Use <a href="{{ route('login') }}">Sign in</a> with your e-mail and password. If you forget your password, choose <em>Forgot your password?</em>; if an account exists for the address you enter, a time-limited reset link is e-mailed to it. Repeated failed attempts temporarily lock sign-in for that account.</p>
+                <p>Organisation members sign in on their organisation's workspace URL (for example <code>epa.orbit.test</code> in local development), not on the public ORBIT site. Platform operators sign in on the central ORBIT host. Use your e-mail and password. If you forget your password, choose <em>Forgot your password?</em> on that same workspace; if an account exists for the address you enter, a time-limited reset link is e-mailed to it. Repeated failed attempts temporarily lock sign-in for that account. Sign-in cookies stay on that hostname and are not shared with other workspaces.</p>
 
                 <h2 id="verify">Verify your e-mail and phone</h2>
                 <p>After you sign in, the workspace stays closed until both checks on the verification page are complete. Confirm the link sent to your e-mail. Then confirm your phone with a one-time code. Your organisation becomes active once the responsible contact confirms their e-mail. Text messaging is not connected yet, so the phone code is written to the application log for your technical team to pass on.</p>
 
                 <h2 id="settings">Organisation settings</h2>
-                <p>Administrators can update the organisation name, type, time zone, and contact details from <em>Organisation settings</em>. The time zone determines how attendance times are displayed.</p>
+                <p>Administrators can update the organisation name, type, time zone, and contact details from <em>Organisation settings → Profile</em>. The time zone determines how attendance times are displayed.</p>
+
+                <h2 id="workspace">Workspace URL and branding</h2>
+                <p>Each organisation has its own workspace hostname. The public ORBIT site is separate from those workspaces. After registration, ORBIT creates a primary hostname from an available subdomain. Administrators can add shorter aliases (for example <code>mcc.orbit.test</code> alongside <code>mobilecontent.orbit.test</code>). Both names open the same organisation. Custom domains belonging to the organisation can be added later; they stay inactive until a DNS TXT record proves the organisation controls the name.</p>
+                <p>Under <em>Branding</em>, administrators set the display name, logo, favicon, brand colours, login heading, and welcome message. Save a draft, preview the login page, then publish. Until you publish, visitors see ORBIT's default presentation. Colours are six-digit hex values; logos must be PNG, JPG, WEBP, or ICO (not SVG). Arbitrary HTML and JavaScript are not accepted. ORBIT remains attributed as the platform.</p>
+                <p>The <em>Student</em> role is shown only to educational institutions. Agencies such as an EPA workspace invite organisation administrators, managers, and members instead.</p>
 
                 <h2 id="invite">Invite members</h2>
                 <ol>

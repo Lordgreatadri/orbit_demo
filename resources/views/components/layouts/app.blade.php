@@ -39,7 +39,7 @@
 
         @if ($organization)
             <div class="shrink-0 border-b border-edge px-4 py-3">
-                <p class="truncate text-sm font-semibold text-fg" title="{{ $organization->name }}">{{ $organization->name }}</p>
+                <p class="truncate text-sm font-semibold text-fg" title="{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}">{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}</p>
                 <p class="mt-0.5 flex items-center gap-1.5 text-xs text-fg-subtle">
                     <span>{{ $organization->type->label() }}</span>
                     @if ($organization->isDemo())
@@ -148,7 +148,7 @@
                         </div>
                         <div class="my-1 border-t border-edge"></div>
                         <a href="{{ route('app.profile') }}" role="menuitem" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-muted hover:text-fg"><x-icon name="user" class="size-4" /> My account</a>
-                        <a href="{{ route('guide') }}" role="menuitem" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-muted hover:text-fg"><x-icon name="book" class="size-4" /> User guide</a>
+                        <a href="{{ \App\Tenancy\Origin::centralUrl('/user-guide') }}" role="menuitem" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-muted hover:text-fg"><x-icon name="book" class="size-4" /> User guide</a>
                         <div class="my-1 border-t border-edge"></div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
@@ -178,7 +178,7 @@
         <footer class="border-t border-edge px-4 py-4 text-xs text-fg-subtle sm:px-6 lg:px-8">
             <div class="mx-auto flex max-w-7xl flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <p>&copy; {{ date('Y') }} {{ config('orbit.product_name') }} · {{ config('orbit.product_tagline') }}</p>
-                <p class="flex items-center gap-3"><a href="{{ route('terms') }}" class="hover:text-fg">Terms</a><a href="{{ route('privacy') }}" class="hover:text-fg">Privacy</a><a href="{{ route('contact') }}" class="hover:text-fg">Support</a></p>
+                <p class="flex items-center gap-3"><a href="{{ \App\Tenancy\Origin::centralUrl('/terms') }}" class="hover:text-fg">Terms</a><a href="{{ \App\Tenancy\Origin::centralUrl('/privacy') }}" class="hover:text-fg">Privacy</a><a href="{{ \App\Tenancy\Origin::centralUrl('/contact') }}" class="hover:text-fg">Support</a></p>
             </div>
         </footer>
     </div>

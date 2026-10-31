@@ -53,7 +53,11 @@ class DemoSeederTest extends TestCase
         $epa = Organization::query()->where('slug', EpaOrganizationSeeder::SLUG)->firstOrFail();
         $upsa = Organization::query()->where('slug', UpsaOrganizationSeeder::SLUG)->firstOrFail();
 
-        $this->assertSame(2, Organization::query()->count());
+        $this->assertSame(4, Organization::query()->count());
+        Organization::query()->with(['branding', 'domains'])->each(function (Organization $organization): void {
+            $this->assertTrue($organization->domains->contains(fn ($domain) => $domain->is_primary), $organization->slug);
+            $this->assertNotNull($organization->branding, $organization->slug);
+        });
         $this->assertSame('Environmental Protection Agency — Ghana', $epa->name);
         $this->assertSame('public_institution', $epa->type->value);
         $this->assertTrue($epa->isActive());
@@ -70,7 +74,7 @@ class DemoSeederTest extends TestCase
         $this->assertSame('student', $upsa->settings['sample_directory']['maame.owusu@upsa.orbit-demo.test']['work_type']);
         $this->assertSame('+233303000201', $upsa->contact_phone);
 
-        $this->assertSame(10, User::query()->count());
+        $this->assertSame(12, User::query()->count());
 
         $expectations = [
             'platform.admin@orbit-demo.test' => ['platform_super_admin', null, 'platform.access'],
@@ -115,19 +119,15 @@ class DemoSeederTest extends TestCase
             'phone' => '+233302000111',
         ], 'organization_admin', $epa);
 
-        $this->assertSame(10, User::query()->count());
+        $this->assertSame(12, User::query()->count());
         $this->assertSame('Mensah-Updated', User::query()->where('email', 'ama.mensah@epa.orbit-demo.test')->firstOrFail()->last_name);
 
-        $this->post(route('login.store'), [
-            'email' => 'ama.mensah@epa.orbit-demo.test',
-            'password' => self::PASSWORD,
-        ])->assertRedirect(route('app.dashboard', absolute: false));
+        $ama = User::query()->where('email', 'ama.mensah@epa.orbit-demo.test')->firstOrFail();
+        $this->postLogin($ama, self::PASSWORD)->assertRedirect(route('app.dashboard', absolute: false));
 
         $this->post(route('logout'));
 
-        $this->post(route('login.store'), [
-            'email' => 'maame.owusu@upsa.orbit-demo.test',
-            'password' => self::PASSWORD,
-        ])->assertRedirect(route('app.dashboard', absolute: false));
+        $maame = User::query()->where('email', 'maame.owusu@upsa.orbit-demo.test')->firstOrFail();
+        $this->postLogin($maame, self::PASSWORD)->assertRedirect(route('app.dashboard', absolute: false));
     }
 }

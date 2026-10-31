@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Contracts\DnsLookup;
 use App\Contracts\SmsSender;
+use App\Integrations\Dns\ArrayDnsLookup;
+use App\Integrations\Dns\PhpDnsLookup;
 use App\Integrations\Sms\LogSmsSender;
 use App\Listeners\RecordLoginEvent;
 use App\Models\Department;
@@ -21,7 +24,11 @@ use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\StaffMemberPolicy;
 use App\Policies\UserPolicy;
+use App\Tenancy\BrandingService;
+use App\Tenancy\Origin;
 use App\Tenancy\TenantContext;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -30,6 +37,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -41,7 +50,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(TenantContext::class);
+        // Scoped (not singleton): flushed at the end of each HTTP request / Octane cycle.
+        $this->app->scoped(TenantContext::class);
+        $this->app->singleton(BrandingService::class);
+        $this->app->singleton(ArrayDnsLookup::class);
+        $this->app->bind(DnsLookup::class, function ($app) {
+            return $app->environment('testing')
+                ? $app->make(ArrayDnsLookup::class)
+                : $app->make(PhpDnsLookup::class);
+        });
         $this->app->bind(SmsSender::class, LogSmsSender::class);
     }
 
@@ -57,6 +74,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRouteBindings();
         $this->configureEvents();
         $this->configureQueueTenantReset();
+        $this->configureNotificationUrls();
+        $this->configureBrandingShare();
     }
 
     private function configureModels(): void
@@ -133,5 +152,57 @@ class AppServiceProvider extends ServiceProvider
         Queue::before(fn () => $this->app->make(TenantContext::class)->clear());
         Queue::after(fn () => $this->app->make(TenantContext::class)->clear());
         Queue::failing(fn () => $this->app->make(TenantContext::class)->clear());
+    }
+
+    /**
+     * Signed verification and reset links must be minted against the tenant
+     * origin so they land on the same host the member will sign in on.
+     */
+    private function configureNotificationUrls(): void
+    {
+        VerifyEmail::createUrlUsing(function (object $notifiable): string {
+            return $this->signedOnOrigin($notifiable, function () use ($notifiable): string {
+                return URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+                    'id' => $notifiable->getKey(),
+                    'hash' => sha1($notifiable->getEmailForVerification()),
+                ]);
+            });
+        });
+
+        ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
+            return $this->signedOnOrigin($notifiable, fn () => url(route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false)));
+        });
+    }
+
+    private function signedOnOrigin(object $notifiable, callable $make): string
+    {
+        $origin = $notifiable instanceof User && $notifiable->organization
+            ? Origin::of($notifiable->organization)
+            : Origin::central();
+
+        Origin::force($origin);
+
+        try {
+            return $make();
+        } finally {
+            Origin::restore();
+        }
+    }
+
+    private function configureBrandingShare(): void
+    {
+        View::composer('*', function ($view): void {
+            if ($view->offsetExists('workspaceBranding')) {
+                return;
+            }
+
+            $view->with(
+                'workspaceBranding',
+                $this->app->make(BrandingService::class)->for($this->app->make(TenantContext::class)->organization()),
+            );
+        });
     }
 }

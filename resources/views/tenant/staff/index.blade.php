@@ -21,12 +21,12 @@
         <x-data-table :paginator="$staff" caption="Staff members">
             <thead>
                 <tr>
-                    <th scope="col">Staff member</th>
-                    <th scope="col">Staff no.</th>
+                    <x-data-table.sort column="name" :sort="$sort">Staff member</x-data-table.sort>
+                    <x-data-table.sort column="number" :sort="$sort">Staff no.</x-data-table.sort>
                     <th scope="col" class="hidden md:table-cell">Department</th>
                     <th scope="col" class="hidden lg:table-cell">Location</th>
-                    <th scope="col" class="hidden sm:table-cell">Work type</th>
-                    <th scope="col">Status</th>
+                    <x-data-table.sort column="type" :sort="$sort" class="hidden sm:table-cell">Work type</x-data-table.sort>
+                    <x-data-table.sort column="status" :sort="$sort">Status</x-data-table.sort>
                     <th scope="col" class="hidden xl:table-cell">Account</th>
                     <th scope="col"><span class="sr-only">Actions</span></th>
                 </tr>

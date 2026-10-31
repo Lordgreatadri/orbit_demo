@@ -2,6 +2,7 @@
 
 namespace App\Actions\Organizations;
 
+use App\Actions\Tenancy\ProvisionOrganizationWorkspace;
 use App\Enums\OrganizationStatus;
 use App\Enums\UserStatus;
 use App\Models\Organization;
@@ -57,6 +58,8 @@ class RegisterOrganization
             ]);
 
             $user->assignRole('organization_admin');
+
+            app(ProvisionOrganizationWorkspace::class)->handle($organization, $user->getKey());
 
             Audit::log(
                 event: 'organization.registered',
