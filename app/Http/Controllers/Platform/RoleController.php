@@ -26,10 +26,17 @@ class RoleController extends Controller
     {
         $this->authorize('viewAny', Role::class);
 
-        $roles = Role::query()->withCount(['permissions', 'users'])->orderBy('scope')->orderBy('name')->get();
+        $roles = collect(RoleScope::cases())->mapWithKeys(fn (RoleScope $scope) => [
+            $scope->value => Role::query()
+                ->where('scope', $scope)
+                ->withCount(['permissions', 'users'])
+                ->orderBy('name')
+                ->paginate(25, ['*'], $scope->value)
+                ->withQueryString(),
+        ]);
 
         return view('platform.roles.index', [
-            'roles' => $roles->groupBy(fn (Role $r) => $r->scope->value),
+            'roles' => $roles,
             'canCreate' => $request->user()->can('create', Role::class),
             'canUpdate' => $request->user()->can('create', Role::class),
         ]);

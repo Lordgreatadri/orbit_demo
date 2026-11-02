@@ -6,6 +6,9 @@ use App\Http\Controllers\Platform\ModuleController;
 use App\Http\Controllers\Platform\OrganizationController;
 use App\Http\Controllers\Platform\PermissionController;
 use App\Http\Controllers\Platform\RoleController;
+use App\Http\Controllers\Platform\SmsMessageController;
+use App\Http\Controllers\Platform\SmsOverviewController;
+use App\Http\Controllers\Platform\SmsProviderController;
 use App\Http\Controllers\Platform\UserAccessController;
 use App\Http\Controllers\Platform\UserController;
 use App\Http\Controllers\Tenancy\BrandingController;
@@ -74,6 +77,17 @@ Route::prefix('admin')
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
         Route::get('/audit/sign-ins', [AuditController::class, 'logins'])->name('audit.logins');
 
-        Route::get('/settings', [ModuleController::class, 'show'])->defaults('module', 'platform-settings')->name('settings.index');
+        Route::get('/sms', SmsOverviewController::class)->name('sms.overview');
+        Route::get('/sms/messages/{smsMessage}', [SmsMessageController::class, 'show'])->name('sms.messages.show');
+        Route::get('/sms-providers', [SmsProviderController::class, 'index'])->name('sms-providers.index');
+        Route::get('/sms-providers/{smsProvider}', [SmsProviderController::class, 'show'])->name('sms-providers.show');
+        Route::middleware('throttle:access-write')->group(function (): void {
+            Route::put('/sms-providers/{smsProvider}', [SmsProviderController::class, 'update'])->name('sms-providers.update');
+            Route::post('/sms-providers/{smsProvider}/health', [SmsProviderController::class, 'health'])->name('sms-providers.health');
+            Route::post('/sms-providers/{smsProvider}/test', [SmsProviderController::class, 'test'])->name('sms-providers.test');
+            Route::post('/sms-providers/{smsProvider}/webhook-token', [SmsProviderController::class, 'regenerateWebhookToken'])->name('sms-providers.webhook-token');
+        });
+
+        Route::get('/settings', [SmsProviderController::class, 'settings'])->name('settings.index');
         Route::get('/modules/{module}', [ModuleController::class, 'show'])->name('modules.show');
     });

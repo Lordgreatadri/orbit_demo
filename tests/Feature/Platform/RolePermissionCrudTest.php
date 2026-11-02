@@ -35,6 +35,8 @@ class RolePermissionCrudTest extends TestCase
             'permissions' => ['attendance.view', 'attendance.manage', 'platform.access'], // platform.* silently dropped
         ])->assertRedirect(route('admin.roles.index'))->assertSessionHas('status');
 
+        $this->actingAs($superAdmin)->get(route('admin.roles.index'))->assertOk()->assertSee('Showing');
+
         $role = Role::findByName('attendance_officer');
         $this->assertSame('tenant', $role->scope->value);
         $this->assertFalse($role->is_system);
@@ -114,7 +116,7 @@ class RolePermissionCrudTest extends TestCase
     {
         $superAdmin = $this->superAdmin();
 
-        $this->actingAs($superAdmin)->get(route('admin.permissions.index'))->assertOk()->assertSee('platform.access')->assertSee('Platform roles only');
+        $this->actingAs($superAdmin)->get(route('admin.permissions.index'))->assertOk()->assertSee('platform.access')->assertSee('Platform roles only')->assertSee('Showing');
 
         $this->actingAs($superAdmin)->post(route('admin.permissions.store'), ['name' => 'reports.export', 'description' => 'Export attendance reports'])
             ->assertRedirect(route('admin.permissions.index'));

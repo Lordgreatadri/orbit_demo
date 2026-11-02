@@ -12,10 +12,10 @@
         <section class="space-y-3" aria-labelledby="perm-{{ $module }}">
             <h2 id="perm-{{ $module }}" class="flex items-center gap-2 text-base font-semibold text-fg">
                 {{ $moduleLabels[$module] ?? \Illuminate\Support\Str::headline($module) }}
-                <span class="text-sm font-normal text-fg-subtle">{{ $modulePermissions->count() }}</span>
+                <span class="text-sm font-normal text-fg-subtle">{{ $modulePermissions->total() }}</span>
                 @if ($module === 'platform')<x-badge tone="info">Platform roles only</x-badge>@endif
             </h2>
-            <x-data-table caption="{{ $moduleLabels[$module] ?? $module }} permissions">
+            <x-data-table :paginator="$modulePermissions" caption="{{ $moduleLabels[$module] ?? $module }} permissions">
                 <thead>
                     <tr>
                         <th scope="col">Permission</th>

@@ -19,7 +19,11 @@ class AuthenticatedSessionController extends Controller
 
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $user = $request->authenticate();
+
+        if ($user === null) {
+            return redirect()->away((string) $request->workspaceHandoffUrl());
+        }
 
         $request->session()->regenerate();
 

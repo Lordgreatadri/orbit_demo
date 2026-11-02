@@ -1,13 +1,18 @@
 <?php
 
+use App\Integrations\Sms\SmsProviderRegistry;
 use Illuminate\Support\Facades\Route;
 
 /*
- * Provider delivery reports. These routes are outside the session stack, so
- * they do not accept a CSRF cookie. Each named config in config/webhook-client.php
- * checks the signature before anything is stored.
+ * Provider delivery reports. These routes sit outside the session stack, so
+ * they do not use the CSRF cookie. Each provider has its own signature check
+ * and queued job. Every job writes the same sms_messages table.
  */
 
-// Route::webhooks('webhooks/sms/frog', 'frog-sms');
-// Route::webhooks('webhooks/sms/twilio', 'twilio-sms');
-// ...
+foreach (app(SmsProviderRegistry::class)->all() as $adapter) {
+    Route::webhooks(
+        'webhooks/sms/'.$adapter->key().'/{token}',
+        $adapter->webhookName(),
+        $adapter->webhookMethods(),
+    )->middleware('throttle:sms-webhook')->where('token', '[A-Za-z0-9]{32,128}');
+}

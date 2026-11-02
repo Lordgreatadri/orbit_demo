@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\LoginEvent;
 use App\Models\Organization;
+use App\Models\SmsProvider;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Platform\SmsTransmissionOverview;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +70,7 @@ class DashboardController extends Controller
             'counts' => $counts,
             'recentOrganizations' => $recentOrganizations,
             'recentActivity' => $recentActivity,
+            'sms' => $user->can('viewAny', SmsProvider::class) ? app(SmsTransmissionOverview::class)() : null,
         ]);
     }
 }

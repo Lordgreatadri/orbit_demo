@@ -237,7 +237,7 @@ class HostnameRoutingTest extends TestCase
         $this->actingAs($member)->get(route('org.organizations.branding', $admin->organization))->assertForbidden();
         $this->actingAs($stranger)->get(route('org.organizations.domains', $admin->organization))->assertForbidden();
 
-        $this->actingAs($admin)->get(route('org.organizations.domains', $admin->organization))->assertOk();
+        $this->actingAs($admin)->get(route('org.organizations.domains', $admin->organization))->assertOk()->assertSee('Showing');
         $this->actingAs($admin)->get(route('org.organizations.branding', $admin->organization))
             ->assertOk()
             ->assertSee('Primary colour picker', false);

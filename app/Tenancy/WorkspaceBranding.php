@@ -71,6 +71,98 @@ final class WorkspaceBranding
     }
 
     /**
+     * Scalar snapshot. The cache store does not restore PHP objects.
+     *
+     * @return array<string, mixed>
+     */
+    public function toCacheArray(): array
+    {
+        return [
+            'display_name' => $this->displayName,
+            'primary' => $this->primary,
+            'secondary' => $this->secondary,
+            'accent' => $this->accent,
+            'primary_hover' => $this->primaryHover,
+            'primary_soft' => $this->primarySoft,
+            'primary_fg' => $this->primaryFg,
+            'accent_soft' => $this->accentSoft,
+            'accent_fg' => $this->accentFg,
+            'theme_mode' => $this->themeMode->value,
+            'font' => $this->font->value,
+            'login_heading' => $this->loginHeading,
+            'login_message' => $this->loginMessage,
+            'support_email' => $this->supportEmail,
+            'support_phone' => $this->supportPhone,
+            'footer_text' => $this->footerText,
+            'is_default' => $this->isDefault,
+            'assets' => [
+                'logo' => $this->logoUrl !== null,
+                'logo-light' => $this->logoLightUrl !== null,
+                'logo-dark' => $this->logoDarkUrl !== null,
+                'favicon' => $this->faviconUrl !== null,
+                'login-image' => $this->loginImageUrl !== null,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $cached
+     */
+    public static function fromCache(array $cached, Organization $organization): ?self
+    {
+        foreach ([
+            'display_name', 'primary', 'secondary', 'accent',
+            'primary_hover', 'primary_soft', 'primary_fg',
+            'accent_soft', 'accent_fg', 'theme_mode', 'font',
+            'login_heading', 'login_message', 'support_email',
+            'footer_text', 'is_default', 'assets',
+        ] as $key) {
+            if (! array_key_exists($key, $cached)) {
+                return null;
+            }
+        }
+
+        if (! is_array($cached['assets'])) {
+            return null;
+        }
+
+        $theme = BrandThemeMode::tryFrom((string) $cached['theme_mode']);
+        $font = BrandFont::tryFrom((string) $cached['font']);
+
+        if ($theme === null || $font === null) {
+            return null;
+        }
+
+        $dto = new self(
+            displayName: (string) $cached['display_name'],
+            primary: (string) $cached['primary'],
+            secondary: (string) $cached['secondary'],
+            accent: (string) $cached['accent'],
+            primaryHover: (string) $cached['primary_hover'],
+            primarySoft: (string) $cached['primary_soft'],
+            primaryFg: (string) $cached['primary_fg'],
+            accentSoft: (string) $cached['accent_soft'],
+            accentFg: (string) $cached['accent_fg'],
+            themeMode: $theme,
+            font: $font,
+            loginHeading: (string) $cached['login_heading'],
+            loginMessage: (string) $cached['login_message'],
+            supportEmail: (string) $cached['support_email'],
+            supportPhone: isset($cached['support_phone']) ? (string) $cached['support_phone'] : null,
+            footerText: (string) $cached['footer_text'],
+            logoUrl: null,
+            logoLightUrl: null,
+            logoDarkUrl: null,
+            faviconUrl: null,
+            loginImageUrl: null,
+            isDefault: (bool) $cached['is_default'],
+            organization: $organization,
+        );
+
+        return $dto->withAssetSlots($organization, $cached['assets']);
+    }
+
+    /**
      * Preview uses unpublished draft values when present, including nulls
      * (cleared fields) and draft asset paths.
      */
@@ -136,8 +228,22 @@ final class WorkspaceBranding
 
     public function withAssets(Organization $organization, ?OrganizationBranding $record, bool $preview = false): self
     {
-        $url = function (?string $slot) use ($organization, $preview): ?string {
-            if ($slot === null || $slot === '') {
+        return $this->withAssetSlots($organization, [
+            'logo' => filled($record?->logo_path),
+            'logo-light' => filled($record?->logo_light_path),
+            'logo-dark' => filled($record?->logo_dark_path),
+            'favicon' => filled($record?->favicon_path),
+            'login-image' => filled($record?->login_image_path),
+        ], $preview);
+    }
+
+    /**
+     * @param  array<string, mixed>  $present
+     */
+    private function withAssetSlots(Organization $organization, array $present, bool $preview = false): self
+    {
+        $url = function (string $slot) use ($organization, $present, $preview): ?string {
+            if (empty($present[$slot])) {
                 return null;
             }
 
@@ -165,11 +271,11 @@ final class WorkspaceBranding
             supportEmail: $this->supportEmail,
             supportPhone: $this->supportPhone,
             footerText: $this->footerText,
-            logoUrl: $record?->logo_path ? $url('logo') : null,
-            logoLightUrl: $record?->logo_light_path ? $url('logo-light') : null,
-            logoDarkUrl: $record?->logo_dark_path ? $url('logo-dark') : null,
-            faviconUrl: $record?->favicon_path ? $url('favicon') : null,
-            loginImageUrl: $record?->login_image_path ? $url('login-image') : null,
+            logoUrl: $url('logo'),
+            logoLightUrl: $url('logo-light'),
+            logoDarkUrl: $url('logo-dark'),
+            faviconUrl: $url('favicon'),
+            loginImageUrl: $url('login-image'),
             isDefault: $this->isDefault,
             organization: $organization,
         );
@@ -193,6 +299,18 @@ final class WorkspaceBranding
             '--focus: '.$this->primary,
             '--font-sans: '.$this->font->cssStack(),
             '--brand-deep: '.$this->secondary,
+        ]);
+    }
+
+    /**
+     * Dark-theme washes. The light soft colours must not be copied onto plum,
+     * or active navigation and tabs become light text on a near-white chip.
+     */
+    public function plumCssVariables(): string
+    {
+        return implode(';', [
+            '--primary-soft: '.BrandColor::soft($this->primary, '#0B1D21', 0.78),
+            '--accent-soft: '.BrandColor::soft($this->accent, '#0B1D21', 0.78),
         ]);
     }
 }

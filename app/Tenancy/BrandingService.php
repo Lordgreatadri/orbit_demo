@@ -29,11 +29,23 @@ class BrandingService
                 : WorkspaceBranding::for($organization);
         }
 
-        return Cache::remember($this->cacheKey($organization), 3600, function () use ($organization): WorkspaceBranding {
-            $organization->loadMissing('branding');
+        $cached = Cache::get($this->cacheKey($organization));
 
-            return WorkspaceBranding::for($organization, $organization->branding);
-        });
+        if (is_array($cached)) {
+            $restored = WorkspaceBranding::fromCache($cached, $organization);
+
+            if ($restored instanceof WorkspaceBranding) {
+                return $restored;
+            }
+        }
+
+        $organization->loadMissing('branding');
+        $branding = WorkspaceBranding::for($organization, $organization->branding);
+
+        // The database cache refuses to restore PHP objects. Store scalars only.
+        Cache::put($this->cacheKey($organization), $branding->toCacheArray(), 3600);
+
+        return $branding;
     }
 
     public function sharePreview(WorkspaceBranding $branding): void
