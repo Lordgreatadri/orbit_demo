@@ -60,9 +60,9 @@ final class BrandColor
         return self::mix($hex, '#000000', 0.18);
     }
 
-    public static function soft(string $hex): string
+    public static function soft(string $hex, string $base = '#FFFFFF', float $weight = 0.88): string
     {
-        return self::mix($hex, '#FFFFFF', 0.88);
+        return self::mix($hex, $base, $weight);
     }
 
     public static function relativeLuminance(string $hex): float

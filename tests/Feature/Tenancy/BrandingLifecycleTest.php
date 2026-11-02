@@ -11,6 +11,7 @@ use App\Tenancy\Hostname;
 use App\Tenancy\WorkspaceBranding;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -154,6 +155,39 @@ class BrandingLifecycleTest extends TestCase
 
         $after = $service->for($organization->fresh());
         $this->assertStringContainsString(Hostname::platformHostFor('altbrand'), (string) $after->logoUrl);
+    }
+
+    #[Test]
+    public function a_cached_branding_object_is_rebuilt_from_plain_values(): void
+    {
+        config(['cache.default' => 'database']);
+
+        $organization = Organization::factory()->create(['name' => 'EPA Ghana']);
+        $organization->branding->update([
+            'display_name' => 'EPA Workspace',
+            'primary_color' => '#123456',
+            'login_heading' => 'Welcome to EPA',
+            'published_at' => now(),
+        ]);
+
+        $service = app(BrandingService::class);
+        $key = $service->cacheKey($organization);
+
+        Cache::put($key, WorkspaceBranding::for($organization), 3600);
+        $this->assertNotInstanceOf(WorkspaceBranding::class, Cache::get($key));
+
+        $restored = $service->for($organization->fresh());
+
+        $this->assertInstanceOf(WorkspaceBranding::class, $restored);
+        $this->assertSame('EPA Workspace', $restored->displayName);
+        $this->assertSame('#123456', $restored->primary);
+        $this->assertSame('Welcome to EPA', $restored->loginHeading);
+        $this->assertSame($organization->id, $restored->organization?->id);
+        $this->assertIsArray(Cache::get($key));
+
+        $again = $service->for($organization->fresh());
+        $this->assertSame('EPA Workspace', $again->displayName);
+        $this->assertSame('#123456', $again->primary);
     }
 
     #[Test]

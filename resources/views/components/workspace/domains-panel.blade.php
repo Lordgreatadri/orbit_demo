@@ -6,7 +6,7 @@
 
 <div class="grid gap-6 lg:grid-cols-3">
     <div class="space-y-4 lg:col-span-2">
-        <x-data-table caption="Registered hostnames">
+        <x-data-table :paginator="$domains" caption="Registered hostnames">
             <thead>
                 <tr>
                     <th scope="col">Hostname</th>

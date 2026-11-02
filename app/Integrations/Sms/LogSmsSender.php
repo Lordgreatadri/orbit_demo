@@ -6,8 +6,9 @@ use App\Contracts\SmsSender;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Writes the message to the application log. No SMS provider is called.
- * Replace this binding when a provider adapter is approved (ADR-0007).
+ * Writes the message to the application log. Phone confirmation uses this
+ * channel even after a platform SMS provider is configured. Platform messages
+ * go through SmsTransmitter, which also logs when no provider is active.
  */
 class LogSmsSender implements SmsSender
 {

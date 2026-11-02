@@ -12,7 +12,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Spatie\WebhookClient\Exceptions\InvalidWebhookSignature;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ],
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            require __DIR__.'/../routes/webhook.php';
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Hostname → tenant (ADR-0011). Must run before route-model binding so
@@ -58,4 +63,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(function (InvalidWebhookSignature $exception, Request $request) {
+            if ($request->is('webhooks/*')) {
+                return response('Invalid signature.', Response::HTTP_UNAUTHORIZED);
+            }
+
+            return null;
+        });
     })->create();

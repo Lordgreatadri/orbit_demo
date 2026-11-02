@@ -23,13 +23,21 @@ class PermissionController extends Controller
         $this->authorize('viewAny', Permission::class);
 
         $permissions = Permission::query()
-            ->withCount('roles')
+            ->select('module')
+            ->distinct()
             ->orderBy('module')
-            ->orderBy('name')
-            ->get();
+            ->pluck('module')
+            ->mapWithKeys(fn (string $module) => [
+                $module => Permission::query()
+                    ->where('module', $module)
+                    ->withCount('roles')
+                    ->orderBy('name')
+                    ->paginate(25, ['*'], 'perm_'.$module)
+                    ->withQueryString(),
+            ]);
 
         return view('platform.permissions.index', [
-            'permissions' => $permissions->groupBy('module'),
+            'permissions' => $permissions,
             'moduleLabels' => config('orbit.permission_modules', []),
             'canManage' => $request->user()->can('create', Permission::class),
         ]);

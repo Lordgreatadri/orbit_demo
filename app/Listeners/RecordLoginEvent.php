@@ -11,6 +11,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -66,6 +67,14 @@ class RecordLoginEvent
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
             'remember' => $remember,
+        ]);
+
+        Log::channel('auth')->info('Sign-in event recorded.', [
+            'event' => $type->value,
+            'user_id' => $user?->getKey(),
+            'email' => $email ?? $user?->email,
+            'ip' => $request->ip(),
+            'guard' => $guard,
         ]);
     }
 }

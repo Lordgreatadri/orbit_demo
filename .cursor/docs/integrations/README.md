@@ -6,13 +6,29 @@ All integrations must be decoupled from core ORBIT business logic. Build only in
 - Define a domain-facing contract for a capability (for example `SmsProvider`).
 - Implement provider-specific adapters in a dedicated namespace/folder.
 - Select provider via validated configuration, not scattered conditionals in controllers.
-- Keep credentials in environment variables or a secret manager.
+- Keep credentials in environment variables or a secret manager. SMS provider credentials are the exception in ADR-0012: a platform super admin stores them encrypted, and they are never written to source, logs, or the browser.
 - Apply timeouts, safe retries/backoff, idempotency where possible, and provider-specific error mapping.
 - Queue slow outbound work and store delivery status without logging secrets.
 - Use fake adapters in automated tests and contract tests for real providers.
 - Add a provider only after reviewing its current official documentation and terms.
 
-## SMS / messaging candidates from the source documents
+## SMS
+Reviewed 2026-11-02 and implemented behind `App\Integrations\Sms\SmsTransmitter` (ADR-0012).
+
+Platform SMS is paid by ORBIT. `counts_toward_subscription` is false on every row the transmitter writes, so a later organisation subscription must not bill these messages. Phone confirmation stays on `LogSmsSender` and does not use this transmitter. With no enabled active provider, messages are stored and written to the log.
+
+| Provider | Send | Balance | Callback |
+| --- | --- | --- | --- |
+| Wigal Frog | `POST https://frogapi.wigal.com.gh/api/v3/sms/send` (`API-KEY`, `USERNAME`). `ACCEPTD` is acceptance. | `GET /api/v3/balance` | Unsigned dashboard POST. `DELIVRD` is delivery. Secret path token. |
+| Twilio | `POST /2010-04-01/Accounts/{Sid}/Messages.json`, one recipient per call. | `GET .../Balance.json` (account balance). | `X-Twilio-Signature` plus the path token. |
+| Africa's Talking | `POST /version1/messaging/bulk`, `apiKey` header, `enqueue=1`. Codes 100–102 are acceptance. | `GET /version1/user` | Unsigned form POST. `Success` is delivery. Secret path token. |
+| Arkesel | `POST https://sms.arkesel.com/api/v2/sms/send`, `api-key` header. | `GET /api/v2/clients/balance-details` | `sms_id` and `status` query. `DELIVERED` is delivery. Secret path token. |
+
+No published numeric rate limit was found for Wigal, Africa's Talking, or Arkesel on that date. Each adapter has a configurable requests-per-minute guard (defaults 30, Twilio 60) and treats HTTP 429 and 5xx as retryable. Rejected credentials, sender IDs, and numbers are not retried.
+
+WhatsApp, voice, and provider OTP products were reviewed and are not wired. A new provider is a new adapter registered in `SmsProviderRegistry`.
+
+## SMS / messaging reference links
 - Frog Wigal: https://frogdocs.wigal.com.gh/send_personalized.html
 - Frog Wigal general send: https://frogdocs.wigal.com.gh/send_general.html
 - Frog Wigal account balance: https://frogdocs.wigal.com.gh/get_account_balance.html
@@ -28,7 +44,7 @@ All integrations must be decoupled from core ORBIT business logic. Build only in
 - Twilio Messaging: https://www.twilio.com/docs/messaging/quickstart
 - Twilio WhatsApp: https://www.twilio.com/docs/whatsapp/quickstart
 
-These are source-provided reference links, not confirmation that any provider is configured or currently selected. Verify documentation, endpoint behaviour, authentication, rate limits, delivery receipts, and pricing before implementation.
+These links were the review set for ADR-0012. They are not a promise that a provider has credentials in a given environment.
 
 ## Email
 Use Laravel's mail abstraction. Configure a supported provider per environment. Do not hard-code a vendor into domain workflows.

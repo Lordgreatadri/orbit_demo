@@ -3,7 +3,8 @@
 namespace App\Contracts;
 
 /**
- * Outbound SMS. The log adapter is the delivery channel until a provider is configured.
+ * Phone-confirmation SMS. This stays on the log adapter.
+ * Platform messages use App\Integrations\Sms\SmsTransmitter instead.
  */
 interface SmsSender
 {

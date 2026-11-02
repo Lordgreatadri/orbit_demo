@@ -43,5 +43,8 @@
     })();
 </script>
 @vite(['resources/css/app.css', 'resources/js/app.js'])
-{{-- After Vite so tenant tokens override the unlayered :root / [data-theme] rules. --}}
-<style>:root, [data-theme='plum'] { {!! $branding->cssVariables() !!} }</style>
+{{-- After Vite so tenant tokens override the unlayered :root / [data-theme] rules. Plum keeps dark soft washes. --}}
+<style>
+:root, [data-theme='plum'] { {!! $branding->cssVariables() !!} }
+[data-theme='plum'] { {!! $branding->plumCssVariables() !!} }
+</style>

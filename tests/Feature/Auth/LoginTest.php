@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Organization;
 use App\Models\User;
+use App\Tenancy\Origin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -184,22 +185,83 @@ class LoginTest extends TestCase
     }
 
     #[Test]
-    public function an_organisation_member_cannot_sign_in_on_the_central_host(): void
+    public function an_organisation_member_on_the_central_host_continues_on_their_workspace(): void
+    {
+        $user = $this->createOrganizationAdmin();
+        $user->load('organization.domains');
+        $workspace = $user->organization->primaryHost();
+
+        $response = $this->fromCentral()
+            ->from(route('login'))
+            ->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
+
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location');
+        $this->assertStringStartsWith(Origin::forHost($workspace).'/login/handoff/', $location);
+        $this->assertGuest();
+        $this->assertDatabaseMissing('login_events', ['event' => 'failed', 'user_id' => $user->getKey()]);
+        $this->assertDatabaseMissing('login_events', ['event' => 'login', 'user_id' => $user->getKey()]);
+
+        $token = basename((string) parse_url($location, PHP_URL_PATH));
+
+        $this->fromHost($workspace)
+            ->get(route('login.handoff', ['token' => $token]))
+            ->assertRedirect(route('org.dashboard', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh()->last_login_at);
+        $this->assertDatabaseHas('login_events', [
+            'event' => 'login',
+            'user_id' => $user->getKey(),
+            'organization_id' => $user->organization_id,
+        ]);
+
+        auth()->logout();
+        $this->flushSession();
+
+        $this->fromHost($workspace)
+            ->get(route('login.handoff', ['token' => $token]))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    #[Test]
+    public function a_workspace_handoff_opened_on_another_hostname_is_ignored(): void
+    {
+        $epa = Organization::factory()->create(['name' => 'EPA Demo']);
+        $mcc = Organization::factory()->create(['name' => 'Mobile Content Ltd']);
+        $epaAdmin = $this->createOrganizationAdmin($epa);
+
+        $location = (string) $this->fromCentral()
+            ->post(route('login.store'), ['email' => $epaAdmin->email, 'password' => 'password'])
+            ->headers->get('Location');
+
+        $token = basename((string) parse_url($location, PHP_URL_PATH));
+
+        $this->fromTenant($mcc)
+            ->get(route('login.handoff', ['token' => $token]))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+
+        $this->fromTenant($epa)
+            ->get(route('login.handoff', ['token' => $token]))
+            ->assertRedirect(route('org.dashboard', absolute: false));
+
+        $this->assertAuthenticatedAs($epaAdmin);
+    }
+
+    #[Test]
+    public function a_wrong_password_on_the_central_host_does_not_reveal_the_workspace(): void
     {
         $user = $this->createOrganizationAdmin();
 
         $this->fromCentral()
             ->from(route('login'))
-            ->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
+            ->post(route('login.store'), ['email' => $user->email, 'password' => 'wrong-password'])
+            ->assertSessionHasErrors(['email' => __('auth.failed')]);
 
         $this->assertGuest();
-        $this->assertDatabaseHas('login_events', [
-            'event' => 'failed',
-            'user_id' => $user->getKey(),
-            'email' => $user->email,
-        ]);
-        $this->assertDatabaseMissing('login_events', ['event' => 'login']);
     }
 
     #[Test]

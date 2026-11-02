@@ -17,7 +17,7 @@
             @if (($roles[$scope] ?? collect())->isEmpty())
                 <x-empty-state title="No {{ strtolower($heading) }} defined" />
             @else
-                <x-data-table caption="{{ $heading }}">
+                <x-data-table :paginator="$roles[$scope]" caption="{{ $heading }}">
                     <thead>
                         <tr>
                             <th scope="col">Role</th>

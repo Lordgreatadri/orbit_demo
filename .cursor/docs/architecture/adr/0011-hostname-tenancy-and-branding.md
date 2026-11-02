@@ -20,8 +20,10 @@ ORBIT organisations need a white-label workspace URL (and aliases) plus their ow
 
 ## Consequences
 
-- Local development needs a central host (`orbit.test`) and wildcard `*.orbit.test` (Herd does this when the site is linked).
+- Local development needs a central host (`orbit.test`) and wildcard `*.orbit.test`. Herd's Nginx site and certificate already include that wildcard. On this Windows machine the hosts file lists `orbit.test` only, so each workspace name (`epa.orbit.test`, and the others) also needs a `127.0.0.1` line.
+- A correct password entered on the platform site does not open a session there. The app sends the browser to the organisation's primary hostname with a one-minute, single-use handoff, and the session is created on that host. A correct password on another organisation's hostname stays a failed sign-in.
 - Tests must issue tenant requests against the organisation's registered hostname.
 - Invitation, password-reset, and verification links are minted against the organisation's primary origin so they land on the correct host.
+- Published branding is cached for one hour as plain values, then rebuilt on read. The cache store does not restore PHP objects.
 - Custom domains stay inactive until DNS verification succeeds.
 - Platform administrators manage every organisation from the central console; they do not inherit tenant context from a tenant hostname.
