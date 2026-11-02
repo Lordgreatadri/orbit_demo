@@ -7,6 +7,7 @@ use App\Enums\SmsMessageStatus;
 use App\Enums\SmsProviderHealth;
 use App\Integrations\Sms\BalanceSnapshot;
 use App\Integrations\Sms\DeliveryOutcome;
+use App\Integrations\Sms\Exceptions\RetryableSmsException;
 use App\Integrations\Sms\NormalizedCallback;
 use App\Integrations\Sms\SmsHttp;
 use App\Integrations\Sms\SmsOutcomes;
@@ -99,6 +100,11 @@ class TwilioAdapter implements SmsProviderAdapter
         ];
     }
 
+    public function transmissionRequests(array $messages): int
+    {
+        return count($messages);
+    }
+
     public function deliver(SmsProvider $provider, array $messages): array
     {
         $sid = (string) $provider->credential('account_sid');
@@ -119,12 +125,18 @@ class TwilioAdapter implements SmsProviderAdapter
                 $form['From'] = $provider->sender_id;
             }
 
-            $response = SmsHttp::send(
-                SmsHttp::client($provider)->withBasicAuth($sid, $token)->asForm(),
-                'post',
-                $url,
-                $form,
-            );
+            try {
+                $response = SmsHttp::send(
+                    SmsHttp::client($provider)->withBasicAuth($sid, $token)->asForm(),
+                    'post',
+                    $url,
+                    $form,
+                );
+            } catch (RetryableSmsException $exception) {
+                $outcomes[] = new DeliveryOutcome($message->id, 'retry', error: $exception->getMessage());
+
+                continue;
+            }
 
             if ($failed = SmsOutcomes::fromTransport([$message], $response)) {
                 $outcomes[] = $failed[0];

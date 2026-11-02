@@ -60,6 +60,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('app.dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // `credentials` is the SMS provider form. The defaults only cover password fields,
+        // and this app stores sessions unencrypted, so a failed save must not keep the key.
+        $exceptions->dontFlash([
+            'current_password',
+            'password',
+            'password_confirmation',
+            'credentials',
+        ]);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

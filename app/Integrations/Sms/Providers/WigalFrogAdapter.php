@@ -103,6 +103,11 @@ class WigalFrogAdapter implements SmsProviderAdapter
         ];
     }
 
+    public function transmissionRequests(array $messages): int
+    {
+        return $messages === [] ? 0 : 1;
+    }
+
     public function deliver(SmsProvider $provider, array $messages): array
     {
         $sameBody = count(array_unique(array_map(fn (SmsMessage $message) => $message->body, $messages))) === 1;

@@ -8,6 +8,7 @@ use App\Integrations\Sms\SmsProviderRegistry;
 use App\Integrations\Sms\SmsText;
 use App\Models\SmsMessage;
 use App\Models\SmsMessageEvent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -32,7 +33,7 @@ class SmsCallbackApplier
             return;
         }
 
-        $message = $this->findMessage($callback->messageUuid, $callback->correlationId);
+        $message = $this->findMessage($providerKey, $callback->messageUuid, $callback->correlationId);
 
         if ($message === null) {
             SmsLog::provider($providerKey)->info('SMS callback was ignored.', [
@@ -103,10 +104,10 @@ class SmsCallbackApplier
         }
     }
 
-    private function findMessage(?string $uuid, ?string $correlationId): ?SmsMessage
+    private function findMessage(string $providerKey, ?string $uuid, ?string $correlationId): ?SmsMessage
     {
         if (is_string($uuid) && Str::isUuid($uuid)) {
-            $message = SmsMessage::query()->where('uuid', $uuid)->first();
+            $message = $this->forProvider($providerKey)->where('uuid', $uuid)->first();
 
             if ($message !== null) {
                 return $message;
@@ -117,9 +118,30 @@ class SmsCallbackApplier
             return null;
         }
 
-        return SmsMessage::query()
-            ->where('provider_message_id', $correlationId)
-            ->orWhere('uuid', $correlationId)
+        return $this->forProvider($providerKey)
+            ->where(function (Builder $query) use ($correlationId): void {
+                $query->where('provider_message_id', $correlationId);
+
+                if (Str::isUuid($correlationId)) {
+                    $query->orWhere('uuid', $correlationId);
+                }
+            })
             ->first();
+    }
+
+    /**
+     * The callback token already proved which gateway this is. A shared
+     * provider message id, or a uuid from another gateway, must not match.
+     *
+     * @return Builder<SmsMessage>
+     */
+    private function forProvider(string $providerKey): Builder
+    {
+        return SmsMessage::query()->where(function (Builder $query) use ($providerKey): void {
+            $query->whereHas('provider', fn (Builder $provider) => $provider->where('key', $providerKey))
+                ->orWhereHas('events', fn (Builder $events) => $events
+                    ->where('provider_key', $providerKey)
+                    ->where('type', 'result'));
+        });
     }
 }

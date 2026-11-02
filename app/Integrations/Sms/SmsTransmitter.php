@@ -7,6 +7,7 @@ use App\Jobs\Sms\DeliverSmsMessages;
 use App\Models\SmsMessage;
 use App\Models\SmsProvider;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -60,8 +61,7 @@ final class SmsTransmitter
             ->where('enabled', true)
             ->first();
 
-        $messages = [];
-        $freshIds = [];
+        $prepared = [];
 
         foreach ($items as $item) {
             $phone = E164::assert($item['to']);
@@ -77,42 +77,51 @@ final class SmsTransmitter
                 throw new InvalidArgumentException('An idempotency key is required.');
             }
 
-            $existing = SmsMessage::query()->where('idempotency_key', $key)->first();
-
-            if ($existing !== null) {
-                $messages[] = $existing;
-
-                continue;
-            }
-
-            try {
-                $message = SmsMessage::query()->create([
-                    'organization_id' => $organizationId,
-                    'sms_provider_id' => $active?->id,
-                    'idempotency_key' => $key,
-                    'to' => $phone,
-                    'body' => $body,
-                    'sender_id' => $active?->sender_id,
-                    'purpose' => mb_substr($purpose, 0, 40),
-                    'status' => SmsMessageStatus::Queued,
-                    'attempts' => 0,
-                    'max_attempts' => $active?->max_attempts ?? 1,
-                    'backoff_seconds' => $active?->backoffSchedule() ?? [30, 120, 300],
-                    'allow_fallback' => $provider === null && $purpose !== 'operator_test',
-                    'used_fallback' => false,
-                    'counts_toward_subscription' => false,
-                    'billing_scope' => 'platform',
-                    'queued_at' => now(),
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                $messages[] = SmsMessage::query()->where('idempotency_key', $key)->firstOrFail();
-
-                continue;
-            }
-
-            $messages[] = $message;
-            $freshIds[] = $message->id;
+            $prepared[] = ['to' => $phone, 'body' => $body, 'idempotency_key' => $key];
         }
+
+        $messages = [];
+        $freshIds = [];
+
+        DB::transaction(function () use ($prepared, $organizationId, $active, $provider, $purpose, &$messages, &$freshIds): void {
+            foreach ($prepared as $item) {
+                $existing = SmsMessage::query()->where('idempotency_key', $item['idempotency_key'])->first();
+
+                if ($existing !== null) {
+                    $messages[] = $existing;
+
+                    continue;
+                }
+
+                try {
+                    $message = SmsMessage::query()->create([
+                        'organization_id' => $organizationId,
+                        'sms_provider_id' => $active?->id,
+                        'idempotency_key' => $item['idempotency_key'],
+                        'to' => $item['to'],
+                        'body' => $item['body'],
+                        'sender_id' => $active?->sender_id,
+                        'purpose' => mb_substr($purpose, 0, 40),
+                        'status' => SmsMessageStatus::Queued,
+                        'attempts' => 0,
+                        'max_attempts' => $active?->max_attempts ?? 1,
+                        'backoff_seconds' => $active?->backoffSchedule() ?? [30, 120, 300],
+                        'allow_fallback' => $provider === null && $purpose !== 'operator_test',
+                        'used_fallback' => false,
+                        'counts_toward_subscription' => false,
+                        'billing_scope' => 'platform',
+                        'queued_at' => now(),
+                    ]);
+                } catch (UniqueConstraintViolationException) {
+                    $messages[] = SmsMessage::query()->where('idempotency_key', $item['idempotency_key'])->firstOrFail();
+
+                    continue;
+                }
+
+                $messages[] = $message;
+                $freshIds[] = $message->id;
+            }
+        });
 
         if ($freshIds === []) {
             return $messages;

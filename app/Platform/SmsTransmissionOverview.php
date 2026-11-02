@@ -5,6 +5,7 @@ namespace App\Platform;
 use App\Enums\SmsMessageStatus;
 use App\Models\SmsMessage;
 use App\Models\SmsProvider;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Seven-day transmission figures for the platform console.
@@ -45,45 +46,57 @@ final class SmsTransmissionOverview
         $today = ['delivered' => 0, 'failed' => 0, 'sent' => 0];
         $byProvider = [];
 
-        $messages = SmsMessage::query()
-            ->where('created_at', '>=', $start)
-            ->get(['sms_provider_id', 'status', 'created_at']);
+        $day = match (DB::connection()->getDriverName()) {
+            'pgsql' => "to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
+            default => 'date(created_at)',
+        };
 
-        foreach ($messages as $message) {
-            $key = $message->created_at?->toDateString();
-            $bucket = $this->bucket($message->status);
+        $rows = SmsMessage::query()
+            ->where('created_at', '>=', $start)
+            ->selectRaw("sms_provider_id, status, {$day} as day, count(*) as total")
+            ->groupByRaw("sms_provider_id, status, {$day}")
+            ->get();
+
+        foreach ($rows as $row) {
+            $count = (int) $row->total;
+            $status = $row->status instanceof SmsMessageStatus
+                ? $row->status
+                : SmsMessageStatus::from((string) $row->status);
+            $key = is_string($row->day) ? substr($row->day, 0, 10) : null;
+            $bucket = $this->bucket($status);
+
             if ($key !== null && isset($days[$key])) {
-                $days[$key][$bucket]++;
-                $days[$key]['total']++;
+                $days[$key][$bucket] += $count;
+                $days[$key]['total'] += $count;
             }
 
-            $totals[$this->totalKey($message->status)]++;
-            if ($message->status !== SmsMessageStatus::Logged) {
-                $totals['sent']++;
+            $totals[$this->totalKey($status)] += $count;
+            if ($status !== SmsMessageStatus::Logged) {
+                $totals['sent'] += $count;
             }
 
             if ($key === $todayKey) {
-                if ($message->status === SmsMessageStatus::Delivered) {
-                    $today['delivered']++;
+                if ($status === SmsMessageStatus::Delivered) {
+                    $today['delivered'] += $count;
                 }
-                if ($message->status === SmsMessageStatus::Failed) {
-                    $today['failed']++;
+                if ($status === SmsMessageStatus::Failed) {
+                    $today['failed'] += $count;
                 }
-                if ($message->status !== SmsMessageStatus::Logged) {
-                    $today['sent']++;
+                if ($status !== SmsMessageStatus::Logged) {
+                    $today['sent'] += $count;
                 }
             }
 
-            if ($message->sms_provider_id !== null && $message->status !== SmsMessageStatus::Logged) {
-                $id = $message->sms_provider_id;
+            if ($row->sms_provider_id !== null && $status !== SmsMessageStatus::Logged) {
+                $id = (int) $row->sms_provider_id;
                 $byProvider[$id] ??= ['delivered' => 0, 'accepted' => 0, 'failed' => 0, 'sent' => 0];
-                $byProvider[$id]['sent']++;
-                if ($message->status === SmsMessageStatus::Delivered) {
-                    $byProvider[$id]['delivered']++;
-                } elseif ($message->status === SmsMessageStatus::Accepted) {
-                    $byProvider[$id]['accepted']++;
-                } elseif ($message->status === SmsMessageStatus::Failed) {
-                    $byProvider[$id]['failed']++;
+                $byProvider[$id]['sent'] += $count;
+                if ($status === SmsMessageStatus::Delivered) {
+                    $byProvider[$id]['delivered'] += $count;
+                } elseif ($status === SmsMessageStatus::Accepted) {
+                    $byProvider[$id]['accepted'] += $count;
+                } elseif ($status === SmsMessageStatus::Failed) {
+                    $byProvider[$id]['failed'] += $count;
                 }
             }
         }

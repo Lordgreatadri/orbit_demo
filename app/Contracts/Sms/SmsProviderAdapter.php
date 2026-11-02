@@ -58,6 +58,14 @@ interface SmsProviderAdapter
     public function credentialFields(): array;
 
     /**
+     * Provider HTTP calls this set will make. One call may cover many recipients.
+     * The per-minute guard counts these calls, not the recipients.
+     *
+     * @param  list<SmsMessage>  $messages
+     */
+    public function transmissionRequests(array $messages): int;
+
+    /**
      * @param  list<SmsMessage>  $messages
      * @return list<DeliveryOutcome>
      */

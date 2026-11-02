@@ -2,7 +2,7 @@
 
 namespace App\Jobs\Sms;
 
-use App\Enums\SmsMessageStatus;
+use App\Contracts\Sms\SmsProviderAdapter;
 use App\Integrations\Sms\DeliveryOutcome;
 use App\Integrations\Sms\Exceptions\PermanentSmsException;
 use App\Integrations\Sms\Exceptions\RetryableSmsException;
@@ -13,12 +13,14 @@ use App\Models\SmsMessage;
 use App\Models\SmsMessageEvent;
 use App\Models\SmsProvider;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
@@ -28,13 +30,28 @@ class DeliverSmsMessages implements ShouldQueue
 
     public int $tries = 15;
 
+    /** @var array<int, Lock> */
+    private array $claims = [];
+
+    private bool $deferForRateLimit = false;
+
+    private ?int $limitDelay = null;
+
     /**
      * @param  list<int>  $messageIds
      */
     public function __construct(public array $messageIds) {}
 
+    public static function claimKey(int $messageId): string
+    {
+        return 'sms-deliver:'.$messageId;
+    }
+
     public function handle(SmsProviderRegistry $registry): void
     {
+        $this->deferForRateLimit = false;
+        $this->limitDelay = null;
+
         $messages = SmsMessage::query()
             ->whereIn('id', $this->messageIds)
             ->orderBy('id')
@@ -46,50 +63,59 @@ class DeliverSmsMessages implements ShouldQueue
             return;
         }
 
-        $released = false;
+        $claimed = $this->claim($messages);
 
-        foreach ($messages->groupBy('sms_provider_id') as $providerId => $group) {
-            $provider = SmsProvider::query()->find($providerId);
-
-            if ($provider === null || ! $provider->enabled) {
-                foreach ($group as $message) {
-                    $message->markFailed('The provider is no longer available.');
-                }
-
-                continue;
-            }
-
-            if ($this->overRateLimit($provider, $group->count())) {
-                $this->release(max(5, RateLimiter::availableIn('sms-provider:'.$provider->key)));
-                $released = true;
-
-                continue;
-            }
-
-            foreach ($group as $message) {
-                $message->markSubmitted();
-            }
-
-            $outcomes = $this->deliver($registry, $provider, $group->all());
-            $retryDelay = $this->apply($registry, $provider, $group, $outcomes);
-
-            if ($retryDelay !== null) {
-                // The sync driver records a release and does not run the job again.
-                // Database and Redis queues honour the delay, which keeps the worker free.
-                if ($this->job instanceof SyncJob) {
-                    $this->handle($registry);
-                } else {
-                    $this->release($retryDelay);
-                }
-
-                return;
-            }
-
-            RefreshSmsProviderBalance::dispatch($provider->id);
+        if ($claimed->isEmpty()) {
+            return;
         }
 
-        if ($released) {
-            return;
+        try {
+            $retryDelay = null;
+
+            foreach ($claimed->groupBy('sms_provider_id') as $providerId => $group) {
+                $provider = SmsProvider::query()->find($providerId);
+
+                if ($provider === null || ! $provider->enabled) {
+                    foreach ($group as $message) {
+                        $message->markFailed('The provider is no longer available.');
+                    }
+
+                    continue;
+                }
+
+                $chunk = $this->reserveChunk($provider, $group->all());
+
+                if ($chunk === []) {
+                    continue;
+                }
+
+                foreach ($chunk as $message) {
+                    $message->markSubmitted();
+                }
+
+                $outcomes = $this->deliver($registry, $provider, $chunk);
+                $delay = $this->apply($registry, $provider, collect($chunk), $outcomes);
+
+                if ($delay !== null) {
+                    $retryDelay = max($retryDelay ?? 0, $delay);
+                } else {
+                    RefreshSmsProviderBalance::dispatch($provider->id);
+                }
+            }
+
+            if ($retryDelay !== null || ($this->deferForRateLimit && $this->queueCanDelay())) {
+                $delay = max($retryDelay ?? 0, $this->limitDelay ?? 5);
+                $this->releaseClaims();
+
+                if ($this->queueCanDelay()) {
+                    $this->release($delay);
+                } elseif ($retryDelay !== null) {
+                    // The sync driver records a release and does not run the job again.
+                    $this->handle($registry);
+                }
+            }
+        } finally {
+            $this->releaseClaims();
         }
     }
 
@@ -112,6 +138,8 @@ class DeliverSmsMessages implements ShouldQueue
     private function deliver(SmsProviderRegistry $registry, SmsProvider $provider, array $messages): array
     {
         try {
+            // Adapters catch a timeout around each request and keep outcomes they already have.
+            // This remains for a call that fails before it can return any of those outcomes.
             return $registry->get($provider->key)->deliver($provider, $messages);
         } catch (RetryableSmsException $exception) {
             return array_map(
@@ -200,10 +228,16 @@ class DeliverSmsMessages implements ShouldQueue
                 continue;
             }
 
-            $fallbackOutcomes = $this->deliver($registry, $fallback, $messages);
+            $chunk = $this->reserveChunk($fallback, array_values($messages));
+
+            if ($chunk === []) {
+                continue;
+            }
+
+            $fallbackOutcomes = $this->deliver($registry, $fallback, $chunk);
 
             foreach ($fallbackOutcomes as $outcome) {
-                $message = collect($messages)->firstWhere('id', $outcome->localId);
+                $message = collect($chunk)->firstWhere('id', $outcome->localId);
 
                 if ($message === null) {
                     continue;
@@ -242,18 +276,9 @@ class DeliverSmsMessages implements ShouldQueue
             ->where('id', '!=', $message->sms_provider_id)
             ->first();
 
-        if ($fallback === null) {
+        if ($fallback === null || ! $message->assignFallback($fallback)) {
             return null;
         }
-
-        $message->used_fallback = true;
-        $message->sms_provider_id = $fallback->id;
-        $message->sender_id = $fallback->sender_id;
-        $message->attempts = 0;
-        $message->max_attempts = $fallback->max_attempts;
-        $message->backoff_seconds = $fallback->backoffSchedule();
-        $message->status = SmsMessageStatus::Submitted;
-        $message->save();
 
         return $fallback;
     }
@@ -283,17 +308,131 @@ class DeliverSmsMessages implements ShouldQueue
         ]);
     }
 
-    private function overRateLimit(SmsProvider $provider, int $slots): bool
+    /**
+     * @param  Collection<int, SmsMessage>  $messages
+     * @return Collection<int, SmsMessage>
+     */
+    private function claim(Collection $messages): Collection
     {
-        $key = 'sms-provider:'.$provider->key;
-        $limit = max(1, (int) $provider->requests_per_minute);
+        $claimed = collect();
 
-        if (RateLimiter::attempts($key) + $slots > $limit) {
-            return true;
+        foreach ($messages as $message) {
+            $lock = Cache::lock(self::claimKey($message->id), 600);
+
+            if (! $lock->get()) {
+                continue;
+            }
+
+            $fresh = SmsMessage::query()->find($message->id);
+
+            if ($fresh === null || ! $fresh->status->isDispatchable()) {
+                $lock->release();
+
+                continue;
+            }
+
+            $this->claims[$fresh->id] = $lock;
+            $claimed->push($fresh);
         }
 
-        RateLimiter::increment($key, 60, $slots);
+        return $claimed;
+    }
 
-        return false;
+    private function releaseClaims(): void
+    {
+        foreach ($this->claims as $lock) {
+            $lock->release();
+        }
+
+        $this->claims = [];
+    }
+
+    /**
+     * Take only as many messages as this minute still allows, counted as provider HTTP calls.
+     * A later chunk is left for another run. The sync driver cannot schedule that run, so those
+     * messages are failed instead of staying queued forever.
+     *
+     * @param  list<SmsMessage>  $messages
+     * @return list<SmsMessage>
+     */
+    private function reserveChunk(SmsProvider $provider, array $messages): array
+    {
+        if ($messages === []) {
+            return [];
+        }
+
+        $adapter = app(SmsProviderRegistry::class)->get($provider->key);
+        $limit = max(1, (int) $provider->requests_per_minute);
+        $room = $limit - RateLimiter::attempts($this->rateKey($provider));
+
+        if ($room < 1) {
+            $this->holdForLimit($provider, $messages);
+
+            return [];
+        }
+
+        [$chunk, $rest] = $this->splitToFit($adapter, $messages, $room);
+
+        if ($chunk === []) {
+            $this->holdForLimit($provider, $messages);
+
+            return [];
+        }
+
+        RateLimiter::increment($this->rateKey($provider), 60, $adapter->transmissionRequests($chunk));
+
+        if ($rest !== []) {
+            $this->holdForLimit($provider, $rest);
+        }
+
+        return $chunk;
+    }
+
+    /**
+     * @param  list<SmsMessage>  $messages
+     * @return array{0: list<SmsMessage>, 1: list<SmsMessage>}
+     */
+    private function splitToFit(SmsProviderAdapter $adapter, array $messages, int $room): array
+    {
+        $take = [];
+
+        foreach ($messages as $offset => $message) {
+            $candidate = [...$take, $message];
+
+            if ($adapter->transmissionRequests($candidate) > $room) {
+                return [$take, array_slice($messages, $offset)];
+            }
+
+            $take[] = $message;
+        }
+
+        return [$take, []];
+    }
+
+    /**
+     * @param  list<SmsMessage>  $messages
+     */
+    private function holdForLimit(SmsProvider $provider, array $messages): void
+    {
+        if ($this->queueCanDelay()) {
+            $this->deferForRateLimit = true;
+            $this->limitDelay = max($this->limitDelay ?? 0, max(5, RateLimiter::availableIn($this->rateKey($provider))));
+
+            return;
+        }
+
+        foreach ($messages as $message) {
+            $message->markFailed('The provider rate limit was reached and this queue cannot try again later.');
+        }
+    }
+
+    private function queueCanDelay(): bool
+    {
+        return $this->job !== null && ! $this->job instanceof SyncJob;
+    }
+
+    private function rateKey(SmsProvider $provider): string
+    {
+        return 'sms-provider:'.$provider->key;
     }
 }

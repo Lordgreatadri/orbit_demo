@@ -8,6 +8,7 @@ use App\Integrations\Sms\Providers\TwilioAdapter;
 use App\Models\SmsMessage;
 use App\Models\SmsProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -130,6 +131,101 @@ class SmsProviderAdaptersTest extends TestCase
             && $request['sender'] === 'ORBIT'
             && $request['recipients'] === ['233244000000']
             && str_contains($request['callback_url'], 'message='.$message->uuid));
+    }
+
+    #[Test]
+    public function a_later_africastalking_timeout_keeps_the_group_already_accepted(): void
+    {
+        Http::preventStrayRequests();
+        $provider = SmsProvider::factory()->ready('africastalking')->create();
+        $first = $this->message($provider, '+254711000111', 'First text');
+        $second = $this->message($provider, '+254711000222', 'Second text');
+        $calls = 0;
+
+        Http::fake(function () use (&$calls) {
+            $calls++;
+
+            if ($calls === 2) {
+                throw new ConnectionException('timed out');
+            }
+
+            return Http::response([
+                'SMSMessageData' => [
+                    'Recipients' => [[
+                        'statusCode' => 102,
+                        'number' => '+254711000111',
+                        'messageId' => 'ATXid_1',
+                    ]],
+                ],
+            ]);
+        });
+
+        $outcomes = (new AfricasTalkingAdapter)->deliver($provider, [$first, $second]);
+
+        $this->assertSame('accepted', $outcomes[0]->result);
+        $this->assertSame('ATXid_1', $outcomes[0]->providerMessageId);
+        $this->assertSame('retry', $outcomes[1]->result);
+        $this->assertSame(2, $calls);
+    }
+
+    #[Test]
+    public function a_later_arkesel_timeout_keeps_the_group_already_accepted(): void
+    {
+        Http::preventStrayRequests();
+        $provider = SmsProvider::factory()->ready('arkesel')->create();
+        $first = $this->message($provider, '+233244000001', 'First text');
+        $second = $this->message($provider, '+233244000002', 'Second text');
+        $calls = 0;
+
+        Http::fake(function () use (&$calls) {
+            $calls++;
+
+            if ($calls === 2) {
+                throw new ConnectionException('timed out');
+            }
+
+            return Http::response([
+                'status' => 'success',
+                'data' => [[
+                    'recipient' => '233244000001',
+                    'id' => 'msg_1',
+                ]],
+            ]);
+        });
+
+        $outcomes = (new ArkeselAdapter)->deliver($provider, [$first, $second]);
+
+        $this->assertSame('accepted', $outcomes[0]->result);
+        $this->assertSame('msg_1', $outcomes[0]->providerMessageId);
+        $this->assertSame('retry', $outcomes[1]->result);
+        $this->assertSame(2, $calls);
+    }
+
+    #[Test]
+    public function a_later_twilio_timeout_keeps_the_recipient_already_accepted(): void
+    {
+        Http::preventStrayRequests();
+        $provider = SmsProvider::factory()->ready('twilio')->create();
+        $first = $this->message($provider, '+15550002222', 'One');
+        $second = $this->message($provider, '+15550003333', 'Two');
+        $calls = 0;
+
+        Http::fake(function () use (&$calls) {
+            $calls++;
+
+            if ($calls === 2) {
+                throw new ConnectionException('timed out');
+            }
+
+            return Http::response(['sid' => 'SM123', 'status' => 'queued'], 201);
+        });
+
+        $outcomes = (new TwilioAdapter)->deliver($provider, [$first, $second]);
+
+        $this->assertSame('accepted', $outcomes[0]->result);
+        $this->assertSame('SM123', $outcomes[0]->providerMessageId);
+        $this->assertSame('retry', $outcomes[1]->result);
+        $this->assertSame(2, $calls);
     }
 
     private function message(SmsProvider $provider, string $to, string $body): SmsMessage

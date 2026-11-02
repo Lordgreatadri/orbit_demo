@@ -115,7 +115,8 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 - [x] SMS bundle and cash balances use separate thresholds. A warning quotes only the purse that is at or below its own threshold.
 - [x] Active navigation and tabs keep a dark wash in the plum theme, so the label stays readable.
 - [x] `/admin/settings` opens the SMS provider screen. Provider traffic is logged to `storage/logs/sms-{provider}.log`, and sign-in events to `storage/logs/auth.log`.
-- [x] `/admin/sms` is the super-admin transmission overview. Accepted messages are counted apart from delivered ones.
+- [x] `/admin/sms` is the super-admin transmission overview. Accepted messages are counted apart from delivered ones. Counts are aggregated in the database.
+- [x] SMS review fixes: credentials stay out of flashed input, partial provider timeouts keep earlier acceptances, callbacks stay on the authenticated gateway, sends are claimed once, status changes lock the row, handoff tokens are consumed once, Twilio sender IDs allow a Messaging Service SID, batches are validated before insert, rate limits cover fallback and oversized batches, and database notifications keep a numeric id.
 
 ## Commands executed and observed results (2026-11-02 platform SMS)
 | Command | Result |
@@ -126,3 +127,5 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan route:list --path=webhooks` | POST `webhooks/sms/{wigal,twilio,africastalking}/{token}`; GET and POST `webhooks/sms/arkesel/{token}` |
 | `composer update --lock --no-scripts` then `composer validate --no-check-publish --no-check-version` | Lock hash aligned with `spatie/laravel-webhook-client: ^3.7`. Composer reports valid |
 | Signed-in HTTP check against `php artisan serve` on `127.0.0.1:8000` | Super admin sees four tabs (Africa's Talking, Arkesel, Twilio, Wigal Frog). Saving a sender ID round-trips and was reverted. Secret inputs stay empty. Health on a disabled provider returns “Turn the provider on before checking it.” `platform.support` receives 403. Unauthenticated `/admin/sms-providers` redirects to login |
+| `php84 artisan test --compact` on SMS, overview, provider settings, and login | **54 tests, 54 passed, 269 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_02_140000_widen_sms_sender_and_index_messages` |

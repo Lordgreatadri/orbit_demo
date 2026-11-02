@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'organization_id',
@@ -81,76 +82,160 @@ class SmsMessage extends Model
 
     public function markSubmitted(): void
     {
-        if ($this->status->canAdvanceTo(SmsMessageStatus::Submitted)) {
-            $this->status = SmsMessageStatus::Submitted;
-        }
+        $this->withinLock(function (self $row): void {
+            if ($row->status->isTerminal()) {
+                return;
+            }
 
-        $this->submitted_at ??= now();
-        $this->save();
+            if ($row->status->canAdvanceTo(SmsMessageStatus::Submitted)) {
+                $row->status = SmsMessageStatus::Submitted;
+            }
+
+            $row->submitted_at ??= now();
+            $row->save();
+        });
     }
 
     public function markAccepted(?string $providerMessageId, ?string $providerStatus, ?int $providerId = null): void
     {
-        if ($providerId !== null) {
-            $this->sms_provider_id = $providerId;
-        }
+        $this->withinLock(function (self $row) use ($providerMessageId, $providerStatus, $providerId): void {
+            if ($row->status->isTerminal()) {
+                if ($providerMessageId && $row->provider_message_id === null) {
+                    $row->provider_message_id = mb_substr($providerMessageId, 0, 120);
+                    $row->save();
+                }
 
-        if ($providerMessageId) {
-            $this->provider_message_id = mb_substr($providerMessageId, 0, 120);
-        }
+                return;
+            }
 
-        $this->provider_status = self::shortStatus($providerStatus);
-        $this->last_error = null;
+            if ($providerId !== null) {
+                $row->sms_provider_id = $providerId;
+            }
 
-        if ($this->status->canAdvanceTo(SmsMessageStatus::Accepted)) {
-            $this->status = SmsMessageStatus::Accepted;
-            $this->accepted_at = now();
-        }
+            if ($providerMessageId) {
+                $row->provider_message_id = mb_substr($providerMessageId, 0, 120);
+            }
 
-        $this->save();
+            $row->provider_status = self::shortStatus($providerStatus);
+            $row->last_error = null;
+
+            if ($row->status->canAdvanceTo(SmsMessageStatus::Accepted)) {
+                $row->status = SmsMessageStatus::Accepted;
+                $row->accepted_at = now();
+            }
+
+            $row->save();
+        });
     }
 
     public function markDelivered(?string $providerStatus): void
     {
-        $this->provider_status = self::shortStatus($providerStatus);
+        $this->withinLock(function (self $row) use ($providerStatus): void {
+            if ($row->status === SmsMessageStatus::Failed || $row->status === SmsMessageStatus::Logged) {
+                return;
+            }
 
-        if ($this->status->canAdvanceTo(SmsMessageStatus::Delivered)) {
-            $this->status = SmsMessageStatus::Delivered;
-            $this->delivered_at = now();
-            $this->last_error = null;
-        }
+            $row->provider_status = self::shortStatus($providerStatus);
 
-        $this->save();
+            if ($row->status->canAdvanceTo(SmsMessageStatus::Delivered)) {
+                $row->status = SmsMessageStatus::Delivered;
+                $row->delivered_at = now();
+                $row->last_error = null;
+            }
+
+            $row->save();
+        });
     }
 
     public function markFailed(string $error, ?string $providerStatus = null): void
     {
-        $this->provider_status = self::shortStatus($providerStatus);
-        $this->last_error = SmsText::safe($error);
+        $this->withinLock(function (self $row) use ($error, $providerStatus): void {
+            if (! $row->status->canAdvanceTo(SmsMessageStatus::Failed)) {
+                return;
+            }
 
-        if ($this->status->canAdvanceTo(SmsMessageStatus::Failed)) {
-            $this->status = SmsMessageStatus::Failed;
-            $this->failed_at = now();
-        }
-
-        $this->save();
+            $row->provider_status = self::shortStatus($providerStatus);
+            $row->last_error = SmsText::safe($error);
+            $row->status = SmsMessageStatus::Failed;
+            $row->failed_at = now();
+            $row->save();
+        });
     }
 
     public function markLogged(): void
     {
-        if ($this->status->canAdvanceTo(SmsMessageStatus::Logged)) {
-            $this->status = SmsMessageStatus::Logged;
-        }
+        $this->withinLock(function (self $row): void {
+            if (! $row->status->canAdvanceTo(SmsMessageStatus::Logged)) {
+                return;
+            }
 
-        $this->save();
+            $row->status = SmsMessageStatus::Logged;
+            $row->save();
+        });
     }
 
     public function recordAttempt(string $error): void
     {
-        $this->attempts++;
-        $this->last_error = SmsText::safe($error);
-        $this->submitted_at ??= now();
-        $this->save();
+        $this->withinLock(function (self $row) use ($error): void {
+            if ($row->status->isTerminal()) {
+                return;
+            }
+
+            $row->attempts++;
+            $row->last_error = SmsText::safe($error);
+            $row->submitted_at ??= now();
+            $row->save();
+        });
+    }
+
+    /**
+     * Move the message onto the fallback provider unless a callback already finished it.
+     */
+    public function assignFallback(SmsProvider $fallback): bool
+    {
+        if (! $this->allow_fallback || $this->used_fallback) {
+            return false;
+        }
+
+        $assigned = false;
+
+        $this->withinLock(function (self $row) use ($fallback, &$assigned): void {
+            if ($row->status->isTerminal() || $row->used_fallback || ! $row->allow_fallback) {
+                return;
+            }
+
+            $row->used_fallback = true;
+            $row->sms_provider_id = $fallback->id;
+            $row->sender_id = $fallback->sender_id;
+            $row->attempts = 0;
+            $row->max_attempts = $fallback->max_attempts;
+            $row->backoff_seconds = $fallback->backoffSchedule();
+            $row->status = SmsMessageStatus::Submitted;
+            $row->save();
+            $assigned = true;
+        });
+
+        return $assigned;
+    }
+
+    /**
+     * Re-read the row under a lock so a delivery report cannot be overwritten
+     * by a send result that still has the older status in memory.
+     */
+    public function withinLock(callable $callback): void
+    {
+        DB::transaction(function () use ($callback): void {
+            $locked = static::query()->whereKey($this->getKey())->lockForUpdate()->first();
+
+            if ($locked === null) {
+                return;
+            }
+
+            $callback($locked);
+
+            $this->setRawAttributes($locked->getAttributes(), true);
+            $this->syncOriginal();
+        });
     }
 
     public function nextBackoff(): int

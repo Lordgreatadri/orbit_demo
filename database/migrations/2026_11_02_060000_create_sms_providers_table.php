@@ -17,7 +17,7 @@ return new class extends Migration
             $table->boolean('enabled')->default(false);
             $table->boolean('is_active')->default(false);
             $table->boolean('is_fallback')->default(false);
-            $table->string('sender_id', 20)->nullable();
+            $table->string('sender_id', 34)->nullable();
             $table->text('credentials')->nullable();
             $table->unsignedSmallInteger('timeout_seconds')->default(10);
             $table->unsignedTinyInteger('max_attempts')->default(3);

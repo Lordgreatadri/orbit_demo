@@ -68,7 +68,7 @@
                             </x-form.checkbox>
                         @endif
                     </div>
-                    <x-form.input name="sender_id" label="Sender ID or number" :value="$provider->sender_id" maxlength="20" autocomplete="off" hint="Approved sender ID, or for Twilio an E.164 number or Messaging Service SID (MG…)." />
+                    <x-form.input name="sender_id" label="Sender ID or number" :value="$provider->sender_id" maxlength="34" autocomplete="off" hint="Approved sender ID, or for Twilio an E.164 number or Messaging Service SID (MG…)." />
                 </div>
             </x-card>
 

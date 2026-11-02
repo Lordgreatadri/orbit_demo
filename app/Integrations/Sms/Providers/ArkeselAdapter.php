@@ -8,6 +8,7 @@ use App\Enums\SmsProviderHealth;
 use App\Integrations\Sms\BalanceSnapshot;
 use App\Integrations\Sms\DeliveryOutcome;
 use App\Integrations\Sms\E164;
+use App\Integrations\Sms\Exceptions\RetryableSmsException;
 use App\Integrations\Sms\NormalizedCallback;
 use App\Integrations\Sms\SmsHttp;
 use App\Integrations\Sms\SmsOutcomes;
@@ -105,6 +106,11 @@ class ArkeselAdapter implements SmsProviderAdapter
         ];
     }
 
+    public function transmissionRequests(array $messages): int
+    {
+        return count($this->grouped($messages));
+    }
+
     public function deliver(SmsProvider $provider, array $messages): array
     {
         $outcomes = [];
@@ -116,19 +122,25 @@ class ArkeselAdapter implements SmsProviderAdapter
                 $callback .= '?message='.$group[0]->uuid;
             }
 
-            $response = SmsHttp::send(
-                SmsHttp::client($provider)->withHeaders([
-                    'api-key' => (string) $provider->credential('api_key'),
-                ]),
-                'post',
-                self::SEND,
-                [
-                    'sender' => $provider->sender_id,
-                    'message' => $body,
-                    'recipients' => array_map(fn (SmsMessage $message) => ltrim($message->to, '+'), $group),
-                    'callback_url' => $callback,
-                ],
-            );
+            try {
+                $response = SmsHttp::send(
+                    SmsHttp::client($provider)->withHeaders([
+                        'api-key' => (string) $provider->credential('api_key'),
+                    ]),
+                    'post',
+                    self::SEND,
+                    [
+                        'sender' => $provider->sender_id,
+                        'message' => $body,
+                        'recipients' => array_map(fn (SmsMessage $message) => ltrim($message->to, '+'), $group),
+                        'callback_url' => $callback,
+                    ],
+                );
+            } catch (RetryableSmsException $exception) {
+                array_push($outcomes, ...SmsOutcomes::all($group, 'retry', $exception->getMessage()));
+
+                continue;
+            }
 
             if ($failed = SmsOutcomes::fromTransport($group, $response)) {
                 array_push($outcomes, ...$failed);

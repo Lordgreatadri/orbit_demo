@@ -41,7 +41,7 @@ class SaveSmsProviderRequest extends FormRequest
         $adapter = app(SmsProviderRegistry::class)->get($provider->key);
 
         $rules = [
-            'sender_id' => ['nullable', 'string', 'max:20'],
+            'sender_id' => ['nullable', 'string', 'max:34'],
             'enabled' => ['boolean'],
             'is_active' => ['boolean'],
             'is_fallback' => ['boolean'],

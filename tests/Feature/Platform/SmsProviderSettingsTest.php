@@ -108,6 +108,54 @@ class SmsProviderSettingsTest extends TestCase
     }
 
     #[Test]
+    public function a_validation_error_does_not_keep_the_api_key_in_the_session(): void
+    {
+        $admin = User::factory()->platform()->withRole('platform_super_admin')->create();
+        $this->actingAs($admin)->get(route('admin.sms-providers.index'));
+        $wigal = SmsProvider::query()->where('key', 'wigal')->firstOrFail();
+        $secret = 'wk_flash_secret_9kQ2';
+        $payload = $this->payload($secret, true);
+        $payload['timeout_seconds'] = 1;
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.sms-providers.show', $wigal))
+            ->put(route('admin.sms-providers.update', $wigal), $payload);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('timeout_seconds');
+        $old = json_encode($response->getSession()->getOldInput());
+        $this->assertIsString($old);
+        $this->assertStringNotContainsString($secret, $old);
+        $this->assertStringNotContainsString('credentials', $old);
+    }
+
+    #[Test]
+    public function a_twilio_messaging_service_sid_can_be_saved(): void
+    {
+        $admin = User::factory()->platform()->withRole('platform_super_admin')->create();
+        $this->actingAs($admin)->get(route('admin.sms-providers.index'));
+        $twilio = SmsProvider::query()->where('key', 'twilio')->firstOrFail();
+        $sid = 'MG'.str_repeat('c', 32);
+
+        $this->actingAs($admin)->put(route('admin.sms-providers.update', $twilio), [
+            'sender_id' => $sid,
+            'enabled' => '1',
+            'is_active' => '0',
+            'is_fallback' => '0',
+            'timeout_seconds' => 10,
+            'max_attempts' => 3,
+            'requests_per_minute' => 60,
+            'backoff_seconds' => '30, 120, 300',
+            'credentials' => [
+                'account_sid' => 'ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                'auth_token' => 'twilio-secret-token',
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame($sid, $twilio->fresh()->sender_id);
+    }
+
+    #[Test]
     public function a_tenant_admin_and_platform_support_cannot_open_sms_settings(): void
     {
         $tenant = $this->createOrganizationAdmin();

@@ -5,17 +5,24 @@ namespace Tests\Feature\Sms;
 use App\Auth\PhoneVerificationCode;
 use App\Contracts\SmsSender;
 use App\Enums\SmsMessageStatus;
+use App\Integrations\Sms\Exceptions\InvalidPhoneNumber;
 use App\Integrations\Sms\LogSmsSender;
 use App\Integrations\Sms\SmsTransmitter;
+use App\Jobs\Sms\DeliverSmsMessages;
 use App\Jobs\Sms\RefreshSmsProviderBalance;
 use App\Models\SmsMessage;
 use App\Models\SmsProvider;
 use App\Models\User;
 use App\Notifications\SmsBalanceLowNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -255,6 +262,197 @@ class SmsTransmitterTest extends TestCase
                 && $notification->reasons[0]['purse'] === 'bundle'
                 && $notification->reasons[0]['balance'] === '50';
         });
+    }
+
+    #[Test]
+    public function an_invalid_later_message_does_not_leave_the_earlier_one_queued(): void
+    {
+        Http::preventStrayRequests();
+        SmsProvider::factory()->ready()->create(['is_active' => true]);
+
+        try {
+            app(SmsTransmitter::class)->transmitMany([
+                ['to' => '+233200000111', 'body' => 'Ok', 'idempotency_key' => 'batch-ok'],
+                ['to' => 'not-a-phone', 'body' => 'Bad', 'idempotency_key' => 'batch-bad'],
+            ]);
+            $this->fail('The invalid number should have been rejected.');
+        } catch (InvalidPhoneNumber) {
+            $this->assertSame(0, SmsMessage::query()->count());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    #[Test]
+    public function a_message_already_being_sent_is_not_sent_again(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://frogapi.wigal.com.gh/api/v3/sms/send' => Http::response(['status' => 'ACCEPTD', 'message' => 'ok']),
+        ]);
+        $provider = SmsProvider::factory()->ready()->create();
+        $message = SmsMessage::query()->create([
+            'sms_provider_id' => $provider->id,
+            'idempotency_key' => 'claim-1',
+            'to' => '+233200000111',
+            'body' => 'Once',
+            'purpose' => 'platform_notification',
+            'status' => SmsMessageStatus::Queued,
+            'max_attempts' => 3,
+            'counts_toward_subscription' => false,
+            'billing_scope' => 'platform',
+            'queued_at' => now(),
+        ]);
+        $lock = Cache::lock(DeliverSmsMessages::claimKey($message->id), 90);
+        $this->assertTrue($lock->get());
+
+        DeliverSmsMessages::dispatch([$message->id]);
+
+        Http::assertNothingSent();
+        $this->assertSame(SmsMessageStatus::Queued, $message->fresh()->status);
+        $lock->release();
+    }
+
+    #[Test]
+    public function a_delivery_report_during_the_send_is_not_replaced_by_acceptance(): void
+    {
+        Http::preventStrayRequests();
+        SmsProvider::factory()->ready()->create(['is_active' => true]);
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/balance')) {
+                return Http::response(['status' => 'SUCCESS', 'data' => ['bundles' => ['SMS' => 10], 'cashbalance' => 1]]);
+            }
+
+            SmsMessage::query()->first()?->forceFill([
+                'status' => SmsMessageStatus::Delivered,
+                'delivered_at' => now(),
+                'provider_status' => 'DELIVRD',
+            ])->save();
+
+            return Http::response(['status' => 'ACCEPTD', 'message' => 'ok']);
+        });
+
+        $message = app(SmsTransmitter::class)->transmit('+233200000111', 'Hello', 'race-1');
+
+        $this->assertSame(SmsMessageStatus::Delivered, $message->fresh()->status);
+        $this->assertNotNull($message->fresh()->delivered_at);
+    }
+
+    #[Test]
+    public function a_wigal_batch_above_the_recipient_cap_still_sends_once(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://frogapi.wigal.com.gh/api/v3/sms/send' => Http::response(['status' => 'ACCEPTD', 'message' => 'ok']),
+            'https://frogapi.wigal.com.gh/api/v3/balance' => Http::response(['status' => 'SUCCESS', 'data' => ['bundles' => ['SMS' => 40], 'cashbalance' => 1]]),
+        ]);
+        SmsProvider::factory()->ready()->create([
+            'is_active' => true,
+            'requests_per_minute' => 30,
+        ]);
+
+        $items = [];
+        for ($index = 1; $index <= 31; $index++) {
+            $items[] = [
+                'to' => '+23324'.str_pad((string) $index, 8, '0', STR_PAD_LEFT),
+                'body' => 'Same text',
+                'idempotency_key' => 'cap-'.$index,
+            ];
+        }
+
+        $messages = app(SmsTransmitter::class)->transmitMany($items);
+
+        $this->assertCount(31, $messages);
+        $this->assertTrue(collect($messages)->every(
+            fn (SmsMessage $message) => $message->fresh()->status === SmsMessageStatus::Accepted,
+        ));
+        $this->assertSame(1, collect(Http::recorded())->filter(
+            fn ($pair) => str_contains($pair[0]->url(), '/sms/send'),
+        )->count());
+    }
+
+    #[Test]
+    public function the_sync_queue_fails_recipients_it_cannot_reschedule(): void
+    {
+        Http::preventStrayRequests();
+        $provider = SmsProvider::factory()->ready('twilio')->create([
+            'is_active' => true,
+            'requests_per_minute' => 1,
+        ]);
+        Http::fake([
+            'https://api.twilio.com/2010-04-01/Accounts/'.$provider->credential('account_sid').'/Messages.json' => Http::response(['sid' => 'SM1', 'status' => 'queued'], 201),
+            'https://api.twilio.com/2010-04-01/Accounts/'.$provider->credential('account_sid').'/Balance.json' => Http::response(['balance' => '1', 'currency' => 'USD']),
+        ]);
+
+        $messages = app(SmsTransmitter::class)->transmitMany([
+            ['to' => '+15550002222', 'body' => 'One', 'idempotency_key' => 'sync-1'],
+            ['to' => '+15550003333', 'body' => 'Two', 'idempotency_key' => 'sync-2'],
+        ]);
+
+        $this->assertSame(SmsMessageStatus::Accepted, $messages[0]->fresh()->status);
+        $this->assertSame(SmsMessageStatus::Failed, $messages[1]->fresh()->status);
+        $this->assertStringContainsString('rate limit', (string) $messages[1]->fresh()->last_error);
+        $this->assertSame(1, collect(Http::recorded())->filter(
+            fn ($pair) => str_contains($pair[0]->url(), '/Messages.json'),
+        )->count());
+    }
+
+    #[Test]
+    public function fallback_delivery_obeys_the_fallback_providers_rate_limit(): void
+    {
+        Http::preventStrayRequests();
+        SmsProvider::factory()->ready()->create([
+            'is_active' => true,
+            'max_attempts' => 1,
+        ]);
+        SmsProvider::factory()->ready('arkesel')->create([
+            'is_fallback' => true,
+            'requests_per_minute' => 1,
+        ]);
+        RateLimiter::increment('sms-provider:arkesel', 60, 1);
+        Http::fake([
+            'https://frogapi.wigal.com.gh/api/v3/sms/send' => Http::response(['status' => 'UNAUTHORIZED'], 401),
+            'https://frogapi.wigal.com.gh/api/v3/balance' => Http::response(['status' => 'SUCCESS', 'data' => ['bundles' => ['SMS' => 40], 'cashbalance' => 1]]),
+            'https://sms.arkesel.com/api/v2/sms/send' => Http::response(['status' => 'success', 'data' => [['id' => 'msg_1', 'recipient' => '233200000111']]]),
+        ]);
+
+        $message = app(SmsTransmitter::class)->transmit('+233200000111', 'Fallback', 'fallback-limit');
+
+        $this->assertSame(SmsMessageStatus::Failed, $message->fresh()->status);
+        $this->assertStringContainsString('rate limit', (string) $message->fresh()->last_error);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'arkesel.com'));
+    }
+
+    #[Test]
+    public function a_low_balance_warning_is_stored_as_a_database_notification(): void
+    {
+        Mail::fake();
+        Http::preventStrayRequests();
+        $admin = User::factory()->platform()->create();
+        $admin->assignRole('platform_super_admin');
+        $provider = SmsProvider::factory()->ready()->create([
+            'enabled' => true,
+            'is_active' => true,
+            'low_bundle_threshold' => 50,
+            'low_balance_threshold' => null,
+        ]);
+        Http::fake([
+            'https://frogapi.wigal.com.gh/api/v3/balance' => Http::response([
+                'status' => 'SUCCESS',
+                'data' => ['bundles' => ['SMS' => 50], 'cashbalance' => 80],
+            ]),
+        ]);
+
+        RefreshSmsProviderBalance::dispatchSync($provider->id);
+
+        $stored = DB::table('notifications')->first();
+        $this->assertNotNull($stored);
+        $this->assertTrue(is_numeric($stored->id));
+        $this->assertTrue(Str::isUuid($stored->uuid));
+        $this->assertSame(SmsBalanceLowNotification::class, $stored->type);
+        $notification = $admin->notifications()->first();
+        $this->assertNotNull($notification);
+        $this->assertSame('bundle', $notification->data['reasons'][0]['purse']);
     }
 
     #[Test]

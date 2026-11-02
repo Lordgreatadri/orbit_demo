@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('idempotency_key', 80)->unique();
             $table->string('to', 20);
             $table->text('body');
-            $table->string('sender_id', 20)->nullable();
+            $table->string('sender_id', 34)->nullable();
             $table->string('purpose', 40);
             $table->string('status', 20);
             $table->string('provider_message_id', 120)->nullable();
@@ -38,6 +38,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['status', 'id']);
+            $table->index('created_at');
             $table->index(['sms_provider_id', 'id']);
             $table->index('provider_message_id');
         });

@@ -3,12 +3,14 @@
 namespace Tests\Feature\Sms;
 
 use App\Enums\SmsMessageStatus;
+use App\Integrations\Sms\Webhooks\SmsCallbackApplier;
 use App\Integrations\Sms\Webhooks\SmsWebhookCall;
 use App\Integrations\Sms\Webhooks\TwilioWebhookValidator;
 use App\Models\SmsMessage;
 use App\Models\SmsMessageEvent;
 use App\Models\SmsProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -109,11 +111,63 @@ class SmsWebhookTest extends TestCase
         $this->assertSame(SmsMessageStatus::Delivered, $message->fresh()->status);
     }
 
-    private function accepted(SmsProvider $provider, string $providerMessageId): SmsMessage
+    #[Test]
+    public function a_callback_cannot_update_another_providers_message(): void
+    {
+        $twilio = SmsProvider::factory()->ready('twilio')->create();
+        $arkesel = SmsProvider::factory()->ready('arkesel')->create();
+        $twilioMessage = $this->accepted($twilio, 'shared-id', 'twilio-shared');
+        $arkeselMessage = $this->accepted($arkesel, 'shared-id', 'arkesel-shared');
+
+        $this->get(route('webhook-client-arkesel', ['token' => $arkesel->credential('webhook_token')]).'?sms_id=shared-id&status=DELIVERED')
+            ->assertOk();
+
+        $this->assertSame(SmsMessageStatus::Delivered, $arkeselMessage->fresh()->status);
+        $this->assertSame(SmsMessageStatus::Accepted, $twilioMessage->fresh()->status);
+
+        $url = route('webhook-client-twilio', ['token' => $twilio->credential('webhook_token')]).'?message='.$arkeselMessage->uuid;
+        $params = [
+            'MessageSid' => 'SM-other',
+            'MessageStatus' => 'delivered',
+        ];
+        $signature = TwilioWebhookValidator::signature($url, $params, 'twilio-auth-token-value');
+
+        $this->post($url, $params, ['X-Twilio-Signature' => $signature])->assertOk();
+
+        $this->assertSame(SmsMessageStatus::Delivered, $arkeselMessage->fresh()->status);
+        $this->assertSame(SmsMessageStatus::Accepted, $twilioMessage->fresh()->status);
+    }
+
+    #[Test]
+    public function a_non_uuid_provider_id_is_not_compared_with_the_uuid_column(): void
+    {
+        $provider = SmsProvider::factory()->ready('africastalking')->create();
+        $message = $this->accepted($provider, 'ATXid_9');
+        $queries = [];
+
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = ['sql' => $query->sql, 'bindings' => $query->bindings];
+        });
+
+        app(SmsCallbackApplier::class)->apply('africastalking', [
+            'id' => 'ATXid_9',
+            'status' => 'Success',
+        ]);
+
+        $this->assertSame(SmsMessageStatus::Delivered, $message->fresh()->status);
+
+        foreach ($queries as $query) {
+            if (in_array('ATXid_9', $query['bindings'], true)) {
+                $this->assertStringNotContainsString('uuid', strtolower($query['sql']));
+            }
+        }
+    }
+
+    private function accepted(SmsProvider $provider, string $providerMessageId, ?string $idempotencyKey = null): SmsMessage
     {
         return SmsMessage::query()->create([
             'sms_provider_id' => $provider->id,
-            'idempotency_key' => 'webhook:'.$providerMessageId,
+            'idempotency_key' => $idempotencyKey ?? ('webhook:'.$providerMessageId),
             'to' => '+233200000111',
             'body' => 'Hello',
             'sender_id' => $provider->sender_id,
