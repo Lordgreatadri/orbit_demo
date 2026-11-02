@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Auth\WorkspaceLoginHandoff;
 use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 class LoginRequest extends FormRequest
 {
     public const MAX_ATTEMPTS = 5;
+
+    private ?string $workspaceHandoffUrl = null;
 
     public function authorize(): bool
     {
@@ -43,15 +47,35 @@ class LoginRequest extends FormRequest
      *
      * Failures are reported generically to avoid account enumeration.
      *
+     * Returns null when the password is correct for an organisation account
+     * on the platform site. The browser is then sent to that workspace,
+     * where the session is created. Call {@see workspaceHandoffUrl()}.
+     *
      * @throws ValidationException
      */
-    public function authenticate(): User
+    public function authenticate(): ?User
     {
         $this->ensureIsNotRateLimited();
 
         $attempted = User::query()->where('email', $this->input('email'))->first();
 
         if ($attempted instanceof User && ! $this->accountBelongsOnThisHost($attempted)) {
+            if (! Hash::check((string) $this->input('password'), (string) $attempted->password)) {
+                $this->fail($attempted);
+            }
+
+            $handoff = $this->handoffUrlFor($attempted);
+            if ($handoff !== null) {
+                RateLimiter::clear($this->throttleKey());
+                $this->workspaceHandoffUrl = $handoff;
+
+                return null;
+            }
+
+            if (! $attempted->isActive() || ($attempted->organization && ! $attempted->organization->isOperational())) {
+                $this->fail($attempted, __('This account is not currently able to sign in. Contact your organisation administrator.'));
+            }
+
             $this->rejectForHost($attempted);
         }
 
@@ -82,6 +106,11 @@ class LoginRequest extends FormRequest
         $user->forceFill(['last_login_at' => now()])->save();
 
         return $user;
+    }
+
+    public function workspaceHandoffUrl(): ?string
+    {
+        return $this->workspaceHandoffUrl;
     }
 
     /**
@@ -127,20 +156,52 @@ class LoginRequest extends FormRequest
     }
 
     /**
+     * A correct password on the platform site continues on the organisation's
+     * primary hostname. A correct password on someone else's workspace does not.
+     */
+    private function handoffUrlFor(User $user): ?string
+    {
+        if (app(TenantContext::class)->id() !== null || $user->isPlatformUser()) {
+            return null;
+        }
+
+        $organization = $user->organization;
+        $domain = $organization?->primaryDomain();
+
+        if ($organization === null || $domain === null || ! $domain->is_primary || ! $domain->isResolvable()) {
+            return null;
+        }
+
+        if (! $user->isActive() || ! $organization->isOperational()) {
+            return null;
+        }
+
+        return app(WorkspaceLoginHandoff::class)->url($user, $domain->domain, $this->boolean('remember'));
+    }
+
+    /**
      * @throws ValidationException
      */
-    private function rejectForHost(User $user): never
+    private function fail(User $user, ?string $message = null): never
     {
         RateLimiter::hit($this->throttleKey());
 
         event(new Failed(Auth::getDefaultDriver(), $user, $this->only('email', 'password')));
 
+        throw ValidationException::withMessages([
+            'email' => $message ?? __('auth.failed'),
+        ]);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function rejectForHost(User $user): never
+    {
         $message = app(TenantContext::class)->id() === null && ! $user->isPlatformUser()
             ? __('Organisation members sign in at their workspace URL, not on the ORBIT platform site.')
             : __('auth.failed');
 
-        throw ValidationException::withMessages([
-            'email' => $message,
-        ]);
+        $this->fail($user, $message);
     }
 }

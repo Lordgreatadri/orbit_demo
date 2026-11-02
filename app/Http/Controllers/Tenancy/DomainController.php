@@ -22,11 +22,13 @@ class DomainController extends Controller
     {
         $this->authorize('manageWorkspace', $organization);
 
-        $organization->load(['domains' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('domain')]);
-
         return view($this->view($request, 'domains'), [
             'organization' => $organization,
-            'domains' => $organization->domains,
+            'domains' => $organization->domains()
+                ->orderByDesc('is_primary')
+                ->orderBy('domain')
+                ->paginate(25, ['*'], 'domains')
+                ->withQueryString(),
             'baseDomain' => Hostname::baseDomain(),
             'types' => [
                 DomainType::Alias->value => DomainType::Alias->label(),

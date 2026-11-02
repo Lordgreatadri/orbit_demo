@@ -8,6 +8,22 @@
         @endcan
     </x-page-header>
 
+    @if ($sms)
+        <section aria-labelledby="sms-glance" class="card relative overflow-hidden">
+            <div class="bg-mesh absolute inset-0 opacity-80" aria-hidden="true"></div>
+            <div class="relative flex flex-wrap items-end justify-between gap-4 p-5">
+                <div>
+                    <p class="eyebrow" id="sms-glance">SMS · last 7 days</p>
+                    <p class="mt-2 text-2xl font-semibold tracking-tight text-fg">
+                        {{ $sms['rate'] === null ? 'No delivery rate yet' : $sms['rate'].'% confirmed delivered' }}
+                    </p>
+                    <p class="mt-1 text-sm text-fg-muted">{{ number_format($sms['totals']['sent']) }} sent · {{ number_format($sms['totals']['accepted']) }} accepted and still waiting · {{ number_format($sms['totals']['failed']) }} failed</p>
+                </div>
+                <x-button :href="route('admin.sms.overview')" size="sm">SMS overview <x-icon name="arrow-right" class="size-4" /></x-button>
+            </div>
+        </section>
+    @endif
+
     <section aria-labelledby="platform-kpis">
         <h2 id="platform-kpis" class="sr-only">Key figures</h2>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">

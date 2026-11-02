@@ -102,3 +102,30 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 
 ## Recommended next task
 Stage 4 — Attendance module (QR sessions and field check-in) using the seeded EPA demo locations and departments. Do not implement billing, payroll, BLE, biometrics, or live EPA integrations.
+
+## Platform SMS providers (2026-11-02)
+- [x] ADR-0012. `SmsTransmitter` is the platform entry point. Phone confirmation stays on `LogSmsSender`.
+- [x] Adapters for Wigal Frog, Twilio, Africa's Talking, and Arkesel, registered in one place. Docs reviewed 2026-11-02.
+- [x] Super-admin tabs: credentials encrypted and masked, one active sender, optional fallback, health, balance, test message.
+- [x] Message row before dispatch, idempotency key, queued / submitted / accepted / delivered. Acceptance is not delivery. No active provider logs the message.
+- [x] `routes/webhook.php` uses spatie/laravel-webhook-client. Each provider has its own validator and job and writes `sms_messages`.
+- [x] Low balance notifies platform super admins by e-mail and the database, not by SMS.
+- [x] `counts_toward_subscription` is false. These rows are platform-paid and must not be billed to an organisation later.
+- [x] Live Wigal send confirmed by the operator (2026-11-02). The test suite still does not call provider APIs.
+- [x] SMS bundle and cash balances use separate thresholds. A warning quotes only the purse that is at or below its own threshold.
+- [x] Active navigation and tabs keep a dark wash in the plum theme, so the label stays readable.
+- [x] `/admin/settings` opens the SMS provider screen. Provider traffic is logged to `storage/logs/sms-{provider}.log`, and sign-in events to `storage/logs/auth.log`.
+- [x] `/admin/sms` is the super-admin transmission overview. Accepted messages are counted apart from delivered ones. Counts are aggregated in the database.
+- [x] SMS review fixes: credentials stay out of flashed input, partial provider timeouts keep earlier acceptances, callbacks stay on the authenticated gateway, sends are claimed once, status changes lock the row, handoff tokens are consumed once, Twilio sender IDs allow a Messaging Service SID, batches are validated before insert, rate limits cover fallback and oversized batches, and database notifications keep a numeric id.
+
+## Commands executed and observed results (2026-11-02 platform SMS)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact` | **194 tests, 194 passed, 1,391 assertions**, 95.8s |
+| `php84 artisan migrate --force` | Applied `organization_domains`, `organization_brandings`, `webhook_calls`, SMS tables, and `notifications` |
+| `php84 artisan sms:sync-providers` | 4 providers registered; existing settings left in place |
+| `php84 artisan route:list --path=webhooks` | POST `webhooks/sms/{wigal,twilio,africastalking}/{token}`; GET and POST `webhooks/sms/arkesel/{token}` |
+| `composer update --lock --no-scripts` then `composer validate --no-check-publish --no-check-version` | Lock hash aligned with `spatie/laravel-webhook-client: ^3.7`. Composer reports valid |
+| Signed-in HTTP check against `php artisan serve` on `127.0.0.1:8000` | Super admin sees four tabs (Africa's Talking, Arkesel, Twilio, Wigal Frog). Saving a sender ID round-trips and was reverted. Secret inputs stay empty. Health on a disabled provider returns “Turn the provider on before checking it.” `platform.support` receives 403. Unauthenticated `/admin/sms-providers` redirects to login |
+| `php84 artisan test --compact` on SMS, overview, provider settings, and login | **54 tests, 54 passed, 269 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_02_140000_widen_sms_sender_and_index_messages` |

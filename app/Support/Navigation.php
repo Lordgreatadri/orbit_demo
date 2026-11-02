@@ -120,7 +120,9 @@ class Navigation
                 ['label' => 'Analytics', 'route' => 'admin.modules.show', 'params' => ['module' => 'analytics'], 'icon' => 'chart', 'soon' => true, 'can' => $user->can('platform.access')],
             ]],
             ['heading' => 'Platform', 'items' => [
-                ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'settings', 'active' => 'admin.settings.*', 'soon' => true, 'can' => $user->can('platform.settings.manage')],
+                ['label' => 'SMS overview', 'route' => 'admin.sms.overview', 'icon' => 'chart', 'active' => 'admin.sms.overview', 'can' => $user->can('platform.settings.manage')],
+                ['label' => 'SMS providers', 'route' => 'admin.sms-providers.index', 'icon' => 'chat', 'active' => 'admin.sms-providers.*', 'can' => $user->can('platform.settings.manage')],
+                ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'settings', 'active' => 'admin.settings.*', 'can' => $user->can('platform.settings.manage')],
             ]],
         ];
     }

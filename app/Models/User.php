@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use InvalidArgumentException;
@@ -74,6 +75,17 @@ class User extends Authenticatable implements MustVerifyEmail
     public function loginEvents(): HasMany
     {
         return $this->hasMany(LoginEvent::class);
+    }
+
+    /**
+     * Laravel's database channel writes its notification id into `id`.
+     * This model keeps the numeric key and stores that id in `uuid`.
+     *
+     * @return MorphMany<DatabaseNotification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
     }
 
     /**

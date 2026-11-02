@@ -256,10 +256,14 @@ class PlatformConsoleTest extends TestCase
     public function planned_platform_modules_render_as_labelled_placeholders(): void
     {
         $this->actingAs($this->superAdmin())
-            ->get(route('admin.settings.index'))
+            ->get(route('admin.modules.show', ['module' => 'attendance']))
             ->assertOk()
             ->assertSee('coming soon')
             ->assertSee('Planned module');
+
+        $this->actingAs($this->superAdmin())
+            ->get(route('admin.settings.index'))
+            ->assertRedirect(route('admin.sms-providers.index'));
 
         $this->actingAs($this->support())->get(route('admin.settings.index'))->assertForbidden();
     }

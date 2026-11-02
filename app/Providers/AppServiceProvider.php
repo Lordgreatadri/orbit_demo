@@ -14,6 +14,8 @@ use App\Models\Location;
 use App\Models\Organization;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\SmsMessage;
+use App\Models\SmsProvider;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Policies\DepartmentPolicy;
@@ -22,6 +24,8 @@ use App\Policies\LocationPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
+use App\Policies\SmsMessagePolicy;
+use App\Policies\SmsProviderPolicy;
 use App\Policies\StaffMemberPolicy;
 use App\Policies\UserPolicy;
 use App\Tenancy\BrandingService;
@@ -59,6 +63,8 @@ class AppServiceProvider extends ServiceProvider
                 ? $app->make(ArrayDnsLookup::class)
                 : $app->make(PhpDnsLookup::class);
         });
+        // Phone confirmation stays on the log channel. Platform SMS uses SmsTransmitter
+        // and must not be bound here until that channel is explicitly switched on.
         $this->app->bind(SmsSender::class, LogSmsSender::class);
     }
 
@@ -103,6 +109,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('invitation-send', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip()));
         // Access-control writes (roles, permissions, status) are low-volume by nature.
         RateLimiter::for('access-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
+        RateLimiter::for('sms-webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 
     private function configurePolicies(): void
@@ -115,6 +122,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Location::class, LocationPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
+        Gate::policy(SmsProvider::class, SmsProviderPolicy::class);
+        Gate::policy(SmsMessage::class, SmsMessagePolicy::class);
     }
 
     /**
