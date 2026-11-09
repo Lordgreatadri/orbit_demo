@@ -84,8 +84,18 @@ return [
         'platform_support' => 'Read-only platform console access for support staff. Cannot change roles, permissions, or organisations.',
         'organization_admin' => 'Manages the organisation: settings, staff register, user accounts, roles, and audit trail.',
         'organization_manager' => 'Operational supervisor: staff, departments, attendance, schedules, and leave decisions.',
-        'member' => 'Employee, staff member, lecturer, or field officer. Records own attendance and requests leave.',
+        'member' => 'Employee, staff member, or field officer. Records own attendance and requests leave.',
         'student' => 'Learner account. Records own attendance and views own schedule.',
+    ],
+
+    /*
+    | Descriptions that replace the default when the organisation type calls
+    | for them. School wording stays on educational institutions.
+    */
+    'role_description_overrides' => [
+        'educational_institution' => [
+            'member' => 'Employee, staff member, or lecturer. Records own attendance and requests leave.',
+        ],
     ],
 
     /*
@@ -186,49 +196,49 @@ return [
             'description' => 'Daily attendance by member, location, department, and status, with check-in and check-out times.',
             'stage' => 'Stage 4 · step 3',
             'permission' => 'attendance.view',
-            'available' => false,
+            'available' => true,
         ],
         'attendance-sessions' => [
             'label' => 'QR sessions',
             'description' => 'Time-limited office attendance sessions with a rotating QR code and optional location verification.',
             'stage' => 'Stage 4 · step 3',
             'permission' => 'attendance.manage',
-            'available' => false,
+            'available' => true,
         ],
         'field' => [
             'label' => 'Field monitoring',
             'description' => 'Field attendance with explicit GPS permission, server-side geofence checks, and an activity view.',
             'stage' => 'Stage 4 · step 4',
             'permission' => 'attendance.view',
-            'available' => false,
+            'available' => true,
         ],
         'schedules' => [
             'label' => 'Schedules',
             'description' => 'Shifts by department or location and member assignments.',
             'stage' => 'Stage 4 · step 5',
             'permission' => 'schedules.view',
-            'available' => false,
+            'available' => true,
         ],
         'leave' => [
             'label' => 'Leave',
             'description' => 'Leave requests with type, dates, and reason; authorised approvers decide and the decision is recorded.',
             'stage' => 'Stage 4 · step 6',
             'permission' => 'leave.request',
-            'available' => false,
+            'available' => true,
         ],
         'notifications' => [
             'label' => 'Notifications',
             'description' => 'Attendance confirmations, shift reminders, and leave outcomes by e-mail, with SMS once a provider is configured.',
             'stage' => 'Stage 4 · step 7',
             'permission' => 'notifications.manage',
-            'available' => false,
+            'available' => true,
         ],
         'analytics' => [
             'label' => 'Analytics',
             'description' => 'Attendance rate, office and field attendance, and late attendance with a defined denominator and date range.',
             'stage' => 'Stage 4 · step 8',
             'permission' => 'analytics.view',
-            'available' => false,
+            'available' => true,
         ],
         'platform-settings' => [
             'label' => 'Platform settings',

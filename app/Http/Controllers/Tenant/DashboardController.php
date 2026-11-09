@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Enums\LeaveStatus;
+use App\Enums\ShiftStatus;
 use App\Enums\StaffStatus;
 use App\Enums\WorkType;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Department;
 use App\Models\Invitation;
+use App\Models\LeaveRequest;
 use App\Models\Location;
 use App\Models\LoginEvent;
+use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Workforce\WorkforceReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -93,24 +99,58 @@ class DashboardController extends Controller
             'recentSignIns' => $recentSignIns,
             'signInsToday' => $signInsToday,
             'demoMetrics' => $organization->isDemo() ? ($organization->settings['sample_metrics'] ?? null) : null,
-            'setupSteps' => $this->setupSteps($counts, $organization),
+            'attendanceToday' => $user->can('attendance.view') ? app(WorkforceReport::class)->day($organization) : null,
+            'upcomingAssignments' => $this->upcomingAssignments($user, $tz),
+            'pendingLeave' => $this->pendingLeave($user),
         ]);
     }
 
     /**
-     * Onboarding checklist derived from real state.
-     *
-     * @param  array<string, int>  $counts
-     * @return list<array{label: string, done: bool, route: ?string, hint: string}>
+     * Next five assignments by work date. Managers see the organisation list.
+     * Everyone else sees only their own published assignments.
      */
-    private function setupSteps(array $counts, $organization): array
+    private function upcomingAssignments(User $user, string $tz): Collection
     {
-        return [
-            ['label' => 'Confirm organisation details', 'done' => $organization->isActive() && $organization->contact_phone !== null, 'route' => route('org.organizations.edit', $organization), 'hint' => 'Name, type, time zone, and contact details.'],
-            ['label' => 'Create departments', 'done' => $counts['departments'] > 0, 'route' => route('org.departments.index'), 'hint' => 'Group staff the way your organisation is structured.'],
-            ['label' => 'Add approved locations', 'done' => $counts['locations'] > 0, 'route' => route('org.locations.index'), 'hint' => 'Offices and field areas where attendance may be recorded.'],
-            ['label' => 'Build the staff register', 'done' => $counts['staff_total'] > 0, 'route' => route('org.staff.index'), 'hint' => 'People records with staff number, department, and work type.'],
-            ['label' => 'Invite user accounts', 'done' => $counts['users'] > 1, 'route' => route('org.users.index'), 'hint' => 'Give colleagues a login and link it to their staff record.'],
-        ];
+        if (! $user->can('schedules.view')) {
+            return collect();
+        }
+
+        $today = now($tz)->toDateString();
+
+        return ShiftAssignment::query()
+            ->with([
+                'shift:id,name,starts_at,ends_at,status',
+                'staffMember:id,first_name,last_name',
+            ])
+            ->where('work_date', '>=', $today)
+            ->when(! $user->can('schedules.manage'), function ($query) use ($user): void {
+                $query->where('staff_member_id', $user->staffMember?->getKey() ?? 0)
+                    ->whereHas('shift', fn ($shift) => $shift->where('status', ShiftStatus::Published->value));
+            })
+            ->orderBy('work_date')
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
+    }
+
+    /**
+     * Leave still waiting for a decision, soonest start date first.
+     */
+    private function pendingLeave(User $user): Collection
+    {
+        if (! $user->can('leave.approve')) {
+            return collect();
+        }
+
+        return LeaveRequest::query()
+            ->with([
+                'staffMember:id,first_name,last_name',
+                'leaveType:id,name',
+            ])
+            ->where('status', LeaveStatus::Submitted->value)
+            ->orderBy('starts_on')
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
     }
 }

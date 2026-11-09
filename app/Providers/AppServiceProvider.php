@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Contracts\DnsLookup;
+use App\Contracts\PushNotifier;
 use App\Contracts\SmsSender;
 use App\Integrations\Dns\ArrayDnsLookup;
 use App\Integrations\Dns\PhpDnsLookup;
+use App\Integrations\Push\NullPushNotifier;
 use App\Integrations\Sms\LogSmsSender;
 use App\Listeners\RecordLoginEvent;
 use App\Models\Department;
@@ -66,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
         // Phone confirmation stays on the log channel. Platform SMS uses SmsTransmitter
         // and must not be bound here until that channel is explicitly switched on.
         $this->app->bind(SmsSender::class, LogSmsSender::class);
+        $this->app->bind(PushNotifier::class, NullPushNotifier::class);
     }
 
     /**
@@ -110,6 +113,7 @@ class AppServiceProvider extends ServiceProvider
         // Access-control writes (roles, permissions, status) are low-volume by nature.
         RateLimiter::for('access-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
         RateLimiter::for('sms-webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
+        RateLimiter::for('attendance', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
     }
 
     private function configurePolicies(): void

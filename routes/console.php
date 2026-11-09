@@ -1,12 +1,35 @@
 <?php
 
 use App\Integrations\Sms\SmsProviderRegistry;
+use App\Workforce\AttendanceEngine;
+use App\Workforce\WorkforceNotifier;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('attendance:close-open', function () {
+    $closed = app(AttendanceEngine::class)->closeOpenRecords();
+    $this->info('Marked '.$closed.' open attendance records as incomplete.');
+})->purpose('Mark previous-day check-ins without a check-out as incomplete');
+
+Schedule::command('attendance:close-open')->dailyAt('00:30');
+
+Artisan::command('workforce:remind', function () {
+    $sent = app(WorkforceNotifier::class)->remindDueShifts();
+    $this->info('Sent '.$sent.' schedule reminders.');
+})->purpose('Remind people about a published shift or lesson tomorrow');
+
+Artisan::command('workforce:field-status', function () {
+    $flagged = app(WorkforceNotifier::class)->flagDelayedField();
+    $this->info('Marked '.$flagged.' field activities as delayed.');
+})->purpose('Mark quiet field activities as delayed and notify the assignee');
+
+Schedule::command('workforce:remind')->dailyAt('17:00');
+Schedule::command('workforce:field-status')->hourly();
 
 Artisan::command('sms:sync-providers', function () {
     $count = app(SmsProviderRegistry::class)->ensureRows();

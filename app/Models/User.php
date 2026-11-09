@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\UserStatus;
 use App\Models\Concerns\HasPublicUuid;
+use App\Models\Concerns\ReceivesNotifications;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,9 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use InvalidArgumentException;
 use Spatie\Permission\Contracts\Role as RoleContract;
 use Spatie\Permission\Traits\HasRoles;
@@ -36,7 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasPublicUuid, Notifiable;
+    use HasFactory, HasPublicUuid, ReceivesNotifications;
 
     use HasRoles {
         assignRole as protected traitAssignRole;
@@ -75,17 +74,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function loginEvents(): HasMany
     {
         return $this->hasMany(LoginEvent::class);
-    }
-
-    /**
-     * Laravel's database channel writes its notification id into `id`.
-     * This model keeps the numeric key and stores that id in `uuid`.
-     *
-     * @return MorphMany<DatabaseNotification, $this>
-     */
-    public function notifications(): MorphMany
-    {
-        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
     }
 
     /**

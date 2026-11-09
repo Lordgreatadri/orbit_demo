@@ -70,21 +70,28 @@
             @endif
 
             @can('viewAny', \App\Models\Invitation::class)
-                <x-card id="invitations" title="Open invitations" :description="$invitations->count().' not yet accepted'" :padding="false">
+                <x-card id="invitations" title="Open invitations" :description="$invitations->count().' not yet accepted. Resend if the e-mail did not arrive. The new link replaces the previous one.'" :padding="false">
                     @if ($invitations->isEmpty())
                         <p class="p-5 text-sm text-fg-muted">No open invitations.</p>
                     @else
                         <ul class="divide-y divide-edge">
                             @foreach ($invitations as $invitation)
-                                <li class="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                                <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                                     <div class="min-w-0">
                                         <p class="truncate font-medium text-fg">{{ $invitation->email }}</p>
                                         <p class="text-xs text-fg-subtle">{{ \Illuminate\Support\Str::headline($invitation->role) }} · {{ $invitation->isPending() ? 'expires '.$invitation->expires_at->timezone($timezone)->diffForHumans() : $invitation->status->label() }}</p>
                                     </div>
-                                    @if ($invitation->isPending() && $canInvite)
-                                        <x-confirm-form :action="route('org.invitations.destroy', $invitation)" method="DELETE" :confirm="'Revoke the invitation for '.$invitation->email.'?'">
-                                            <x-button type="submit" variant="ghost" size="sm" class="text-danger hover:bg-danger-soft" aria-label="Revoke invitation for {{ $invitation->email }}"><x-icon name="ban" class="size-4" /></x-button>
-                                        </x-confirm-form>
+                                    @if ($canInvite && $invitation->accepted_at === null && $invitation->revoked_at === null)
+                                        <div class="flex shrink-0 items-center gap-1">
+                                            <x-confirm-form :action="route('org.invitations.resend', $invitation)" :confirm="'Send a new link to '.$invitation->email.'? The previous link will stop working.'">
+                                                <x-button type="submit" variant="secondary" size="sm" aria-label="Resend invitation to {{ $invitation->email }}"><x-icon name="refresh" class="size-4" /> Resend</x-button>
+                                            </x-confirm-form>
+                                            @if ($invitation->isPending())
+                                                <x-confirm-form :action="route('org.invitations.destroy', $invitation)" method="DELETE" :confirm="'Revoke the invitation for '.$invitation->email.'?'">
+                                                    <x-button type="submit" variant="ghost" size="sm" class="text-danger hover:bg-danger-soft" aria-label="Revoke invitation for {{ $invitation->email }}"><x-icon name="ban" class="size-4" /></x-button>
+                                                </x-confirm-form>
+                                            @endif
+                                        </div>
                                     @else
                                         <x-badge tone="neutral">{{ $invitation->status->label() }}</x-badge>
                                     @endif

@@ -44,6 +44,8 @@ class SystemDemoUserSeeder extends Seeder
             DemoAccount::user($account['profile'], $account['role'], $account['organization']);
         }
 
+        $this->call(WorkforceScenarioSeeder::class);
+
         $this->command?->info('Demo accounts are ready. Sign in with ORBIT_DEMO_PASSWORD. These records are fictional and must not be used in production.');
     }
 

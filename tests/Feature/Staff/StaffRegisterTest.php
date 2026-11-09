@@ -175,7 +175,8 @@ class StaffRegisterTest extends TestCase
             ->assertOk()
             ->assertSee('Active staff')
             ->assertSee('4 on the register')
-            ->assertSee('Setup checklist')
+            ->assertSee('Upcoming assignments')
+            ->assertDontSee('Setup checklist')
             ->assertDontSee('Sample attendance metrics');
     }
 

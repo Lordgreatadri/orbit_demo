@@ -22,7 +22,8 @@ Role names must be configurable or permission-based where possible; do not hard-
 - Invitations are tied to tenant, intended email/phone, role/permissions, expiry, and single-use token.
 - Invite acceptance must verify token validity, expiry, revocation state, tenant, and intended recipient.
 - Role assignment must be restricted to roles the inviter is permitted to grant.
-- Record invitation creation, acceptance, expiry, revocation, and relevant actor in audit history.
+- Record invitation creation, acceptance, expiry, revocation, resend, and relevant actor in audit history.
+- An authorised administrator can resend a pending or expired invitation to the same address and role. Resend issues a new single-use token, restarts the expiry, and the previous link stops working. Accepted and revoked invitations cannot be resent.
 
 ## Authorization
 - Every protected route/action requires server-side authentication and authorization.
