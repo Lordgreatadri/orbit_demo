@@ -66,18 +66,19 @@ class Navigation
                 ]],
             ]],
             ['heading' => 'Attendance', 'items' => [
-                ['label' => 'Records', 'route' => 'org.attendance.index', 'icon' => 'clock', 'active' => 'org.attendance.index', 'soon' => true, 'can' => $user->can('attendance.view')],
-                ['label' => 'QR sessions', 'route' => 'org.attendance.sessions', 'icon' => 'qr', 'active' => 'org.attendance.sessions', 'soon' => true, 'can' => $user->can('attendance.manage')],
-                ['label' => 'Field monitoring', 'route' => 'org.field.index', 'icon' => 'map-pin', 'active' => 'org.field.*', 'soon' => true, 'can' => $user->can('attendance.view')],
+                ['label' => 'My attendance', 'route' => 'org.attendance.mine', 'icon' => 'clock', 'active' => 'org.attendance.mine', 'can' => $user->can('attendance.record')],
+                ['label' => 'Records', 'route' => 'org.attendance.index', 'icon' => 'check-circle', 'active' => 'org.attendance.index', 'can' => $user->can('attendance.view')],
+                ['label' => 'QR sessions', 'route' => 'org.attendance.sessions', 'icon' => 'qr', 'active' => 'org.attendance.sessions*', 'can' => $user->can('attendance.manage')],
+                ['label' => 'Field monitoring', 'route' => 'org.field.index', 'icon' => 'map-pin', 'active' => 'org.field.*', 'can' => $user->can('attendance.view') || $user->can('attendance.record')],
                 ['label' => 'Locations', 'route' => 'org.locations.index', 'icon' => 'globe', 'active' => 'org.locations.*', 'can' => $user->can('viewAny', Location::class)],
             ]],
             ['heading' => 'Workforce', 'items' => [
-                ['label' => 'Schedules', 'route' => 'org.schedules.index', 'icon' => 'calendar', 'active' => 'org.schedules.*', 'soon' => true, 'can' => $user->can('schedules.view')],
-                ['label' => 'Leave', 'route' => 'org.leave.index', 'icon' => 'document-check', 'active' => 'org.leave.*', 'soon' => true, 'can' => $user->can('leave.request') || $user->can('leave.approve')],
+                ['label' => 'Schedules', 'route' => 'org.schedules.index', 'icon' => 'calendar', 'active' => 'org.schedules.*', 'can' => $user->can('schedules.view')],
+                ['label' => 'Leave', 'route' => 'org.leave.index', 'icon' => 'document-check', 'active' => 'org.leave.*', 'can' => $user->can('leave.request') || $user->can('leave.approve')],
             ]],
             ['heading' => 'Insights', 'items' => [
-                ['label' => 'Analytics', 'route' => 'org.analytics.index', 'icon' => 'chart', 'active' => 'org.analytics.*', 'soon' => true, 'can' => $user->can('analytics.view')],
-                ['label' => 'Notifications', 'route' => 'org.notifications.index', 'icon' => 'bell', 'active' => 'org.notifications.*', 'soon' => true, 'can' => $user->can('notifications.manage')],
+                ['label' => 'Analytics', 'route' => 'org.analytics.index', 'icon' => 'chart', 'active' => 'org.analytics.*', 'can' => $user->can('analytics.view')],
+                ['label' => 'Notifications', 'route' => 'org.notifications.index', 'icon' => 'bell', 'active' => 'org.notifications.*'],
             ]],
             ['heading' => 'Administration', 'items' => [
                 ['label' => 'Organisation settings', 'route' => 'org.organizations.edit', 'params' => $organization, 'icon' => 'settings', 'active' => 'org.organizations.*', 'can' => $organization instanceof Organization && $user->can('view', $organization)],
@@ -111,13 +112,7 @@ class Navigation
                 ['label' => 'Sign-in history', 'route' => 'admin.audit.logins', 'icon' => 'login', 'active' => 'admin.audit.logins', 'can' => $user->can('platform.audit.view')],
             ]],
             ['heading' => 'Product modules', 'items' => [
-                ['label' => 'Attendance records', 'route' => 'admin.modules.show', 'params' => ['module' => 'attendance'], 'icon' => 'clock', 'active' => 'admin.modules.show', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'QR sessions', 'route' => 'admin.modules.show', 'params' => ['module' => 'attendance-sessions'], 'icon' => 'qr', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'Field monitoring', 'route' => 'admin.modules.show', 'params' => ['module' => 'field'], 'icon' => 'map-pin', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'Schedules', 'route' => 'admin.modules.show', 'params' => ['module' => 'schedules'], 'icon' => 'calendar', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'Leave', 'route' => 'admin.modules.show', 'params' => ['module' => 'leave'], 'icon' => 'document-check', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'Notifications', 'route' => 'admin.modules.show', 'params' => ['module' => 'notifications'], 'icon' => 'bell', 'soon' => true, 'can' => $user->can('platform.access')],
-                ['label' => 'Analytics', 'route' => 'admin.modules.show', 'params' => ['module' => 'analytics'], 'icon' => 'chart', 'soon' => true, 'can' => $user->can('platform.access')],
+                ['label' => 'Workforce overview', 'route' => 'admin.workforce.overview', 'icon' => 'chart', 'active' => 'admin.workforce.overview', 'can' => $user->can('platform.access')],
             ]],
             ['heading' => 'Platform', 'items' => [
                 ['label' => 'SMS overview', 'route' => 'admin.sms.overview', 'icon' => 'chart', 'active' => 'admin.sms.overview', 'can' => $user->can('platform.settings.manage')],

@@ -56,6 +56,7 @@ class StructureTest extends TestCase
         StaffMember::factory()->forOrganization($admin->organization)->create(['department_id' => $department->getKey()]);
 
         $this->actingAs($admin)
+            ->from(route('org.departments.index'))
             ->delete(route('org.departments.destroy', $department))
             ->assertRedirect(route('org.departments.index'))
             ->assertSessionHasErrors('department');
@@ -125,5 +126,47 @@ class StructureTest extends TestCase
 
         $foreign = Location::factory()->create();
         $this->actingAs($admin)->delete(route('org.locations.destroy', $foreign))->assertNotFound();
+    }
+
+    #[Test]
+    public function department_and_location_edits_are_pages_with_a_permissioned_delete(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $manager = $this->createMember($admin->organization, role: 'organization_manager');
+        $member = $this->createMember($admin->organization);
+        $department = Department::factory()->create(['organization_id' => $admin->organization_id, 'name' => 'Registry']);
+        $location = Location::factory()->create(['organization_id' => $admin->organization_id, 'name' => 'Tema Depot']);
+        $foreign = Department::factory()->create();
+
+        $this->actingAs($admin)->get(route('org.departments.create'))->assertOk()->assertSee('Create department');
+        $this->actingAs($admin)->get(route('org.departments.edit', $department))
+            ->assertOk()
+            ->assertSee('Edit department')
+            ->assertSee('Registry')
+            ->assertSee('Delete department');
+        $this->actingAs($admin)->get(route('org.departments.index'))
+            ->assertOk()
+            ->assertSee(route('org.departments.edit', $department), false);
+
+        $this->actingAs($manager)->get(route('org.departments.edit', $department))->assertOk();
+        $this->actingAs($member)->get(route('org.departments.edit', $department))->assertForbidden();
+        $this->actingAs($member)->get(route('org.departments.create'))->assertForbidden();
+        $this->actingAs($admin)->get(route('org.departments.edit', $foreign))->assertNotFound();
+
+        $this->actingAs($admin)->get(route('org.locations.create'))->assertOk()->assertSee('Create location');
+        $this->actingAs($admin)->get(route('org.locations.edit', $location))
+            ->assertOk()
+            ->assertSee('Edit location')
+            ->assertSee('Tema Depot')
+            ->assertSee('Delete location');
+        $this->actingAs($manager)->get(route('org.locations.edit', $location))->assertForbidden();
+        $this->actingAs($manager)->get(route('org.locations.create'))->assertForbidden();
+        $this->actingAs($admin)->get(route('org.locations.edit', Location::factory()->create()))->assertNotFound();
+
+        StaffMember::factory()->forOrganization($admin->organization)->create(['department_id' => $department->getKey()]);
+        $this->actingAs($admin)->get(route('org.departments.edit', $department))
+            ->assertOk()
+            ->assertSee('Staff are still assigned')
+            ->assertDontSee('value="DELETE"', false);
     }
 }

@@ -45,7 +45,8 @@
                         @foreach ($user->roles as $role)
                             <li>
                                 <p class="text-sm font-medium text-fg">{{ $role->label() }}</p>
-                                @if ($role->description)<p class="text-xs text-fg-muted">{{ $role->description }}</p>@endif
+                                @php $roleText = \App\Tenancy\RoleAudience::description($role, $organization); @endphp
+                                @if ($roleText !== '')<p class="text-xs text-fg-muted">{{ $roleText }}</p>@endif
                             </li>
                         @endforeach
                     </ul>

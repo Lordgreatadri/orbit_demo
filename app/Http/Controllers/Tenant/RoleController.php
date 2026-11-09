@@ -36,6 +36,7 @@ class RoleController extends Controller
             ->pluck('total', 'role_id');
 
         return view('tenant.roles.index', [
+            'organization' => $request->user()->organization,
             'roles' => $roles,
             'usage' => $usage,
             'moduleLabels' => config('orbit.permission_modules', []),

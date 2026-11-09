@@ -7,6 +7,7 @@ use App\Enums\WorkType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\StoreStaffMemberRequest;
 use App\Http\Requests\Staff\UpdateStaffMemberRequest;
+use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\StaffMember;
@@ -79,6 +80,11 @@ class StaffMemberController extends Controller
             'canUpdate' => $request->user()->can('update', $staff),
             'canViewUser' => $staff->user !== null && $request->user()->can('view', $staff->user),
             'timezone' => $request->user()->organization->timezone,
+            'attendance' => AttendanceRecord::query()
+                ->where('staff_member_id', $staff->getKey())
+                ->orderByDesc('work_date')
+                ->limit(8)
+                ->get(),
         ]);
     }
 

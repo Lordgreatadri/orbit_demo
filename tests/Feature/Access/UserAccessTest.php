@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Access;
 
+use App\Enums\OrganizationType;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -230,6 +231,32 @@ class UserAccessTest extends TestCase
             ->assertSee('Organisation administrator')
             ->assertSee('users.manage')
             ->assertSee('Recent sign-ins');
+    }
+
+    #[Test]
+    public function profile_role_text_uses_school_wording_only_for_educational_organisations(): void
+    {
+        $agency = Organization::factory()->create(['type' => OrganizationType::PublicInstitution]);
+        $school = Organization::factory()->create(['type' => OrganizationType::EducationalInstitution]);
+
+        $this->actingAs($this->createMember($agency))
+            ->get(route('app.profile'))
+            ->assertOk()
+            ->assertSee('Employee, staff member, or field officer')
+            ->assertDontSee('lecturer')
+            ->assertDontSee('Learner account');
+
+        $this->actingAs($this->createMember($school))
+            ->get(route('app.profile'))
+            ->assertOk()
+            ->assertSee('Employee, staff member, or lecturer')
+            ->assertDontSee('field officer');
+
+        $this->actingAs($this->createOrganizationAdmin($agency))
+            ->get(route('org.roles.index'))
+            ->assertOk()
+            ->assertDontSee('lecturer')
+            ->assertDontSee('Learner account');
     }
 
     #[Test]

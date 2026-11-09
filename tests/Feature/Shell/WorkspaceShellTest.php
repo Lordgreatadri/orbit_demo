@@ -32,7 +32,8 @@ class WorkspaceShellTest extends TestCase
             ->assertSee('Workforce')
             ->assertSee('Insights')
             ->assertSee('Administration')
-            ->assertSee('Soon')
+            ->assertSee('My attendance')
+            ->assertDontSee('>Soon<', false)
             ->assertSee('aria-expanded', false)
             ->assertSee('Open navigation');
     }
@@ -57,9 +58,7 @@ class WorkspaceShellTest extends TestCase
 
         $this->assertTrue($platformLabels->contains('Organisations'));
         $this->assertTrue($platformLabels->contains('Roles'));
-        $this->assertTrue($platformLabels->contains('Attendance records'));
-        $this->assertTrue($platformLabels->contains('QR sessions'));
-        $this->assertTrue($platformLabels->contains('Field monitoring'));
+        $this->assertTrue($platformLabels->contains('Workforce overview'));
         $this->assertFalse($platformLabels->contains('Staff register'));
     }
 
@@ -69,12 +68,14 @@ class WorkspaceShellTest extends TestCase
         $admin = $this->createOrganizationAdmin();
 
         foreach (['org.attendance.index', 'org.attendance.sessions', 'org.field.index', 'org.schedules.index', 'org.leave.index', 'org.notifications.index', 'org.analytics.index'] as $route) {
-            $this->actingAs($admin)->get(route($route))->assertOk()->assertSee('coming soon')->assertSee('Planned module');
+            $this->actingAs($admin)->get(route($route))->assertOk()->assertDontSee('coming soon');
         }
 
         $member = $this->createMember($admin->organization);
         $this->actingAs($member)->get(route('org.schedules.index'))->assertOk();
+        $this->actingAs($member)->get(route('org.attendance.mine'))->assertOk();
         $this->actingAs($member)->get(route('org.analytics.index'))->assertForbidden();
+        $this->actingAs($member)->get(route('org.attendance.index'))->assertForbidden();
     }
 
     #[Test]
@@ -92,6 +93,7 @@ class WorkspaceShellTest extends TestCase
             ->get(route('org.audit.index'))
             ->assertOk()
             ->assertSee('department.created')
+            ->assertSee('View details')
             ->assertDontSee('auth.login');
 
         $this->actingAs($admin)

@@ -92,7 +92,7 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - [x] Sortable table headers and visible “Showing x–y of z” counts on large lists
 - [x] `student` role limited to educational institutions; super-admin product-module placeholders restored
 - [x] Tenancy review pass (2026-10-31): idempotent workspace backfill seeder (not a migration), branding/trusted-host cache eviction, DNS label limit, draft vs published assets + authorised preview route, request-local origins for CSRF, host check before `Auth::attempt`, WCAG 4.5:1 ink, custom tenant roles in invitations, preview merge of nulls/assets, factory `updateOrCreate` reuse, colour-picker name, branding CSS after Vite, locked theme toggle, login panel image, central terms/privacy/guide links
-- [ ] Attendance / QR / field / schedules / leave / notifications / analytics — labelled placeholders only
+- [x] Attendance, QR sessions, field, schedules, leave, notifications, and analytics — live tenant screens (2026-11-04). Face, fingerprint, NFC, payroll, and fraud scoring stay out.
 
 ## Commands executed and observed results (2026-10-31 review pass)
 | Command | Result |
@@ -129,3 +129,118 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | Signed-in HTTP check against `php artisan serve` on `127.0.0.1:8000` | Super admin sees four tabs (Africa's Talking, Arkesel, Twilio, Wigal Frog). Saving a sender ID round-trips and was reverted. Secret inputs stay empty. Health on a disabled provider returns “Turn the provider on before checking it.” `platform.support` receives 403. Unauthenticated `/admin/sms-providers` redirects to login |
 | `php84 artisan test --compact` on SMS, overview, provider settings, and login | **54 tests, 54 passed, 269 assertions** |
 | `php84 artisan migrate --force` | Applied `2026_11_02_140000_widen_sms_sender_and_index_messages` |
+
+## Workforce modules (2026-11-04)
+- [x] One attendance engine. QR, GPS, and BLE can confirm a check-in. Wi-Fi can only support another method. Face, fingerprint, and NFC stay refused. Payroll and fraud scoring have no tables.
+- [x] Tenant routes replace the coming-soon pages. Platform `/admin/workforce` summarises organisations.
+- [x] `WorkforceScenarioSeeder` copies fictional demo directories into departments, locations, staff, and a policy. It also backfills notification channels, a beacon and fictional Wi-Fi address per site, day/night or lesson patterns, one field assignment, and one pending leave request. It does not insert attendance counts.
+- [x] Workforce writes validate through `App\Http\Requests\Workforce`. Missing check-out, tomorrow's schedule reminder, and quiet field activities run from scheduled commands.
+- [x] Local browser check on `https://epa.orbit.test`: records, QR session, field, schedules, leave, notifications, analytics, and My attendance render. A QR check-in recorded Late at 11:04 and check-out closed it. Light and deep-teal themes both load. At 390px the sidebar sits off-canvas and the page does not scroll sideways.
+
+## Commands executed and observed results (2026-11-04 workforce)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --filter="AttendanceWorkflowTest\|WorkspaceShellTest\|PlatformConsoleTest\|StaffRegisterTest"` | **25 tests, 25 passed, 291 assertions** |
+| `php84 artisan test --filter=DemoSeederTest` | **3 tests, 3 passed, 134 assertions** |
+| `php84 artisan migrate --force` | Applied the 17 `2026_11_04_100*` workforce tables |
+| `php84 artisan db:seed --class=WorkforceScenarioSeeder --force` | Done in 352 ms |
+| `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **8 tests, 8 passed, 112 assertions** (7.2 s) |
+| `php84 artisan test --compact` on `AttendanceWorkflowTest`, `DemoSeederTest`, and `WorkspaceShellTest` before the Wi-Fi route-name fix | **14 passed, 1 error** (the error was `org.attendance.wifi` instead of `org.attendance.wifi.store`). The workflow file was re-run after the fix and passed |
+
+## Workspace layout (2026-11-05)
+- [x] Audit trail details open in a modal from a view control. The row no longer expands.
+- [x] Organisation dashboard replaces the setup checklist with the next five assignments (earliest date first) and leave awaiting a decision.
+- [x] Analytics uses today tiles, a daily column chart, and work-type and department bars. Counts stay in SQL. The chart covers at most 62 days.
+- [x] QR sessions use summary counts, filters, and paged tables for sessions, beacons, and Wi-Fi. A long history stays one page of 25.
+- [ ] `2026_11_05_100000_index_attendance_sessions_by_start` is in the repo and was not applied to the dev database in this pass.
+
+## Commands executed and observed results (2026-11-05 layout)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact --filter="StaffRegisterTest\|WorkspaceShellTest\|AttendanceWorkflowTest\|PlatformConsoleTest"` | **28 tests, 28 passed, 343 assertions** |
+| Browser on `https://orbit.test/admin/audit` and `https://epa.orbit.test/org` | Modal opens on the audit eye control. Dashboard shows upcoming assignments and pending leave. Analytics draws one column per day. Sessions filter to an empty page while the totals stay counted. |
+
+## Organisation edits, session spacing, and analytics charts (2026-11-05)
+- [x] Department and location pencil controls open `/edit` pages. Create is a page too. The list dialog and the edit page both post a real delete, and the policy still decides who may delete.
+- [x] A department or location that still has staff stays in the register. The edit page explains that, and the server refuses the delete.
+- [x] QR sessions separate the heading, totals, search, session table, and beacon/Wi-Fi blocks by 2rem.
+- [x] Analytics adds a status pie, a status bar for every stored status, and a verification-method bar. Counts stay in SQL. Face, fingerprint, and NFC stay off the chart.
+
+## Commands executed and observed results (2026-11-05 edits and charts)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact` on `StructureTest` and `AttendanceWorkflowTest` | **13 passed, 1 failed** (the failure was an assertion that treated the update URL as the delete URL). Re-ran `department_and_location_edits_are_pages_with_a_permissioned_delete`: **1 passed, 24 assertions** |
+| Browser on `https://epa.orbit.test` | Department and location edit pages open from the pencil and keep the saved values. QR session blocks are about 36px apart. Analytics shows an amber Late pie, a Late bar, and a method bar. Delete was not submitted against the demo register. |
+
+## Invitation resend and session check-in (2026-11-05)
+- [x] An organisation administrator can resend a pending or expired invitation. The new link replaces the previous one, the expiry restarts, and the action is audited. Accepted, revoked, and another tenant's invitations cannot be resent.
+- [x] The session code fills a centred 18rem square, so a phone camera can see the whole code.
+- [x] The code encodes a short-lived check-in address. A signed-in person opens it and taps once. The raw code can still be pasted.
+- [x] Opening a session notifies each active account that can record attendance with the name, place, time, and a link to My attendance at `#opened-sessions`. The rotating code is not included. Signed-in staff see a live code there and can check in on that device. A new code expires only the code that screen was showing. Bluetooth check-in is a choice of a registered beacon, because the browser cannot hear one. Wi-Fi is explained as supporting evidence only, because the browser cannot read the network address.
+- [x] `opening_a_session_tells_people_who_can_check_in_and_the_code_stays_scannable` and `gps_ble_and_wifi_follow_the_verification_rules` passed after the check-in page change. The session mail HTML contains `/org/attendance/mine#opened-sessions`.
+
+## Commands executed and observed results (2026-11-05 resend and check-in)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact` on `InvitationTest` and `AttendanceWorkflowTest` | **24 passed, 1 failed** (the resend test visited the old link while still signed in, so the guest page redirected). Signed out before that visit and re-ran `administrator_can_resend_a_pending_or_expired_invitation`: **1 passed, 15 assertions**. After the session-page copy change, re-ran `opening_a_session_tells_people_who_can_check_in_and_the_code_stays_scannable`: **1 passed, 27 assertions** |
+| Browser on `https://epa.orbit.test` | The Test Session code sits in a centred white square and does not cover the page. User accounts shows Resend beside the open invitation. My attendance lists the open session and pre-selects QR. The demo session end time was restored to 21:12 UTC after the check. Resend was not submitted. |
+
+## Leave requests and role wording (2026-11-06)
+- [x] Staff request leave from a modal: organisation leave type, start, end, a read-only calendar-day count, description, and an optional document. A type that uses a balance can be requested only while remaining days are above zero.
+- [x] The leave page separates pending, due (approved and not yet ended), and approved history. View opens a details modal with status, approver, and note. Approvers get a separate queue.
+- [x] Profile and organisation role text use school wording (lecturer) only for educational institutions. A public-agency member sees field officer, not lecturer or student.
+
+## Commands executed and observed results (2026-11-06 leave and roles)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed after fixing import order in `UserAccessTest` |
+| `php84 artisan test --compact` on the profile role test, the zero-balance leave test, the overlapping leave test, and the existing profile test | **3 passed, 1 failed** (the failed request had already stored a zero balance, so raising the type default did not restore days). Cleared that balance and re-ran `a_leave_type_with_no_remaining_days_cannot_be_requested`: **1 passed, 12 assertions** |
+| Browser on `https://epa.orbit.test` as the EPA organisation administrator | Leave page shows balances, Pending / Due / Approved, and an empty approval queue. View opens the details modal (Submitted, 2 days, note). Request leave calculates 10–12 Dec 2026 as 3 read-only days. Profile shows the administrator role with no lecturer or student wording. Roles lists Member as “Employee, staff member, or field officer…” |
+
+## Leave type management and notification ids (2026-11-06)
+- [x] Approvers see every leave type on the leave page after it is saved, and can edit the name, code, pay, balance, default days, and whether staff can still request it.
+- [x] Database notifications keep a numeric `id`. Laravel's channel UUID is stored in `uuid`. Databases that still had the old UUID primary key are rebuilt by `2026_11_06_090000_align_notifications_table`, and existing notification ids are kept. Every account uses `ReceivesNotifications`, so a database-channel insert cannot write the UUID into `id`.
+
+## Commands executed and observed results (2026-11-06 leave types and notifications)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact` on the notification schema tests and the leave-type edit test | **3 passed, 25 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_06_090000_align_notifications_table` |
+| Live `notifications` columns on `orbit_gh` | `id` is `int8`. Existing rows kept their UUIDs in `uuid` (`id` 1 and 2). A model insert stored numeric `id` 3 with the channel UUID, then that probe row was deleted |
+| Browser on `https://epa.orbit.test/org/leave` | Annual, Maternity, and Sick are listed with edit links. Edit Maternity opens name MT, 35 default days, paid, balance, and active. Saving returns to the list with “Leave type updated.” |
+
+## Staff session check-in (2026-11-06)
+- [x] My attendance shows each open session’s live code in a centred square. The session email links to `/org/attendance/mine#opened-sessions` and does not contain the code. Staff can scan that square or check in on the same device. A registered beacon is a button. Wi-Fi is listed as supporting evidence only.
+
+## Commands executed and observed results (2026-11-06 staff check-in)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --filter=opening_a_session_tells_people_who_can_check_in_and_the_code_stays_scannable` | **1 passed, 37 assertions** |
+| Browser on `https://epa.orbit.test/org/attendance/mine#opened-sessions` as the EPA organisation administrator | Test QR code session shows a centred white square, a countdown, and “Check in with this code”. Check-in was not submitted. |
+
+## Attendance alignment (2026-11-06)
+- [x] A current QR code stays valid for every eligible person until it expires or the screen that showed it rotates it. The same person cannot check in twice for that session. Expired, rotated, and unknown codes are rejected. Only the hash is stored.
+- [x] Duplicate check-in is per session or work period. A second session on the same day is a separate record. Leave and an excused day still cover the calendar day. Check-out closes the selected open record.
+- [x] GPS acceptance and rejection keep coordinates, accuracy, capture time, location, and geofence result on the attendance event. The raw code is not stored.
+- [x] An account with no linked person sees “No person record is linked to this account.” Beacon check-in is labelled beacon evidence. Submitting a registered identifier does not claim Bluetooth proximity.
+- [x] `2026_11_06_120000_align_attendance_periods_and_shared_qr_tokens` adds `period_key` and `attendance_session_id`, replaces the one-row-per-day unique key, and drops the single-use columns on QR tokens.
+
+## Commands executed and observed results (2026-11-06 attendance alignment)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **12 passed, 239 assertions** (165.5 s) |
+| `php84 artisan migrate --force` | Applied `2026_11_06_120000_align_attendance_periods_and_shared_qr_tokens` |
+
+## Leave type day count (2026-11-08)
+- [x] A new leave type with no day count is stored as 0. An update that omits the field keeps the organisation's configured whole-day count. Half days are rejected. The attendance engine was not changed.
+
+## Commands executed and observed results (2026-11-08 leave type day count)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **12 passed, 241 assertions** |

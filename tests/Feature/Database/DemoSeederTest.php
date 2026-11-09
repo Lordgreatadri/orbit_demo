@@ -3,7 +3,14 @@
 namespace Tests\Feature\Database;
 
 use App\Enums\UserStatus;
+use App\Models\AttendanceRecord;
+use App\Models\Beacon;
+use App\Models\FieldAssignment;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
+use App\Models\Location;
 use App\Models\Organization;
+use App\Models\Shift;
 use App\Models\User;
 use Database\Seeders\Demo\DemoAccount;
 use Database\Seeders\Demo\EpaOrganizationSeeder;
@@ -111,6 +118,17 @@ class DemoSeederTest extends TestCase
         $this->assertFalse(User::query()->where('email', 'maame.owusu@upsa.orbit-demo.test')->firstOrFail()->hasPermissionTo('users.manage'));
         $this->assertFalse(User::query()->where('email', 'kojo.appiah@epa.orbit-demo.test')->firstOrFail()->hasPermissionTo('platform.access'));
         $this->assertFalse(User::query()->where('email', 'platform.support@orbit-demo.test')->firstOrFail()->hasPermissionTo('users.manage'));
+
+        $this->assertSame(0, AttendanceRecord::withoutTenantScope()->count());
+        $this->assertSame(
+            Location::withoutTenantScope()->where('organization_id', $epa->getKey())->count(),
+            Beacon::withoutTenantScope()->where('organization_id', $epa->getKey())->count(),
+        );
+        $this->assertTrue(Shift::withoutTenantScope()->where('organization_id', $epa->getKey())->where('name', 'Night shift')->firstOrFail()->crosses_midnight);
+        $this->assertTrue(Shift::withoutTenantScope()->where('organization_id', $upsa->getKey())->where('name', 'Morning lesson')->exists());
+        $this->assertTrue(FieldAssignment::withoutTenantScope()->where('organization_id', $epa->getKey())->where('title', 'Routine site inspection')->exists());
+        $this->assertTrue(LeaveRequest::withoutTenantScope()->where('organization_id', $epa->getKey())->where('status', 'submitted')->exists());
+        $this->assertTrue(LeaveType::withoutTenantScope()->where('organization_id', $upsa->getKey())->where('code', 'STUDY')->exists());
 
         DemoAccount::user([
             'first_name' => 'Ama',

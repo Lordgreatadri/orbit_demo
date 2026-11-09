@@ -256,10 +256,13 @@ class PlatformConsoleTest extends TestCase
     public function planned_platform_modules_render_as_labelled_placeholders(): void
     {
         $this->actingAs($this->superAdmin())
-            ->get(route('admin.modules.show', ['module' => 'attendance']))
+            ->get(route('admin.workforce.overview'))
             ->assertOk()
-            ->assertSee('coming soon')
-            ->assertSee('Planned module');
+            ->assertSee('Workforce overview');
+
+        $this->actingAs($this->superAdmin())
+            ->get(route('admin.modules.show', ['module' => 'attendance']))
+            ->assertRedirect(route('admin.workforce.overview'));
 
         $this->actingAs($this->superAdmin())
             ->get(route('admin.settings.index'))

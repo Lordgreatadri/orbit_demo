@@ -5,7 +5,7 @@
 
     <div class="grid gap-5 md:grid-cols-2">
         @foreach ($roles as $role)
-            <x-card :title="$role->label()" :description="$role->description" :padding="false">
+            <x-card :title="$role->label()" :description="\App\Tenancy\RoleAudience::description($role, $organization)" :padding="false">
                 <x-slot:actions>
                     <x-badge tone="neutral">{{ $usage[$role->getKey()] ?? 0 }} {{ ($usage[$role->getKey()] ?? 0) === 1 ? 'member' : 'members' }}</x-badge>
                     @if (in_array($role->name, $grantable, true))

@@ -2,17 +2,23 @@
 
 use App\Http\Controllers\Tenancy\BrandingController;
 use App\Http\Controllers\Tenancy\DomainController;
+use App\Http\Controllers\Tenant\AnalyticsController;
+use App\Http\Controllers\Tenant\AttendanceController;
+use App\Http\Controllers\Tenant\AttendanceSessionController;
 use App\Http\Controllers\Tenant\AuditController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\DepartmentController;
+use App\Http\Controllers\Tenant\FieldController;
 use App\Http\Controllers\Tenant\InvitationController;
+use App\Http\Controllers\Tenant\LeaveController;
 use App\Http\Controllers\Tenant\LocationController;
-use App\Http\Controllers\Tenant\ModuleController;
 use App\Http\Controllers\Tenant\OrganizationSettingsController;
 use App\Http\Controllers\Tenant\RoleController;
+use App\Http\Controllers\Tenant\ScheduleController;
 use App\Http\Controllers\Tenant\StaffMemberController;
 use App\Http\Controllers\Tenant\UserAccessController;
 use App\Http\Controllers\Tenant\UserController;
+use App\Http\Controllers\Tenant\WorkforceNotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,12 +58,16 @@ Route::prefix('org')
         Route::delete('/staff/{staff:uuid}', [StaffMemberController::class, 'destroy'])->name('staff.destroy');
 
         Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
+        Route::get('/departments/create', [DepartmentController::class, 'create'])->name('departments.create');
         Route::post('/departments', [DepartmentController::class, 'store'])->name('departments.store');
+        Route::get('/departments/{department:uuid}/edit', [DepartmentController::class, 'edit'])->name('departments.edit');
         Route::put('/departments/{department:uuid}', [DepartmentController::class, 'update'])->name('departments.update');
         Route::delete('/departments/{department:uuid}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
 
         Route::get('/locations', [LocationController::class, 'index'])->name('locations.index');
+        Route::get('/locations/create', [LocationController::class, 'create'])->name('locations.create');
         Route::post('/locations', [LocationController::class, 'store'])->name('locations.store');
+        Route::get('/locations/{location:uuid}/edit', [LocationController::class, 'edit'])->name('locations.edit');
         Route::put('/locations/{location:uuid}', [LocationController::class, 'update'])->name('locations.update');
         Route::delete('/locations/{location:uuid}', [LocationController::class, 'destroy'])->name('locations.destroy');
 
@@ -72,6 +82,9 @@ Route::prefix('org')
         Route::post('/invitations', [InvitationController::class, 'store'])
             ->middleware('throttle:invitation-send')
             ->name('invitations.store');
+        Route::post('/invitations/{invitation:uuid}/resend', [InvitationController::class, 'resend'])
+            ->middleware('throttle:invitation-send')
+            ->name('invitations.resend');
         Route::delete('/invitations/{invitation:uuid}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
 
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
@@ -79,11 +92,51 @@ Route::prefix('org')
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
         Route::get('/audit/sign-ins', [AuditController::class, 'logins'])->name('audit.logins');
 
-        Route::get('/attendance', [ModuleController::class, 'show'])->defaults('module', 'attendance')->name('attendance.index');
-        Route::get('/attendance/sessions', [ModuleController::class, 'show'])->defaults('module', 'attendance-sessions')->name('attendance.sessions');
-        Route::get('/field', [ModuleController::class, 'show'])->defaults('module', 'field')->name('field.index');
-        Route::get('/schedules', [ModuleController::class, 'show'])->defaults('module', 'schedules')->name('schedules.index');
-        Route::get('/leave', [ModuleController::class, 'show'])->defaults('module', 'leave')->name('leave.index');
-        Route::get('/notifications', [ModuleController::class, 'show'])->defaults('module', 'notifications')->name('notifications.index');
-        Route::get('/analytics', [ModuleController::class, 'show'])->defaults('module', 'analytics')->name('analytics.index');
+        Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('/attendance/mine', [AttendanceController::class, 'mine'])->name('attendance.mine');
+        Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->middleware('throttle:attendance')->name('attendance.check-in');
+        Route::get('/attendance/arrive/{token}', [AttendanceController::class, 'arrive'])
+            ->where('token', '[A-Za-z0-9]{20,80}')
+            ->middleware('throttle:attendance')
+            ->name('attendance.arrive');
+        Route::post('/attendance/arrive/{token}', [AttendanceController::class, 'arriveStore'])
+            ->where('token', '[A-Za-z0-9]{20,80}')
+            ->middleware('throttle:attendance')
+            ->name('attendance.arrive.store');
+        Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut'])->middleware('throttle:attendance')->name('attendance.check-out');
+        Route::post('/attendance/corrections', [AttendanceController::class, 'correct'])->middleware('throttle:attendance')->name('attendance.corrections');
+
+        Route::get('/attendance/sessions', [AttendanceSessionController::class, 'index'])->name('attendance.sessions');
+        Route::post('/attendance/sessions', [AttendanceSessionController::class, 'store'])->middleware('throttle:attendance')->name('attendance.sessions.store');
+        Route::get('/attendance/sessions/{session}', [AttendanceSessionController::class, 'show'])->name('attendance.sessions.show');
+        Route::post('/attendance/sessions/{session}/token', [AttendanceSessionController::class, 'token'])->middleware('throttle:attendance')->name('attendance.sessions.token');
+        Route::post('/attendance/sessions/{session}/code', [AttendanceController::class, 'code'])->middleware('throttle:attendance')->name('attendance.sessions.code');
+        Route::post('/attendance/sessions/{session}/{status}', [AttendanceSessionController::class, 'status'])->whereIn('status', ['active', 'paused', 'closed'])->name('attendance.sessions.status');
+        Route::post('/attendance/beacons', [AttendanceSessionController::class, 'beacon'])->name('attendance.beacons.store');
+        Route::post('/attendance/wifi', [AttendanceSessionController::class, 'wifi'])->name('attendance.wifi.store');
+        Route::post('/attendance/otps', [AttendanceSessionController::class, 'otp'])->middleware('throttle:attendance')->name('attendance.otps.store');
+
+        Route::get('/field', [FieldController::class, 'index'])->name('field.index');
+        Route::post('/field', [FieldController::class, 'store'])->name('field.store');
+        Route::post('/field/{assignment}/start', [FieldController::class, 'start'])->middleware('throttle:attendance')->name('field.start');
+        Route::post('/field/activities/{activity}/finish', [FieldController::class, 'finish'])->middleware('throttle:attendance')->name('field.finish');
+
+        Route::get('/schedules', [ScheduleController::class, 'index'])->name('schedules.index');
+        Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
+        Route::post('/schedules/{shift}/publish', [ScheduleController::class, 'publish'])->name('schedules.publish');
+        Route::post('/schedules/{shift}/assignments', [ScheduleController::class, 'assign'])->name('schedules.assign');
+
+        Route::get('/leave', [LeaveController::class, 'index'])->name('leave.index');
+        Route::post('/leave/types', [LeaveController::class, 'type'])->name('leave.types.store');
+        Route::get('/leave/types/{leaveType}/edit', [LeaveController::class, 'editType'])->name('leave.types.edit');
+        Route::put('/leave/types/{leaveType}', [LeaveController::class, 'updateType'])->name('leave.types.update');
+        Route::post('/leave', [LeaveController::class, 'store'])->name('leave.store');
+        Route::post('/leave/{leaveRequest}/decide', [LeaveController::class, 'decide'])->name('leave.decide');
+        Route::get('/leave/{leaveRequest}/document', [LeaveController::class, 'document'])->name('leave.document');
+
+        Route::get('/notifications', [WorkforceNotificationController::class, 'index'])->name('notifications.index');
+        Route::put('/notifications', [WorkforceNotificationController::class, 'update'])->name('notifications.update');
+
+        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        Route::get('/analytics/export', [AnalyticsController::class, 'export'])->middleware('throttle:attendance')->name('analytics.export');
     });

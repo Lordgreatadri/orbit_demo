@@ -26,7 +26,18 @@
                 @endif
             </x-card>
 
-            <x-coming-soon :module="config('orbit.modules.attendance') + ['label' => 'Attendance history for this staff member']" />
+            <x-card title="Recent attendance" description="The latest recorded days for this person.">
+                <ul class="divide-y divide-edge text-sm">
+                    @forelse ($attendance as $record)
+                        <li class="flex items-center justify-between gap-3 py-2">
+                            <span>{{ $record->work_date->toFormattedDateString() }}</span>
+                            <x-badge :tone="$record->status->tone()">{{ $record->status->label() }}</x-badge>
+                        </li>
+                    @empty
+                        <li class="py-2 text-fg-muted">No attendance recorded yet.</li>
+                    @endforelse
+                </ul>
+            </x-card>
         </div>
 
         <div class="space-y-6">

@@ -28,6 +28,25 @@ class DepartmentController extends Controller
         ]);
     }
 
+    public function create(): View
+    {
+        $this->authorize('create', Department::class);
+
+        return view('tenant.departments.form', [
+            'department' => new Department(['is_active' => true]),
+        ]);
+    }
+
+    public function edit(Department $department): View
+    {
+        $this->authorize('update', $department);
+        $department->loadCount('staffMembers');
+
+        return view('tenant.departments.form', [
+            'department' => $department,
+        ]);
+    }
+
     public function store(DepartmentRequest $request): RedirectResponse
     {
         $department = Department::query()->create($request->validated());
@@ -55,7 +74,7 @@ class DepartmentController extends Controller
         $this->authorize('delete', $department);
 
         if ($department->staffMembers()->exists()) {
-            return redirect()->route('org.departments.index')->withErrors([
+            return redirect()->back(fallback: route('org.departments.index'))->withErrors([
                 'department' => __('":name" still has staff assigned. Move them to another department or mark the department inactive instead.', ['name' => $department->name]),
             ]);
         }
