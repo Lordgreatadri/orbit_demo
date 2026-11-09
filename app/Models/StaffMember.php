@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'organization_id',
     'user_id',
     'department_id',
+    'staff_category_id',
+    'reports_to_id',
     'primary_location_id',
     'staff_number',
     'first_name',
@@ -30,6 +32,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'email',
     'phone',
     'job_title',
+    'grade',
+    'employment_type',
     'work_type',
     'status',
     'started_on',
@@ -62,6 +66,16 @@ class StaffMember extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(StaffCategory::class, 'staff_category_id');
+    }
+
+    public function reportsTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reports_to_id');
     }
 
     public function primaryLocation(): BelongsTo

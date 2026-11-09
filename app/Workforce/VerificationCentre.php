@@ -5,6 +5,7 @@ namespace App\Workforce;
 use App\Enums\LocationType;
 use App\Enums\SessionStatus;
 use App\Enums\VerificationMethod;
+use App\Enums\WorkArrangementKind;
 use App\Enums\WorkType;
 use App\Models\AttendanceOtp;
 use App\Models\AttendanceSession;
@@ -27,7 +28,7 @@ final class VerificationCentre
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function assess(User $actor, StaffMember $staff, WorkforcePolicy $policy, array $payload): VerificationBundle
+    public function assess(User $actor, StaffMember $staff, WorkforcePolicy $policy, array $payload, ?string $scheduledKind = null): VerificationBundle
     {
         $methods = $this->methods($payload);
         $decisions = [];
@@ -47,12 +48,12 @@ final class VerificationCentre
 
             $decision = match ($method) {
                 VerificationMethod::Qr => $this->qr($staff, $payload, $session, $location),
-                VerificationMethod::Gps => $this->gps($staff, $policy, $payload, $location),
+                VerificationMethod::Gps => $this->gps($staff, $policy, $payload, $location, $scheduledKind),
                 VerificationMethod::Ble => $this->ble($staff, $payload, $location),
                 VerificationMethod::Wifi => $this->wifi($staff, $payload, $location),
                 VerificationMethod::Otp => $this->otp($staff, $policy, $payload),
                 VerificationMethod::Device => $this->device($actor, $policy, $payload),
-                VerificationMethod::Manual => $this->manual($actor, $staff, $policy),
+                VerificationMethod::Manual => $this->manual($actor, $staff, $policy, $scheduledKind),
                 default => new VerificationDecision($method, false, 'method_not_enabled'),
             };
 
@@ -168,7 +169,7 @@ final class VerificationCentre
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function gps(StaffMember $staff, WorkforcePolicy $policy, array $payload, ?Location $location): VerificationDecision
+    private function gps(StaffMember $staff, WorkforcePolicy $policy, array $payload, ?Location $location, ?string $scheduledKind = null): VerificationDecision
     {
         $lat = $payload['latitude'] ?? null;
         $lng = $payload['longitude'] ?? null;
@@ -193,7 +194,7 @@ final class VerificationCentre
         }
 
         if ($location === null || ! $location->hasGeofence()) {
-            if ($this->remoteAllowed($staff, $policy, $location)) {
+            if ($this->remoteAllowed($staff, $policy, $location, $scheduledKind)) {
                 $evidence['geofence_result'] = 'remote';
 
                 return new VerificationDecision(VerificationMethod::Gps, true, 'remote_allowed', $evidence);
@@ -332,8 +333,16 @@ final class VerificationCentre
         );
     }
 
-    private function manual(User $actor, StaffMember $staff, WorkforcePolicy $policy): VerificationDecision
+    private function manual(User $actor, StaffMember $staff, WorkforcePolicy $policy, ?string $scheduledKind = null): VerificationDecision
     {
+        if ($this->scheduledOnSite($scheduledKind)) {
+            return new VerificationDecision(VerificationMethod::Manual, false, 'manual_not_allowed');
+        }
+
+        if ($this->scheduledAway($scheduledKind) && $policy->remote_without_geofence) {
+            return new VerificationDecision(VerificationMethod::Manual, true, 'manual_accepted');
+        }
+
         $remote = in_array($staff->work_type, [WorkType::Remote, WorkType::Hybrid], true);
 
         if ($remote && $policy->remote_without_geofence) {
@@ -343,17 +352,34 @@ final class VerificationCentre
         return new VerificationDecision(VerificationMethod::Manual, false, 'manual_not_allowed');
     }
 
-    private function remoteAllowed(StaffMember $staff, WorkforcePolicy $policy, ?Location $location): bool
+    private function remoteAllowed(StaffMember $staff, WorkforcePolicy $policy, ?Location $location, ?string $scheduledKind = null): bool
     {
         if (! $policy->remote_without_geofence) {
             return false;
         }
 
-        if (! in_array($staff->work_type, [WorkType::Remote, WorkType::Hybrid], true)) {
+        if ($this->scheduledOnSite($scheduledKind)) {
+            return false;
+        }
+
+        $away = $this->scheduledAway($scheduledKind)
+            || ($scheduledKind === null && in_array($staff->work_type, [WorkType::Remote, WorkType::Hybrid], true));
+
+        if (! $away) {
             return false;
         }
 
         return $location === null || $location->type === LocationType::Remote || ! $location->hasGeofence();
+    }
+
+    private function scheduledOnSite(?string $kind): bool
+    {
+        return in_array($kind, [WorkArrangementKind::Office->value, WorkArrangementKind::Field->value], true);
+    }
+
+    private function scheduledAway(?string $kind): bool
+    {
+        return in_array($kind, [WorkArrangementKind::Remote->value, WorkArrangementKind::Flexible->value], true);
     }
 
     /**

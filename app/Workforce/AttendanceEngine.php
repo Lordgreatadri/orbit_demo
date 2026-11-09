@@ -13,6 +13,7 @@ use App\Models\StaffMember;
 use App\Models\User;
 use App\Models\WorkforcePolicy;
 use App\Support\Audit;
+use App\Support\CalendarDay;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,22 +40,30 @@ final class AttendanceEngine
         $policy = WorkforcePolicy::resolve($staff->organization);
         $now = now();
         $attempt = null;
+        $payload = $this->applyExpectedContext($staff, $payload, $now);
+        $scheduledKind = $payload['scheduled_kind'] ?? null;
+        $assignmentId = isset($payload['shift_assignment_id']) ? (int) $payload['shift_assignment_id'] : null;
+        $scheduledDate = is_string($payload['scheduled_work_date'] ?? null) ? $payload['scheduled_work_date'] : null;
+        unset($payload['scheduled_kind'], $payload['shift_assignment_id'], $payload['scheduled_work_date']);
 
         try {
-            return DB::transaction(function () use ($actor, $staff, $payload, $policy, $now, &$attempt): AttendanceRecord {
+            return DB::transaction(function () use ($actor, $staff, $payload, $policy, $now, $scheduledKind, $assignmentId, $scheduledDate, &$attempt): AttendanceRecord {
                 $today = $now->copy()->timezone($staff->organization->timezone ?: 'UTC')->toDateString();
+                $workDate = ($assignmentId && is_string($scheduledDate) && $scheduledDate !== '') ? $scheduledDate : $today;
                 $this->closeOlderOpenRecords($staff, $actor, $today);
 
-                $bundle = $this->verifier->assess($actor, $staff, $policy, $payload);
+                $bundle = $this->verifier->assess($actor, $staff, $policy, $payload, is_string($scheduledKind) ? $scheduledKind : null);
                 $attempt = $bundle;
                 $this->assertDevice($policy, $bundle);
                 $this->assertSessionLocation($bundle);
                 $this->assertAccepted($bundle);
-                $this->assertDayCoverage($staff, $today);
+                $this->assertDayCoverage($staff, $bundle->session ? $today : $workDate);
 
                 $periodKey = $bundle->session
                     ? AttendanceRecord::sessionPeriod((int) $bundle->session->getKey())
-                    : AttendanceRecord::dayPeriod($today);
+                    : ($assignmentId
+                        ? AttendanceRecord::shiftPeriod($assignmentId)
+                        : AttendanceRecord::dayPeriod($workDate));
 
                 $existing = AttendanceRecord::query()
                     ->where('staff_member_id', $staff->getKey())
@@ -79,7 +88,8 @@ final class AttendanceEngine
                         'department_id' => $staff->department_id,
                         'location_id' => $bundle->location?->getKey() ?? $staff->primary_location_id,
                         'attendance_session_id' => $bundle->session?->getKey(),
-                        'work_date' => $today,
+                        'shift_assignment_id' => $bundle->session ? null : $assignmentId,
+                        'work_date' => $bundle->session ? $today : $workDate,
                         'check_in_at' => $now,
                         'status' => $status,
                         'source' => 'self',
@@ -121,9 +131,11 @@ final class AttendanceEngine
         $today = $now->copy()->timezone($staff->organization->timezone ?: 'UTC')->toDateString();
 
         return DB::transaction(function () use ($actor, $staff, $policy, $now, $today, $recordUuid): AttendanceRecord {
-            $open = AttendanceRecord::query()
-                ->where('staff_member_id', $staff->getKey())
-                ->whereDate('work_date', $today)
+            $open = CalendarDay::constrain(
+                AttendanceRecord::query()->where('staff_member_id', $staff->getKey()),
+                'work_date',
+                $today,
+            )
                 ->whereNotNull('check_in_at')
                 ->whereNull('check_out_at')
                 ->whereIn('status', [
@@ -257,6 +269,97 @@ final class AttendanceEngine
         return $closed;
     }
 
+    /**
+     * Project an approved absence onto the calendar days the leave policy counted.
+     * A day that already has a check-in is left as attendance evidence.
+     *
+     * @param  list<string>  $dates
+     */
+    public function projectApprovedLeave(StaffMember $staff, array $dates): void
+    {
+        $staff->loadMissing('organization');
+
+        foreach ($dates as $date) {
+            $checkedIn = CalendarDay::constrain(
+                AttendanceRecord::query()->where('staff_member_id', $staff->getKey()),
+                'work_date',
+                $date,
+            )->whereNotNull('check_in_at')->exists();
+
+            if ($checkedIn) {
+                continue;
+            }
+
+            AttendanceRecord::query()->updateOrCreate(
+                [
+                    'organization_id' => $staff->organization_id,
+                    'staff_member_id' => $staff->getKey(),
+                    'period_key' => AttendanceRecord::dayPeriod($date),
+                ],
+                [
+                    'work_date' => $date,
+                    'department_id' => $staff->department_id,
+                    'location_id' => $staff->primary_location_id,
+                    'status' => AttendanceStatus::OnLeave,
+                    'source' => 'leave',
+                    'user_id' => $staff->user_id,
+                ],
+            );
+        }
+    }
+
+    /**
+     * Remove leave projections that have no check-in. Attendance evidence stays.
+     *
+     * @param  list<string>  $dates
+     */
+    public function clearLeaveProjection(StaffMember $staff, array $dates): void
+    {
+        if ($dates === []) {
+            return;
+        }
+
+        AttendanceRecord::query()
+            ->where('staff_member_id', $staff->getKey())
+            ->where('source', 'leave')
+            ->where('status', AttendanceStatus::OnLeave->value)
+            ->whereNull('check_in_at')
+            ->tap(fn ($query) => CalendarDay::constrainAny($query, 'work_date', $dates))
+            ->delete();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function applyExpectedContext(StaffMember $staff, array $payload, Carbon $now): array
+    {
+        $period = app(ScheduleResolver::class)->periodAt($staff, $now);
+
+        if ($period === null) {
+            return $payload;
+        }
+
+        $kind = $period->arrangement?->kind?->value ?? $period->shift?->arrangement?->kind?->value;
+
+        if (is_string($kind) && $kind !== '') {
+            $payload['scheduled_kind'] = $kind;
+        }
+
+        $payload['shift_assignment_id'] = $period->getKey();
+        $payload['scheduled_work_date'] = $period->work_date->toDateString();
+
+        if (blank($payload['location_uuid'] ?? null)) {
+            $site = $period->location ?? $period->shift?->location;
+
+            if ($site !== null) {
+                $payload['location_uuid'] = $site->uuid;
+            }
+        }
+
+        return $payload;
+    }
+
     private function guard(User $actor, StaffMember $staff): void
     {
         if (! $actor->belongsToOrganization($staff->organization_id)) {
@@ -309,9 +412,11 @@ final class AttendanceEngine
      */
     private function assertDayCoverage(StaffMember $staff, string $today): void
     {
-        $covered = AttendanceRecord::query()
-            ->where('staff_member_id', $staff->getKey())
-            ->whereDate('work_date', $today)
+        $covered = CalendarDay::constrain(
+            AttendanceRecord::query()->where('staff_member_id', $staff->getKey()),
+            'work_date',
+            $today,
+        )
             ->whereIn('status', [AttendanceStatus::OnLeave->value, AttendanceStatus::Excused->value])
             ->lockForUpdate()
             ->first();
@@ -417,7 +522,7 @@ final class AttendanceEngine
             ->where('staff_member_id', $staff->getKey())
             ->whereNull('check_out_at')
             ->whereIn('status', [AttendanceStatus::Present->value, AttendanceStatus::Late->value])
-            ->whereDate('work_date', '<', $today)
+            ->where('work_date', '<', $today)
             ->lockForUpdate()
             ->get()
             ->each(function (AttendanceRecord $record) use ($staff, $actor): void {

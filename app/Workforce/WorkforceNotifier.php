@@ -5,9 +5,11 @@ namespace App\Workforce;
 use App\Contracts\PushNotifier;
 use App\Enums\AttendanceStatus;
 use App\Enums\FieldActivityStatus;
+use App\Enums\LeaveApprovalMode;
 use App\Enums\ShiftStatus;
 use App\Enums\UserStatus;
 use App\Integrations\Sms\SmsTransmitter;
+use App\Jobs\Workforce\DeliverWorkforceNotice;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\FieldActivity;
@@ -21,8 +23,8 @@ use App\Models\StaffMember;
 use App\Models\User;
 use App\Models\WorkforcePolicy;
 use App\Notifications\WorkforceMessage;
+use App\Support\CalendarDay;
 use App\Tenancy\Origin;
-use Illuminate\Support\Str;
 
 final class WorkforceNotifier
 {
@@ -45,6 +47,7 @@ final class WorkforceNotifier
             $late
                 ? 'You were marked late by '.$record->late_minutes.' minutes.'
                 : 'Your check-in was recorded as '.$record->status->label().'.',
+            dedupe: 'attendance-'.$record->getKey().'-'.($late ? 'late' : 'confirmed'),
         );
     }
 
@@ -75,9 +78,9 @@ final class WorkforceNotifier
             ->where('status', UserStatus::Active->value)
             ->permission('attendance.record')
             ->orderBy('id')
-            ->chunkById(100, function ($users) use ($title, $body, $url): void {
+            ->chunkById(100, function ($users) use ($session, $title, $body, $url): void {
                 foreach ($users as $user) {
-                    $this->send($user, 'session.opened', $title, $body, $url, 'Open the check-in code');
+                    $this->send($user, 'session.opened', $title, $body, $url, 'Open the check-in code', 'session-opened-'.$session->getKey().'-'.$user->getKey());
                 }
             });
     }
@@ -96,6 +99,25 @@ final class WorkforceNotifier
             'schedule.published',
             'Schedule published',
             $assignment->shift->name.' is on your schedule for '.$assignment->work_date->toFormattedDateString().'.',
+            dedupe: 'schedule-published-'.$assignment->getKey(),
+        );
+    }
+
+    public function scheduleRemoved(ShiftAssignment $assignment): void
+    {
+        $assignment->loadMissing('staffMember.user', 'shift', 'organization');
+        $user = $assignment->staffMember?->user;
+
+        if ($user === null || $assignment->shift === null) {
+            return;
+        }
+
+        $this->send(
+            $user,
+            'schedule.published',
+            'Schedule changed',
+            $assignment->shift->name.' was removed from your schedule for '.$assignment->work_date?->toFormattedDateString().'.',
+            dedupe: 'schedule-removed-'.$assignment->getKey(),
         );
     }
 
@@ -108,22 +130,46 @@ final class WorkforceNotifier
             return;
         }
 
-        $this->send($user, 'field.assigned', 'Field assignment', $assignment->title.' from '.$assignment->starts_on->toFormattedDateString().'.');
+        $this->send($user, 'field.assigned', 'Field assignment', $assignment->title.' from '.$assignment->starts_on->toFormattedDateString().'.', dedupe: 'field-assigned-'.$assignment->getKey());
     }
 
     public function leaveSubmitted(LeaveRequest $request): void
     {
-        $request->loadMissing('organization', 'staffMember');
-        User::query()
+        $request->loadMissing('organization', 'staffMember.department', 'policy');
+        $query = User::query()
             ->where('organization_id', $request->organization_id)
-            ->permission('leave.approve')
-            ->get()
-            ->each(fn (User $user) => $this->send(
-                $user,
-                'leave.submitted',
-                'Leave request submitted',
-                $request->staffMember->name.' requested leave from '.$request->starts_on->toDateString().' to '.$request->ends_on->toDateString().'.',
-            ));
+            ->where('id', '!=', $request->staffMember?->user_id ?? 0);
+
+        $mode = $request->policy?->approval_mode ?? LeaveApprovalMode::AnyApprover;
+        $staff = $request->staffMember;
+        $specific = null;
+
+        if ($mode === LeaveApprovalMode::LineManager && $staff?->reports_to_id) {
+            $specific = StaffMember::query()->whereKey($staff->reports_to_id)->value('user_id');
+        }
+
+        if ($specific === null && $mode === LeaveApprovalMode::DepartmentHead) {
+            $headId = $staff?->department?->head_staff_member_id;
+            $specific = $headId ? StaffMember::query()->whereKey($headId)->value('user_id') : null;
+        }
+
+        if ($specific) {
+            $query->whereKey($specific);
+        } else {
+            $query->permission('leave.approve');
+        }
+
+        $query->orderBy('id')->chunkById(100, function ($users) use ($request): void {
+            foreach ($users as $user) {
+                $this->send(
+                    $user,
+                    'leave.submitted',
+                    'Leave request submitted',
+                    $request->staffMember->name.' requested leave from '.$request->starts_on->toDateString().' to '.$request->ends_on->toDateString().'.',
+                    dedupe: 'leave-submitted-'.$request->getKey().'-'.$user->getKey(),
+                );
+            }
+        });
     }
 
     public function missingCheckout(AttendanceRecord $record): void
@@ -141,6 +187,7 @@ final class WorkforceNotifier
             'attendance.missing_checkout',
             'Missing check-out',
             'An open attendance record was marked incomplete because check-out was not recorded.',
+            dedupe: 'attendance-missing-'.$record->getKey(),
         );
     }
 
@@ -151,26 +198,41 @@ final class WorkforceNotifier
         Organization::query()->orderBy('id')->each(function (Organization $organization) use (&$sent): void {
             $tomorrow = now($organization->timezone ?: 'UTC')->addDay()->toDateString();
 
-            ShiftAssignment::withoutTenantScope()
-                ->where('organization_id', $organization->getKey())
-                ->whereDate('work_date', $tomorrow)
+            CalendarDay::constrain(
+                ShiftAssignment::withoutTenantScope()->where('organization_id', $organization->getKey()),
+                'work_date',
+                $tomorrow,
+            )
+                ->whereNull('reminded_at')
                 ->whereHas('shift', fn ($query) => $query->where('status', ShiftStatus::Published->value))
                 ->with(['staffMember.user', 'shift'])
                 ->orderBy('id')
-                ->each(function (ShiftAssignment $assignment) use (&$sent): void {
-                    $user = $assignment->staffMember?->user;
+                ->chunkById(100, function ($assignments) use (&$sent): void {
+                    foreach ($assignments as $assignment) {
+                        $user = $assignment->staffMember?->user;
 
-                    if ($user === null || $assignment->shift === null) {
-                        return;
+                        if ($user === null || $assignment->shift === null) {
+                            continue;
+                        }
+
+                        $claimed = ShiftAssignment::withoutTenantScope()
+                            ->whereKey($assignment->getKey())
+                            ->whereNull('reminded_at')
+                            ->update(['reminded_at' => now()]);
+
+                        if ($claimed !== 1) {
+                            continue;
+                        }
+
+                        $this->send(
+                            $user,
+                            'schedule.reminder',
+                            'Upcoming schedule',
+                            $assignment->shift->name.' is on your schedule for '.$assignment->work_date->toFormattedDateString().'.',
+                            dedupe: 'schedule-reminder-'.$assignment->getKey(),
+                        );
+                        $sent++;
                     }
-
-                    $this->send(
-                        $user,
-                        'schedule.reminder',
-                        'Upcoming schedule',
-                        $assignment->shift->name.' is on your schedule for '.$assignment->work_date->toFormattedDateString().'.',
-                    );
-                    $sent++;
                 });
         });
 
@@ -208,6 +270,7 @@ final class WorkforceNotifier
                         'field.alert',
                         'Field activity needs an update',
                         ($activity->assignment?->title ?? 'A field activity').' has not reported within the allowed interval.',
+                        dedupe: 'field-alert-'.$activity->getKey().'-'.now()->toDateString(),
                     );
                 }
 
@@ -231,11 +294,47 @@ final class WorkforceNotifier
             'leave.decided',
             'Leave '.$request->status->label(),
             'Your leave request was '.$request->status->label().($request->decision_note ? ': '.$request->decision_note : '.'),
+            dedupe: 'leave-decided-'.$request->getKey().'-'.$request->status->value,
         );
     }
 
-    private function send(User $user, string $event, string $title, string $body, ?string $actionUrl = null, ?string $actionLabel = null): void
-    {
+    private function send(
+        User $user,
+        string $event,
+        string $title,
+        string $body,
+        ?string $actionUrl = null,
+        ?string $actionLabel = null,
+        ?string $dedupe = null,
+    ): void {
+        $user->loadMissing('organization');
+        $organization = $user->organization;
+
+        if ($organization === null) {
+            return;
+        }
+
+        DeliverWorkforceNotice::dispatch(
+            (int) $organization->getKey(),
+            (int) $user->getKey(),
+            $event,
+            $title,
+            $body,
+            mb_substr($dedupe ?: ('workforce-'.$event.'-'.$user->getKey()), 0, 80),
+            $actionUrl,
+            $actionLabel,
+        )->afterCommit();
+    }
+
+    public function deliver(
+        User $user,
+        string $event,
+        string $title,
+        string $body,
+        string $dedupeKey,
+        ?string $actionUrl = null,
+        ?string $actionLabel = null,
+    ): void {
         $user->loadMissing('organization');
         $organization = $user->organization;
 
@@ -251,14 +350,24 @@ final class WorkforceNotifier
             $this->push->send($user, $title, $body);
         }
 
-        if ($channels['sms'] && filled($user->phone) && SmsProvider::query()->where('is_active', true)->where('enabled', true)->exists()) {
+        if (! $channels['sms'] || blank($user->phone)) {
+            return;
+        }
+
+        if (! SmsProvider::query()->where('is_active', true)->where('enabled', true)->exists()) {
+            return;
+        }
+
+        try {
             app(SmsTransmitter::class)->transmit(
                 $user->phone,
                 $body,
-                'workforce-'.Str::uuid(),
+                $dedupeKey,
                 'workforce_'.$event,
                 $organization->getKey(),
             );
+        } catch (\Throwable $exception) {
+            report($exception);
         }
     }
 }

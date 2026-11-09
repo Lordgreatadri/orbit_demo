@@ -163,6 +163,7 @@ return [
         'schedules.manage' => ['Create shifts and assignments', ['organization_admin', 'organization_manager']],
         'leave.request' => ['Submit own leave requests', ['organization_admin', 'organization_manager', 'member', 'student']],
         'leave.approve' => ['Approve or reject leave requests', ['organization_admin', 'organization_manager']],
+        'leave.policy' => ['Manage leave types, entitlement rules, and balance adjustments', ['organization_admin']],
 
         // Insights & communication
         'analytics.view' => ['View workforce analytics', ['organization_admin', 'organization_manager']],

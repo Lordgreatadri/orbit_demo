@@ -8,7 +8,7 @@ class UpdateLeaveTypeRequest extends WorkforceRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('leave.approve') ?? false;
+        return $this->user()?->can('leave.policy') ?? false;
     }
 
     protected function prepareForValidation(): void

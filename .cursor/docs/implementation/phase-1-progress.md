@@ -261,3 +261,38 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 vendor/bin/pint --dirty` | Passed |
 | `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **14 passed, 309 assertions** |
 | `php84 artisan migrate --force` | Applied `2026_11_09_070000_link_field_activities_to_attendance_records` |
+
+## Schedule and leave policy (2026-11-09)
+- [x] A person can hold more than one non-overlapping work period on a date. Each period stores a work arrangement and an expected location.
+- [x] Work patterns and a non-working calendar generate assignments. The attendance engine reads the period; it does not grow a second decision path.
+- [x] Leave entitlement is a tenant policy and ordered rules. An open balance keeps the days it was given. Adjustments are separate audited rows. Pending days are reserved at submit.
+- [x] `leave.policy` is separate from `leave.approve`. Self-approval is refused unless the policy allows it.
+- [x] Design: ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-09 schedule and leave)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/ScheduleLeaveFoundationTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php tests/Feature/Shell/WorkspaceShellTest.php` | **25 passed, 420 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_09_120000_schedule_leave_policy_foundation` |
+| `php84 artisan db:seed --class=Database\\Seeders\\RolesAndPermissionsSeeder --force` | Granted `leave.policy` to organisation administrators |
+
+## Schedule and leave validation (2026-11-09)
+- [x] Opening Schedules does not insert work arrangements. They are created with the organisation, or by an explicit action.
+- [x] Assignment clocks are snapshotted. A past assignment, and one that already has a check-in, cannot be removed. Two non-overlapping periods can each record attendance.
+- [x] Entitlement uses priority, then id. A request cannot cross a leave year. An adjustment cannot drop the balance below reserved days. Self-approval follows the policy. Closed requests stay closed.
+- [x] Notices are queued after commit. A failed SMS send does not fail the schedule or leave action.
+- [x] Shift, pattern, calendar, leave history, and approval lists are paged. Line manager, department head, and field person pickers search instead of loading a fixed headcount.
+- [x] Demo directory covers office, remote, hybrid, field, finance, manager, junior, and school teaching, administrative, and support categories. Educational annual leave starts on 1 July when the policy was still the calendar-year default.
+- [x] Design updated in ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-09 schedule and leave validation)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact` | **256 passed, 2050 assertions** |
+| `php84 artisan test --compact tests/Feature/Staff/StructureTest.php tests/Feature/Staff/StaffRegisterTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php tests/Feature/Shell/WorkspaceShellTest.php tests/Feature/Workforce/ScheduleLeaveValidationTest.php` | **43 passed, 597 assertions** after the searchable pickers |
+| `php84 artisan migrate --force` | Applied `2026_11_09_180000_schedule_leave_integrity` |
+| `php84 artisan db:seed --class=Database\\Seeders\\WorkforceScenarioSeeder --force` | Completed in 783 ms |
+| `php84 artisan db:seed --class=Database\\Seeders\\SystemDemoUserSeeder --force` | Completed in 4.6 s. Refreshed the fictional EPA and UPSA directories |
+

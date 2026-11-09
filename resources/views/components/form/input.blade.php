@@ -7,16 +7,18 @@
     'required' => false,
     'autocomplete' => null,
     'placeholder' => null,
+    'id' => null,
 ])
 
 @php
+    $id = $id ?: $name;
     $hasError = $errors->has($name);
-    $describedBy = $hasError ? "{$name}-error" : ($hint ? "{$name}-hint" : null);
+    $describedBy = $hasError ? "{$id}-error" : ($hint ? "{$id}-hint" : null);
 @endphp
 
-<x-form.field :name="$name" :label="$label" :hint="$hint" :required="$required">
+<x-form.field :name="$name" :id="$id" :label="$label" :hint="$hint" :required="$required">
     <input
-        id="{{ $name }}"
+        id="{{ $id }}"
         name="{{ $name }}"
         type="{{ $type }}"
         @if ($type !== 'password') value="{{ old($name, $value) }}" @endif

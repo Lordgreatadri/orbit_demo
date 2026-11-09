@@ -114,6 +114,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('access-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
         RateLimiter::for('sms-webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
         RateLimiter::for('attendance', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
+        RateLimiter::for('workforce-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
     }
 
     private function configurePolicies(): void

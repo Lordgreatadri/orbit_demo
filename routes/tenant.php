@@ -122,16 +122,28 @@ Route::prefix('org')
         Route::post('/field/activities/{activity}/finish', [FieldController::class, 'finish'])->middleware('throttle:attendance')->name('field.finish');
 
         Route::get('/schedules', [ScheduleController::class, 'index'])->name('schedules.index');
-        Route::post('/schedules', [ScheduleController::class, 'store'])->name('schedules.store');
-        Route::post('/schedules/{shift}/publish', [ScheduleController::class, 'publish'])->name('schedules.publish');
-        Route::post('/schedules/{shift}/assignments', [ScheduleController::class, 'assign'])->name('schedules.assign');
+        Route::post('/schedules/arrangements', [ScheduleController::class, 'provisionArrangements'])->middleware('throttle:workforce-write')->name('schedules.arrangements');
+        Route::post('/schedules', [ScheduleController::class, 'store'])->middleware('throttle:workforce-write')->name('schedules.store');
+        Route::post('/schedules/patterns', [ScheduleController::class, 'pattern'])->middleware('throttle:workforce-write')->name('schedules.patterns.store');
+        Route::post('/schedules/patterns/{pattern}/apply', [ScheduleController::class, 'applyPattern'])->middleware('throttle:workforce-write')->name('schedules.patterns.apply');
+        Route::post('/schedules/calendar', [ScheduleController::class, 'nonWorking'])->middleware('throttle:workforce-write')->name('schedules.calendar.store');
+        Route::post('/schedules/{shift}/publish', [ScheduleController::class, 'publish'])->middleware('throttle:workforce-write')->name('schedules.publish');
+        Route::post('/schedules/{shift}/assignments', [ScheduleController::class, 'assign'])->middleware('throttle:workforce-write')->name('schedules.assign');
+        Route::delete('/schedules/assignments/{assignment}', [ScheduleController::class, 'destroyAssignment'])->middleware('throttle:workforce-write')->name('schedules.assignments.destroy');
 
         Route::get('/leave', [LeaveController::class, 'index'])->name('leave.index');
-        Route::post('/leave/types', [LeaveController::class, 'type'])->name('leave.types.store');
+        Route::post('/leave/types', [LeaveController::class, 'type'])->middleware('throttle:workforce-write')->name('leave.types.store');
         Route::get('/leave/types/{leaveType}/edit', [LeaveController::class, 'editType'])->name('leave.types.edit');
-        Route::put('/leave/types/{leaveType}', [LeaveController::class, 'updateType'])->name('leave.types.update');
-        Route::post('/leave', [LeaveController::class, 'store'])->name('leave.store');
-        Route::post('/leave/{leaveRequest}/decide', [LeaveController::class, 'decide'])->name('leave.decide');
+        Route::put('/leave/types/{leaveType}', [LeaveController::class, 'updateType'])->middleware('throttle:workforce-write')->name('leave.types.update');
+        Route::post('/leave/policies/{leavePolicy}', [LeaveController::class, 'updatePolicy'])->middleware('throttle:workforce-write')->name('leave.policies.update');
+        Route::post('/leave/rules', [LeaveController::class, 'rule'])->middleware('throttle:workforce-write')->name('leave.rules.store');
+        Route::post('/leave/adjustments', [LeaveController::class, 'adjust'])->middleware('throttle:workforce-write')->name('leave.adjustments.store');
+        Route::post('/leave/categories', [LeaveController::class, 'category'])->middleware('throttle:workforce-write')->name('leave.categories.store');
+        Route::post('/leave', [LeaveController::class, 'store'])->middleware('throttle:workforce-write')->name('leave.store');
+        Route::put('/leave/{leaveRequest}', [LeaveController::class, 'amend'])->middleware('throttle:workforce-write')->name('leave.amend');
+        Route::post('/leave/{leaveRequest}/withdraw', [LeaveController::class, 'withdraw'])->middleware('throttle:workforce-write')->name('leave.withdraw');
+        Route::post('/leave/{leaveRequest}/decide', [LeaveController::class, 'decide'])->middleware('throttle:workforce-write')->name('leave.decide');
+        Route::post('/leave/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->middleware('throttle:workforce-write')->name('leave.cancel');
         Route::get('/leave/{leaveRequest}/document', [LeaveController::class, 'document'])->name('leave.document');
 
         Route::get('/notifications', [WorkforceNotificationController::class, 'index'])->name('notifications.index');

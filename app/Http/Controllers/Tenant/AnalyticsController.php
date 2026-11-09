@@ -9,6 +9,7 @@ use App\Http\Requests\Workforce\AnalyticsRangeRequest;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\LeaveRequest;
+use App\Support\CalendarDay;
 use App\Workforce\WorkforceReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,8 @@ class AnalyticsController extends Controller
         [$from, $to] = $request->range();
 
         $byDepartment = AttendanceRecord::query()
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->where('work_date', '>=', $from->toDateString())
+            ->where('work_date', '<', CalendarDay::following($to->toDateString()))
             ->whereNotNull('department_id')
             ->select('department_id', 'status', DB::raw('count(*) as total'))
             ->groupBy('department_id', 'status')
@@ -31,7 +33,8 @@ class AnalyticsController extends Controller
         $byWorkType = AttendanceRecord::query()
             ->join('staff_members', 'staff_members.id', '=', 'attendance_records.staff_member_id')
             ->where('attendance_records.organization_id', $organization->getKey())
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->where('attendance_records.work_date', '>=', $from->toDateString())
+            ->where('attendance_records.work_date', '<', CalendarDay::following($to->toDateString()))
             ->select('staff_members.work_type', DB::raw('count(*) as total'))
             ->groupBy('staff_members.work_type')
             ->pluck('total', 'work_type');
@@ -73,6 +76,9 @@ class AnalyticsController extends Controller
                 'value' => (int) ($byWorkType[$type->value] ?? 0),
             ]),
             'leavePending' => LeaveRequest::query()->where('status', 'submitted')->count(),
+            'leaveDecisions' => $reports->leaveDecisions($organization, $from, $to),
+            'adherence' => $reports->scheduleAdherence($organization, $from, $to),
+            'arrangements' => $reports->arrangementMix($organization, $from, $to),
         ]);
     }
 
@@ -90,7 +96,8 @@ class AnalyticsController extends Controller
 
             AttendanceRecord::query()
                 ->with(['staffMember:id,staff_number,first_name,last_name', 'department:id,name', 'location:id,name'])
-                ->whereBetween('work_date', [$from, $to])
+                ->where('work_date', '>=', $from)
+                ->where('work_date', '<', CalendarDay::following($to))
                 ->orderBy('work_date')
                 ->orderBy('id')
                 ->chunk(200, function ($records) use ($handle): void {

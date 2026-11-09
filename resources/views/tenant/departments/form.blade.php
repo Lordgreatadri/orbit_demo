@@ -12,6 +12,13 @@
         <x-alert type="danger">{{ $message }}</x-alert>
     @enderror
 
+    <x-card title="Find a department head" description="Search by name. The current head stays in the list.">
+        <form method="GET" action="{{ $editing ? route('org.departments.edit', $department) : route('org.departments.create') }}" class="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <x-form.input id="department-head-find" name="head_find" label="Name" :value="$headFind" hint="At least two letters." />
+            <x-button type="submit" variant="secondary" size="sm">Search</x-button>
+        </form>
+    </x-card>
+
     <form method="POST" action="{{ $editing ? route('org.departments.update', $department) : route('org.departments.store') }}" class="space-y-6">
         @csrf
         @if ($editing) @method('PUT') @endif
@@ -19,7 +26,7 @@
         <x-card title="Department">
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-form.input name="name" label="Name" :value="$department->name" required />
-                <x-form.input name="code" label="Code" :value="$department->code" hint="Optional short code, e.g. FIN or OPS." class="font-mono uppercase" />
+                <x-form.select id="department-head" name="head" label="Department head" :options="collect($people ?? [])->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->prepend('No head', '')->all()" :value="$department->head?->uuid ?? ''" hint="Used when leave approval is set to the department head. Search above when the person is not listed." />
                 <div class="sm:col-span-2">
                     <x-form.textarea name="description" label="Description" :value="$department->description" rows="3" />
                 </div>

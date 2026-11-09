@@ -10,6 +10,7 @@ use App\Http\Requests\Staff\UpdateStaffMemberRequest;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\StaffCategory;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Support\Audit;
@@ -94,7 +95,7 @@ class StaffMemberController extends Controller
     {
         $this->authorize('update', $staff);
 
-        $staff->load(['department', 'primaryLocation', 'user']);
+        $staff->load(['department', 'primaryLocation', 'user', 'category', 'reportsTo']);
 
         return view('tenant.staff.form', $this->formData($request, $staff) + ['staff' => $staff]);
     }
@@ -128,6 +129,39 @@ class StaffMemberController extends Controller
     }
 
     /**
+     * @return array<string, string>
+     */
+    private function managerChoices(Request $request, ?StaffMember $staff): array
+    {
+        $term = trim((string) $request->query('manager_find', ''));
+        $managers = strlen($term) < 2
+            ? collect()
+            : StaffMember::query()
+                ->search($term)
+                ->when($staff !== null, fn ($query) => $query->whereKeyNot($staff->getKey()))
+                ->orderBy('last_name')
+                ->limit(30)
+                ->get(['id', 'uuid', 'first_name', 'last_name']);
+
+        $current = $staff?->reportsTo;
+        $old = $request->old('reports_to');
+
+        if (is_string($old) && $old !== '') {
+            $picked = StaffMember::query()->where('uuid', $old)->first();
+
+            if ($picked !== null) {
+                $current = $picked;
+            }
+        }
+
+        if ($current !== null && $managers->doesntContain(fn (StaffMember $person): bool => (int) $person->getKey() === (int) $current->getKey())) {
+            $managers->prepend($current);
+        }
+
+        return $managers->mapWithKeys(fn (StaffMember $person): array => [$person->uuid => $person->name])->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function formData(Request $request, ?StaffMember $staff = null): array
@@ -151,6 +185,9 @@ class StaffMemberController extends Controller
             'linkableUsers' => $linkableUsers,
             'workTypes' => WorkType::options(),
             'statuses' => StaffStatus::options(),
+            'categories' => StaffCategory::query()->orderBy('name')->pluck('name', 'uuid')->all(),
+            'managers' => $this->managerChoices($request, $staff),
+            'managerFind' => trim((string) $request->query('manager_find', '')),
         ];
     }
 }

@@ -1,14 +1,15 @@
-@props(['name', 'label', 'options' => [], 'value' => null, 'hint' => null, 'required' => false, 'placeholder' => null])
+@props(['name', 'label', 'options' => [], 'value' => null, 'hint' => null, 'required' => false, 'placeholder' => null, 'id' => null])
 
 @php
+    $id = $id ?: $name;
     $hasError = $errors->has($name);
-    $describedBy = $hasError ? "{$name}-error" : ($hint ? "{$name}-hint" : null);
+    $describedBy = $hasError ? "{$id}-error" : ($hint ? "{$id}-hint" : null);
     $selected = old($name, $value);
 @endphp
 
-<x-form.field :name="$name" :label="$label" :hint="$hint" :required="$required">
+<x-form.field :name="$name" :id="$id" :label="$label" :hint="$hint" :required="$required">
     <select
-        id="{{ $name }}"
+        id="{{ $id }}"
         name="{{ $name }}"
         @if ($required) required @endif
         @if ($describedBy) aria-describedby="{{ $describedBy }}" @endif

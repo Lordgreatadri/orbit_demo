@@ -11,6 +11,8 @@ use App\Enums\WorkType;
 use App\Models\Beacon;
 use App\Models\Department;
 use App\Models\FieldAssignment;
+use App\Models\LeaveEntitlementRule;
+use App\Models\LeavePolicy;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Location;
@@ -18,10 +20,13 @@ use App\Models\NotificationPreference;
 use App\Models\Organization;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
+use App\Models\StaffCategory;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Models\WifiNetwork;
+use App\Models\WorkArrangement;
 use App\Models\WorkforcePolicy;
+use App\Workforce\LeavePlanner;
 use App\Workforce\WorkforceEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -48,6 +53,8 @@ class WorkforceScenarioSeeder extends Seeder
 
             WorkforcePolicy::resolve($organization);
             $this->leaveTypes($organization);
+            app(LeavePlanner::class)->ensureArrangements($organization);
+            $categories = $this->categories($organization);
 
             $settings = $organization->settings ?? [];
             $departments = $this->departments($organization, $settings['departments'] ?? ['Administration']);
@@ -59,7 +66,7 @@ class WorkforceScenarioSeeder extends Seeder
             $directory = $settings['sample_directory'] ?? $this->fallbackDirectory($organization, $departments, $locations);
 
             foreach ($directory as $email => $row) {
-                $this->staff($organization, (string) $email, $row, $departments, $locations);
+                $this->staff($organization, (string) $email, $row, $departments, $locations, $categories);
             }
 
             $this->scenarios($organization);
@@ -155,6 +162,36 @@ class WorkforceScenarioSeeder extends Seeder
     }
 
     /**
+     * @return array<string, StaffCategory>
+     */
+    private function categories(Organization $organization): array
+    {
+        $rows = $organization->isEducational()
+            ? [
+                ['TEACH', 'Teaching'],
+                ['ADMIN', 'Administrative'],
+                ['SUPPORT', 'Support'],
+            ]
+            : [
+                ['MANAGER', 'Manager'],
+                ['FINANCE', 'Finance'],
+                ['JUNIOR', 'Junior staff'],
+                ['FIELD', 'Field'],
+            ];
+
+        $created = [];
+
+        foreach ($rows as [$code, $name]) {
+            $created[$code] = StaffCategory::withoutTenantScope()->firstOrCreate(
+                ['organization_id' => $organization->getKey(), 'code' => $code],
+                ['name' => $name],
+            );
+        }
+
+        return $created;
+    }
+
+    /**
      * @param  array<string, Department>  $departments
      * @param  array<string, Location>  $locations
      * @return array<string, array<string, string>>
@@ -185,10 +222,12 @@ class WorkforceScenarioSeeder extends Seeder
      * @param  array<string, mixed>  $row
      * @param  array<string, Department>  $departments
      * @param  array<string, Location>  $locations
+     * @param  array<string, StaffCategory>  $categories
      */
-    private function staff(Organization $organization, string $email, array $row, array $departments, array $locations): void
+    private function staff(Organization $organization, string $email, array $row, array $departments, array $locations, array $categories = []): void
     {
         $user = User::query()->where('email', $email)->where('organization_id', $organization->getKey())->first();
+        [$firstName, $lastName] = $this->directoryNames($user, $email, $row);
         $number = (string) ($row['member_id'] ?? strtoupper(Str::substr(md5($email), 0, 8)));
         $workType = match ((string) ($row['work_type'] ?? 'office')) {
             'field' => WorkType::Field,
@@ -209,8 +248,8 @@ class WorkforceScenarioSeeder extends Seeder
                     : null,
                 'department_id' => ($departments[$row['department'] ?? ''] ?? null)?->getKey(),
                 'primary_location_id' => ($locations[$row['location'] ?? ''] ?? null)?->getKey(),
-                'first_name' => $user?->first_name ?? 'Demo',
-                'last_name' => $user?->last_name ?? 'Person',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 'phone' => $user?->phone,
                 'job_title' => match ((string) ($row['work_type'] ?? '')) {
@@ -220,14 +259,38 @@ class WorkforceScenarioSeeder extends Seeder
                     default => 'Staff',
                 },
                 'work_type' => $workType,
+                'grade' => $row['grade'] ?? null,
+                'employment_type' => $row['employment_type'] ?? null,
+                'staff_category_id' => ($categories[$row['category'] ?? ''] ?? null)?->getKey(),
                 'status' => StaffStatus::Active,
-                'started_on' => '2026-01-06',
+                'started_on' => $row['started_on'] ?? '2026-01-06',
                 'notes' => 'Fictional demo register row. Not a live personnel record.',
             ],
         );
 
         if ($staff->user_id === null && $user && StaffMember::withoutTenantScope()->where('user_id', $user->getKey())->doesntExist()) {
             $staff->forceFill(['user_id' => $user->getKey()])->save();
+        }
+
+        if ($user === null && $staff->first_name === 'Demo' && $staff->last_name === 'Person') {
+            $staff->forceFill(['first_name' => $firstName, 'last_name' => $lastName])->save();
+        }
+
+        $category = $categories[$row['category'] ?? ''] ?? null;
+        $fill = [];
+
+        if ($staff->staff_category_id === null && $category !== null) {
+            $fill['staff_category_id'] = $category->getKey();
+        }
+
+        foreach (['grade', 'employment_type', 'started_on'] as $column) {
+            if ($staff->{$column} === null && filled($row[$column] ?? null)) {
+                $fill[$column] = $row[$column];
+            }
+        }
+
+        if ($fill !== []) {
+            $staff->forceFill($fill)->save();
         }
     }
 
@@ -358,6 +421,18 @@ class WorkforceScenarioSeeder extends Seeder
             ->first();
 
         if ($annual !== null && $office !== null) {
+            $policy = app(LeavePlanner::class)->ensurePolicy($annual);
+
+            if ($organization->isEducational() && (int) $policy->year_start_month === 1 && str_ends_with((string) $policy->name, ' policy')) {
+                $policy->update([
+                    'year_start_month' => 7,
+                    'year_start_day' => 1,
+                    'count_mode' => 'working',
+                ]);
+            }
+
+            $this->entitlements($organization, $policy);
+
             LeaveRequest::withoutTenantScope()->firstOrCreate(
                 [
                     'organization_id' => $organization->getKey(),
@@ -371,6 +446,143 @@ class WorkforceScenarioSeeder extends Seeder
                     'status' => LeaveStatus::Submitted,
                 ],
             );
+        }
+
+        $this->linkArrangements($organization, $shifts);
+        $this->leadership($organization);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{0: string, 1: string}
+     */
+    private function directoryNames(?User $user, string $email, array $row): array
+    {
+        if ($user !== null) {
+            return [$user->first_name, $user->last_name];
+        }
+
+        if (filled($row['first_name'] ?? null)) {
+            return [(string) $row['first_name'], (string) ($row['last_name'] ?? 'Person')];
+        }
+
+        $parts = array_values(array_filter(explode('.', Str::before($email, '@'))));
+
+        return [
+            Str::title($parts[0] ?? 'Demo'),
+            Str::title($parts[1] ?? 'Person'),
+        ];
+    }
+
+    private function entitlements(Organization $organization, LeavePolicy $policy): void
+    {
+        $categories = StaffCategory::withoutTenantScope()
+            ->where('organization_id', $organization->getKey())
+            ->get()
+            ->keyBy('code');
+        $finance = Department::withoutTenantScope()
+            ->where('organization_id', $organization->getKey())
+            ->where('name', 'Finance')
+            ->first();
+
+        $rules = $organization->isEducational()
+            ? [
+                [10, $categories['TEACH'] ?? null, null, null, null, 26],
+                [20, $categories['ADMIN'] ?? null, null, null, null, 20],
+                [30, $categories['SUPPORT'] ?? null, null, null, null, 15],
+                [100, null, null, null, null, 15],
+            ]
+            : [
+                [10, null, null, 'Manager', 120, 30],
+                [20, $categories['FINANCE'] ?? null, null, 'Manager', null, 28],
+                [30, null, null, 'Manager', null, 26],
+                [40, null, $finance, null, null, 20],
+                [100, null, null, null, null, 15],
+            ];
+
+        foreach ($rules as [$priority, $category, $department, $grade, $months, $days]) {
+            LeaveEntitlementRule::withoutTenantScope()->firstOrCreate(
+                [
+                    'organization_id' => $organization->getKey(),
+                    'leave_policy_id' => $policy->getKey(),
+                    'priority' => $priority,
+                ],
+                [
+                    'staff_category_id' => $category?->getKey(),
+                    'department_id' => $department?->getKey(),
+                    'grade' => $grade,
+                    'min_service_months' => $months,
+                    'entitled_days' => $days,
+                    'effective_from' => $policy->effective_from->toDateString(),
+                ],
+            );
+        }
+    }
+
+    /**
+     * @param  list<Shift>  $shifts
+     */
+    private function linkArrangements(Organization $organization, array $shifts): void
+    {
+        $codes = $organization->isEducational()
+            ? ['office', 'flexible']
+            : ['office', 'field'];
+
+        foreach ($shifts as $index => $shift) {
+            $code = $codes[$index] ?? 'office';
+            $arrangement = WorkArrangement::withoutTenantScope()
+                ->where('organization_id', $organization->getKey())
+                ->where('code', $code)
+                ->first();
+
+            if ($arrangement !== null && $shift->work_arrangement_id === null) {
+                $shift->forceFill(['work_arrangement_id' => $arrangement->getKey()])->save();
+            }
+        }
+
+        ShiftAssignment::withoutTenantScope()
+            ->where('organization_id', $organization->getKey())
+            ->whereNull('starts_at')
+            ->with('shift')
+            ->orderBy('id')
+            ->each(function (ShiftAssignment $assignment): void {
+                if ($assignment->shift === null) {
+                    return;
+                }
+
+                $assignment->forceFill([
+                    'starts_at' => $assignment->shift->starts_at,
+                    'ends_at' => $assignment->shift->ends_at,
+                    'crosses_midnight' => $assignment->shift->crosses_midnight,
+                    'work_arrangement_id' => $assignment->work_arrangement_id ?? $assignment->shift->work_arrangement_id,
+                ])->save();
+            });
+    }
+
+    private function leadership(Organization $organization): void
+    {
+        $people = StaffMember::withoutTenantScope()
+            ->where('organization_id', $organization->getKey())
+            ->orderBy('id')
+            ->get()
+            ->groupBy('department_id');
+
+        foreach ($people as $departmentId => $members) {
+            if ($departmentId === null || $departmentId === '') {
+                continue;
+            }
+
+            $head = $members->first();
+            Department::withoutTenantScope()
+                ->whereKey($departmentId)
+                ->whereNull('head_staff_member_id')
+                ->update(['head_staff_member_id' => $head->getKey()]);
+
+            foreach ($members->skip(1) as $member) {
+                if ($member->reports_to_id === null) {
+                    $member->forceFill(['reports_to_id' => $head->getKey()])->save();
+                }
+            }
         }
     }
 }

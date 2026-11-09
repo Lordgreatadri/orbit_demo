@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'department_id',
     'location_id',
     'attendance_session_id',
+    'shift_assignment_id',
     'work_date',
     'period_key',
     'check_in_at',
@@ -43,6 +44,11 @@ class AttendanceRecord extends Model
     public static function sessionPeriod(int $sessionId): string
     {
         return 'session:'.$sessionId;
+    }
+
+    public static function shiftPeriod(int $assignmentId): string
+    {
+        return 'shift:'.$assignmentId;
     }
 
     protected static function booted(): void

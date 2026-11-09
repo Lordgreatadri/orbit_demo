@@ -6,6 +6,7 @@ use App\Enums\DomainType;
 use App\Models\Organization;
 use App\Models\OrganizationDomain;
 use App\Tenancy\Hostname;
+use App\Workforce\LeavePlanner;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,7 @@ class ProvisionOrganizationWorkspace
     {
         $this->ensureStorage($organization);
         $this->ensureBranding($organization, $actorId);
+        app(LeavePlanner::class)->ensureArrangements($organization);
 
         $existing = $organization->domains()->primary()->first();
         if ($existing) {

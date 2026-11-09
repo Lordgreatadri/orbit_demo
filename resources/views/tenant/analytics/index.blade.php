@@ -209,4 +209,38 @@
             @endif
         </x-card>
     </div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-3">
+        <x-card title="Leave decisions" description="Requests whose start date is in this range. Counts come from the leave records, not from attendance.">
+            <dl class="grid grid-cols-2 gap-4">
+                @foreach (['submitted' => 'Waiting', 'approved' => 'Approved', 'rejected' => 'Rejected', 'cancelled' => 'Cancelled', 'withdrawn' => 'Withdrawn'] as $key => $label)
+                    <div>
+                        <dt class="text-xs text-fg-muted">{{ $label }}</dt>
+                        <dd class="text-lg font-semibold tabular-nums">{{ number_format((int) ($leaveDecisions[$key] ?? 0)) }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+            <p class="mt-3 text-xs text-fg-subtle">{{ number_format($leavePending) }} waiting in the organisation, including requests that start outside this range.</p>
+        </x-card>
+        <x-card title="Schedule adherence" description="Published assignments in this range compared with a present or late attendance record on the same person and date.">
+            @php
+                $scheduled = (int) $adherence['scheduled'];
+                $attended = (int) $adherence['attended'];
+                $share = $scheduled > 0 ? (int) round($attended / $scheduled * 100) : null;
+            @endphp
+            <p class="text-3xl font-semibold tabular-nums text-fg">{{ $share === null ? '—' : $share.'%' }}</p>
+            <p class="mt-1 text-sm text-fg-muted">{{ number_format($attended) }} attended of {{ number_format($scheduled) }} scheduled periods.</p>
+        </x-card>
+        <x-card title="Scheduled arrangements" description="How published assignments in this range are arranged. A person with no arrangement on the assignment is not in this count.">
+            @if ($arrangements === [])
+                <p class="text-sm text-fg-muted">No arranged assignments in this range.</p>
+            @else
+                <ul class="space-y-2 text-sm">
+                    @foreach ($arrangements as $kind => $total)
+                        <li class="flex items-center justify-between"><span class="capitalize text-fg">{{ str_replace('_', ' ', $kind) }}</span><span class="tabular-nums text-fg-muted">{{ number_format($total) }}</span></li>
+                    @endforeach
+                </ul>
+            @endif
+        </x-card>
+    </div>
 </x-layouts.app>
