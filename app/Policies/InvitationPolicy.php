@@ -21,6 +21,16 @@ class InvitationPolicy
 
     public function delete(User $user, Invitation $invitation): bool
     {
+        return $this->canManage($user, $invitation);
+    }
+
+    public function resend(User $user, Invitation $invitation): bool
+    {
+        return $this->canManage($user, $invitation);
+    }
+
+    private function canManage(User $user, Invitation $invitation): bool
+    {
         return $user->belongsToOrganization($invitation->organization_id) && $user->can('users.invite');
     }
 }

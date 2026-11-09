@@ -25,8 +25,28 @@ class LocationController extends Controller
 
         return view('tenant.locations.index', [
             'locations' => $locations,
-            'types' => LocationType::options(),
             'canManage' => $request->user()->can('create', Location::class),
+        ]);
+    }
+
+    public function create(): View
+    {
+        $this->authorize('create', Location::class);
+
+        return view('tenant.locations.form', [
+            'location' => new Location(['type' => LocationType::Office, 'is_active' => true]),
+            'types' => LocationType::options(),
+        ]);
+    }
+
+    public function edit(Location $location): View
+    {
+        $this->authorize('update', $location);
+        $location->loadCount('staffMembers');
+
+        return view('tenant.locations.form', [
+            'location' => $location,
+            'types' => LocationType::options(),
         ]);
     }
 
@@ -57,7 +77,7 @@ class LocationController extends Controller
         $this->authorize('delete', $location);
 
         if ($location->staffMembers()->exists()) {
-            return redirect()->route('org.locations.index')->withErrors([
+            return redirect()->back(fallback: route('org.locations.index'))->withErrors([
                 'location' => __('":name" is the primary location of existing staff. Reassign them or mark the location inactive instead.', ['name' => $location->name]),
             ]);
         }

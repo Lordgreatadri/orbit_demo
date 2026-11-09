@@ -290,4 +290,92 @@ class InvitationTest extends TestCase
 
         $this->actingAs($admin)->get(route('invitations.show', ['token' => $raw]))->assertRedirect(route('app.dashboard'));
     }
+
+    #[Test]
+    public function administrator_can_resend_a_pending_or_expired_invitation(): void
+    {
+        Notification::fake();
+        $admin = $this->createOrganizationAdmin();
+        $raw = str_repeat('h', 64);
+        $invitation = Invitation::factory()->invitedBy($admin)->withRawToken($raw)->create([
+            'email' => 'again@example.test',
+        ]);
+        $expired = Invitation::factory()->invitedBy($admin)->expired()->withRawToken(str_repeat('i', 64))->create([
+            'email' => 'late@example.test',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('org.users.index'))
+            ->assertOk()
+            ->assertSee('Resend');
+
+        $this->actingAs($admin)
+            ->post(route('org.invitations.resend', $invitation))
+            ->assertRedirect(route('org.users.index'))
+            ->assertSessionHas('status');
+
+        $invitation->refresh();
+        $this->assertNotSame(Invitation::hashToken($raw), $invitation->token_hash);
+        $this->assertTrue($invitation->isPending());
+        $this->assertTrue($invitation->expires_at->isFuture());
+
+        Notification::assertSentOnDemand(
+            InvitationNotification::class,
+            function (InvitationNotification $notification, array $channels, AnonymousNotifiable $notifiable) use ($invitation): bool {
+                return ($notifiable->routes['mail'] ?? null) === 'again@example.test'
+                    && $invitation->token_hash === Invitation::hashToken($notification->rawToken)
+                    && $notification->rawToken !== str_repeat('h', 64);
+            }
+        );
+
+        $this->assertDatabaseHas('activity_log', [
+            'event' => 'invitation.resent',
+            'organization_id' => $admin->organization_id,
+        ]);
+
+        auth()->logout();
+
+        $this->fromTenant($admin->organization)
+            ->get(route('invitations.show', ['token' => $raw]))
+            ->assertOk()
+            ->assertSee('This invitation is not valid');
+
+        $this->actingAs($admin)
+            ->post(route('org.invitations.resend', $expired))
+            ->assertRedirect(route('org.users.index'));
+        $this->assertTrue($expired->fresh()->isPending());
+    }
+
+    #[Test]
+    public function resend_is_refused_for_closed_invitations_other_tenants_and_members(): void
+    {
+        Notification::fake();
+        $admin = $this->createOrganizationAdmin();
+        $accepted = Invitation::factory()->invitedBy($admin)->accepted()->create();
+        $revoked = Invitation::factory()->invitedBy($admin)->revoked()->create();
+        $foreign = Invitation::factory()->create();
+        $pending = Invitation::factory()->invitedBy($admin)->create();
+
+        $this->actingAs($admin)
+            ->from(route('org.users.index'))
+            ->post(route('org.invitations.resend', $accepted))
+            ->assertRedirect(route('org.users.index'))
+            ->assertSessionHas('error');
+        $this->assertNotNull($accepted->fresh()->accepted_at);
+
+        $this->actingAs($admin)
+            ->from(route('org.users.index'))
+            ->post(route('org.invitations.resend', $revoked))
+            ->assertSessionHas('error');
+
+        $this->actingAs($admin)
+            ->post(route('org.invitations.resend', $foreign))
+            ->assertNotFound();
+
+        $this->actingAs($this->createMember($admin->organization))
+            ->post(route('org.invitations.resend', $pending))
+            ->assertForbidden();
+
+        Notification::assertNothingSent();
+    }
 }

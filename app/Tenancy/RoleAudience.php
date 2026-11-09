@@ -42,6 +42,30 @@ final class RoleAudience
     }
 
     /**
+     * Wording for a role in this organisation. School terms such as lecturer
+     * are used only for educational institutions.
+     */
+    public static function description(Role $role, ?Organization $organization): string
+    {
+        $type = $organization?->type?->value;
+        $override = is_string($type)
+            ? config('orbit.role_description_overrides.'.$type.'.'.$role->name)
+            : null;
+
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        $configured = config('orbit.role_descriptions.'.$role->name);
+
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        return (string) ($role->description ?? '');
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function invitableOptions(Organization $organization): array

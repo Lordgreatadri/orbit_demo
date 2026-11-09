@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Actions\Invitations\CreateInvitation;
+use App\Actions\Invitations\ResendInvitation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invitations\StoreInvitationRequest;
 use App\Models\Invitation;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class InvitationController extends Controller
 {
@@ -42,5 +44,26 @@ class InvitationController extends Controller
         return redirect()
             ->route('org.users.index')
             ->with('status', __('Invitation for :email revoked.', ['email' => $invitation->email]));
+    }
+
+    /**
+     * Send a new link for a pending or expired invitation. Accepted and
+     * revoked invitations stay closed. The previous link stops working.
+     */
+    public function resend(Request $request, Invitation $invitation, ResendInvitation $resendInvitation): RedirectResponse
+    {
+        $this->authorize('resend', $invitation);
+
+        try {
+            $resendInvitation->handle($request->user(), $invitation);
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first();
+
+            return back()->with('error', is_string($message) ? $message : __('This invitation can no longer be resent.'));
+        }
+
+        return redirect()
+            ->route('org.users.index')
+            ->with('status', __('Invitation resent to :email. The new link replaces the previous one.', ['email' => $invitation->email]));
     }
 }
