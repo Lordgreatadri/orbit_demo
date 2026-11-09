@@ -244,3 +244,20 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | --- | --- |
 | `php84 vendor/bin/pint --dirty` | Passed |
 | `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **12 passed, 241 assertions** |
+
+## Review fixes (2026-11-09)
+- [x] CSV export prefixes formula-leading text so a spreadsheet does not treat a name or number as a formula.
+- [x] An account that can record attendance but has no linked person sees no field assignments or open activities.
+- [x] A staff profile includes attendance history only when the caller can view attendance.
+- [x] An analytics range longer than 62 inclusive days is not accepted as a chart range.
+- [x] Shift times must be a real clock time. Field finish stores the GPS decision, the end location, and checks out the field attendance record.
+- [x] Leave decisions lock the request and recheck the remaining balance before approval.
+- [x] A check-in during a prior day's overnight shift uses that shift. Session times are stored in UTC. Trend counts attendance records.
+- [x] A future session display keeps asking for its first code. Field assignments, upcoming shifts, and notification channels can all be reached or turned off.
+
+## Commands executed and observed results (2026-11-09 review fixes)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **14 passed, 309 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_09_070000_link_field_activities_to_attendance_records` |

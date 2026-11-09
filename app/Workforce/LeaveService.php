@@ -11,6 +11,7 @@ use App\Models\LeaveType;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Support\Audit;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -69,12 +70,14 @@ final class LeaveService
 
     public function decide(User $actor, LeaveRequest $request, bool $approve, ?string $note): void
     {
-        if ($request->status !== LeaveStatus::Submitted) {
-            throw new AttendanceException('already_decided', 'This request has already been decided.');
-        }
-
         DB::transaction(function () use ($actor, $request, $approve, $note): void {
-            $request->update([
+            $locked = LeaveRequest::query()->whereKey($request->getKey())->lockForUpdate()->first();
+
+            if ($locked === null || $locked->status !== LeaveStatus::Submitted) {
+                throw new AttendanceException('already_decided', 'This request has already been decided.');
+            }
+
+            $locked->update([
                 'status' => $approve ? LeaveStatus::Approved : LeaveStatus::Rejected,
                 'decided_by' => $actor->getKey(),
                 'decision_note' => $note,
@@ -82,16 +85,22 @@ final class LeaveService
             ]);
 
             if ($approve) {
-                $request->load('leaveType', 'staffMember');
-                if ($request->leaveType->requires_balance) {
-                    $balance = $this->balance($request->staffMember, $request->leaveType, (int) $request->starts_on->year);
-                    $balance->increment('used_days', $request->dayCount());
+                $locked->load('leaveType', 'staffMember');
+                if ($locked->leaveType->requires_balance) {
+                    $balance = $this->lockedBalance($locked->staffMember, $locked->leaveType, (int) $locked->starts_on->year);
+                    $remaining = (int) $balance->entitled_days - (int) $balance->used_days;
+
+                    if ($remaining < $locked->dayCount()) {
+                        throw new AttendanceException('insufficient_balance', 'The remaining leave balance does not cover these dates.');
+                    }
+
+                    $balance->increment('used_days', $locked->dayCount());
                 }
 
-                $cursor = $request->starts_on->copy();
-                while ($cursor->lte($request->ends_on)) {
+                $cursor = $locked->starts_on->copy();
+                while ($cursor->lte($locked->ends_on)) {
                     $existing = AttendanceRecord::query()
-                        ->where('staff_member_id', $request->staff_member_id)
+                        ->where('staff_member_id', $locked->staff_member_id)
                         ->whereDate('work_date', $cursor->toDateString())
                         ->whereNotNull('check_in_at')
                         ->first();
@@ -99,17 +108,17 @@ final class LeaveService
                     if ($existing === null) {
                         AttendanceRecord::query()->updateOrCreate(
                             [
-                                'organization_id' => $request->organization_id,
-                                'staff_member_id' => $request->staff_member_id,
+                                'organization_id' => $locked->organization_id,
+                                'staff_member_id' => $locked->staff_member_id,
                                 'period_key' => AttendanceRecord::dayPeriod($cursor->toDateString()),
                             ],
                             [
                                 'work_date' => $cursor->toDateString(),
-                                'department_id' => $request->staffMember->department_id,
-                                'location_id' => $request->staffMember->primary_location_id,
+                                'department_id' => $locked->staffMember->department_id,
+                                'location_id' => $locked->staffMember->primary_location_id,
                                 'status' => AttendanceStatus::OnLeave,
                                 'source' => 'manual',
-                                'user_id' => $request->staffMember->user_id,
+                                'user_id' => $locked->staffMember->user_id,
                             ],
                         );
                     }
@@ -118,7 +127,7 @@ final class LeaveService
                 }
             }
 
-            Audit::log($approve ? 'leave.approved' : 'leave.rejected', $request, [], $actor);
+            Audit::log($approve ? 'leave.approved' : 'leave.rejected', $locked, [], $actor);
         });
 
         app(WorkforceNotifier::class)->leaveDecided($request->fresh());
@@ -145,6 +154,38 @@ final class LeaveService
             'used' => $used,
             'remaining' => $entitled - $used,
         ];
+    }
+
+    private function lockedBalance(StaffMember $staff, LeaveType $type, int $year): LeaveBalance
+    {
+        $balance = LeaveBalance::query()
+            ->where('staff_member_id', $staff->getKey())
+            ->where('leave_type_id', $type->getKey())
+            ->where('year', $year)
+            ->lockForUpdate()
+            ->first();
+
+        if ($balance !== null) {
+            return $balance;
+        }
+
+        try {
+            return LeaveBalance::query()->create([
+                'organization_id' => $staff->organization_id,
+                'staff_member_id' => $staff->getKey(),
+                'leave_type_id' => $type->getKey(),
+                'year' => $year,
+                'entitled_days' => $type->default_days ?? 0,
+                'used_days' => 0,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return LeaveBalance::query()
+                ->where('staff_member_id', $staff->getKey())
+                ->where('leave_type_id', $type->getKey())
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->firstOrFail();
+        }
     }
 
     private function balance(StaffMember $staff, LeaveType $type, int $year): LeaveBalance

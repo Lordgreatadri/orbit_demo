@@ -28,14 +28,14 @@ class FieldController extends Controller
 
         $assignments = FieldAssignment::query()
             ->with(['staffMember:id,uuid,first_name,last_name', 'location:id,uuid,name,latitude,longitude'])
-            ->when(! $user->can('attendance.view') && $own, fn ($query) => $query->where('staff_member_id', $own->getKey()))
+            ->when(! $user->can('attendance.view'), fn ($query) => $query->where('staff_member_id', $own?->getKey() ?? 0))
             ->latest('starts_on')
             ->paginate(20);
 
         $activities = FieldActivity::query()
             ->with(['staffMember:id,first_name,last_name', 'assignment.location:id,name'])
             ->whereNull('ended_at')
-            ->when(! $user->can('attendance.view') && $own, fn ($query) => $query->where('staff_member_id', $own->getKey()))
+            ->when(! $user->can('attendance.view'), fn ($query) => $query->where('staff_member_id', $own?->getKey() ?? 0))
             ->latest('started_at')
             ->limit(50)
             ->get();

@@ -16,8 +16,8 @@ class StoreShiftRequest extends WorkforceRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'starts_at' => ['required', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
-            'ends_at' => ['required', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            'starts_at' => ['required', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
+            'ends_at' => ['required', 'regex:/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/'],
             'effective_from' => ['required', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
             'department_uuid' => ['nullable', 'uuid', $this->tenantExists('departments')],

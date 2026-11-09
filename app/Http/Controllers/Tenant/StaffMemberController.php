@@ -80,11 +80,13 @@ class StaffMemberController extends Controller
             'canUpdate' => $request->user()->can('update', $staff),
             'canViewUser' => $staff->user !== null && $request->user()->can('view', $staff->user),
             'timezone' => $request->user()->organization->timezone,
-            'attendance' => AttendanceRecord::query()
-                ->where('staff_member_id', $staff->getKey())
-                ->orderByDesc('work_date')
-                ->limit(8)
-                ->get(),
+            'attendance' => $request->user()->can('attendance.view')
+                ? AttendanceRecord::query()
+                    ->where('staff_member_id', $staff->getKey())
+                    ->orderByDesc('work_date')
+                    ->limit(8)
+                    ->get()
+                : null,
         ]);
     }
 

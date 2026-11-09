@@ -61,7 +61,7 @@ final class WorkforceReport
     {
         $rows = AttendanceRecord::query()
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
-            ->select('work_date', 'status', DB::raw('count(distinct staff_member_id) as total'))
+            ->select('work_date', 'status', DB::raw('count(*) as total'))
             ->groupBy('work_date', 'status')
             ->get();
 

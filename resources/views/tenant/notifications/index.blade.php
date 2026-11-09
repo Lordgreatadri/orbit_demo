@@ -28,9 +28,13 @@
                     <fieldset class="rounded-xl border border-edge p-3">
                         <legend class="px-1 text-sm font-medium text-fg">{{ $label }}</legend>
                         <div class="mt-2 flex flex-wrap gap-4 text-sm">
+                            <input type="hidden" name="events[{{ $event }}][mail]" value="0">
                             <label class="inline-flex items-center gap-2"><input type="checkbox" name="events[{{ $event }}][mail]" value="1" @checked(old('events.'.$event.'.mail', $pref->mail ?? true))> Email</label>
+                            <input type="hidden" name="events[{{ $event }}][database]" value="0">
                             <label class="inline-flex items-center gap-2"><input type="checkbox" name="events[{{ $event }}][database]" value="1" @checked(old('events.'.$event.'.database', $pref->database ?? true))> In-app</label>
+                            <input type="hidden" name="events[{{ $event }}][sms]" value="0">
                             <label class="inline-flex items-center gap-2"><input type="checkbox" name="events[{{ $event }}][sms]" value="1" @checked(old('events.'.$event.'.sms', $pref->sms ?? false))> SMS</label>
+                            <input type="hidden" name="events[{{ $event }}][push]" value="0">
                             <label class="inline-flex items-center gap-2"><input type="checkbox" name="events[{{ $event }}][push]" value="1" @checked(old('events.'.$event.'.push', $pref->push ?? false))> Push plug</label>
                         </div>
                     </fieldset>

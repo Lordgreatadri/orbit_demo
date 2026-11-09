@@ -95,7 +95,7 @@ class AnalyticsController extends Controller
                 ->orderBy('id')
                 ->chunk(200, function ($records) use ($handle): void {
                     foreach ($records as $record) {
-                        fputcsv($handle, [
+                        fputcsv($handle, array_map($this->spreadsheetCell(...), [
                             $record->work_date->toDateString(),
                             $record->staffMember?->staff_number,
                             $record->staffMember?->name,
@@ -105,11 +105,30 @@ class AnalyticsController extends Controller
                             $record->check_in_at?->toIso8601String(),
                             $record->check_out_at?->toIso8601String(),
                             $record->late_minutes,
-                        ]);
+                        ]));
                     }
                 });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Spreadsheet tools treat a cell starting with =, +, -, or @ as a formula.
+     * A leading apostrophe keeps the value as text.
+     */
+    private function spreadsheetCell(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        $lead = ltrim($value, " \t\r\n");
+
+        if ($lead !== '' && in_array($lead[0], ['=', '+', '-', '@'], true)) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

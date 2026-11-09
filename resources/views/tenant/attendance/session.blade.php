@@ -51,9 +51,23 @@
                 Alpine.data('rotatingQr', (token, svg, url, seconds) => ({
                     token, svg, url, seconds,
                     remaining: seconds,
+                    ticking: false,
                     start() {
-                        if (!this.token) return;
+                        if (this.token) {
+                            this.tick();
+                            return;
+                        }
+                        this.rotate();
                         setInterval(() => {
+                            if (!this.token) this.rotate();
+                        }, 5000);
+                    },
+                    tick() {
+                        if (this.ticking) return;
+                        this.ticking = true;
+                        this.remaining = this.seconds;
+                        setInterval(() => {
+                            if (!this.token) return;
                             this.remaining -= 1;
                             if (this.remaining <= 0) {
                                 this.remaining = this.seconds;
@@ -75,6 +89,7 @@
                         const body = await response.json();
                         this.token = body.token;
                         this.svg = body.svg;
+                        this.tick();
                     },
                 }));
             });

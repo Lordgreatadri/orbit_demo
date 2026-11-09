@@ -58,12 +58,13 @@ final class FieldService
         $payload['methods'] = ['gps'];
         $payload['location_uuid'] = $assignment->location->uuid;
 
-        $this->attendance->checkIn($actor, $staff, $payload);
+        $record = $this->attendance->checkIn($actor, $staff, $payload);
 
         $activity = FieldActivity::query()->create([
             'organization_id' => $assignment->organization_id,
             'field_assignment_id' => $assignment->getKey(),
             'staff_member_id' => $staff->getKey(),
+            'attendance_record_id' => $record->getKey(),
             'started_at' => now(),
             'status' => FieldActivityStatus::Active,
             'last_latitude' => isset($payload['latitude']) ? round((float) $payload['latitude'], 5) : null,
@@ -83,7 +84,7 @@ final class FieldService
      */
     public function finish(User $actor, FieldActivity $activity, array $payload): void
     {
-        $activity->loadMissing('assignment.location', 'staffMember.organization');
+        $activity->loadMissing('assignment.location', 'staffMember.organization', 'attendanceRecord');
         $staff = $activity->staffMember;
 
         if ($activity->ended_at !== null) {
@@ -93,23 +94,31 @@ final class FieldService
         $payload['methods'] = ['gps'];
         $payload['location_uuid'] = $activity->assignment->location->uuid;
         $bundle = app(VerificationCentre::class)->assess($actor, $staff, WorkforcePolicy::resolve($staff->organization), $payload);
-        $gps = $bundle->forMethod(VerificationMethod::Gps);
+        $decision = $bundle->forMethod(VerificationMethod::Gps)
+            ?? new VerificationDecision(VerificationMethod::Gps, false, 'location_unavailable');
 
-        if (! $gps?->accepted) {
-            throw new AttendanceException($gps->reason ?? 'location_unavailable', $this->attendance->message($gps->reason ?? 'location_unavailable'));
+        $this->attendance->recordVerification($staff, $activity->attendanceRecord, $actor, 'field_finish', $decision);
+
+        if (! $decision->accepted) {
+            throw new AttendanceException($decision->reason, $this->attendance->message($decision->reason));
         }
 
-        try {
-            $this->attendance->checkOut($actor, $staff);
-        } catch (AttendanceException $exception) {
-            if (! in_array($exception->reason, ['not_checked_in', 'duplicate'], true)) {
-                throw $exception;
+        if ($activity->attendanceRecord !== null) {
+            try {
+                $this->attendance->checkOut($actor, $staff, $activity->attendanceRecord->uuid);
+            } catch (AttendanceException $exception) {
+                if (! in_array($exception->reason, ['not_checked_in', 'duplicate'], true)) {
+                    throw $exception;
+                }
             }
         }
 
         $activity->update([
             'ended_at' => now(),
             'status' => FieldActivityStatus::Completed,
+            'last_latitude' => isset($payload['latitude']) ? round((float) $payload['latitude'], 5) : null,
+            'last_longitude' => isset($payload['longitude']) ? round((float) $payload['longitude'], 5) : null,
+            'last_accuracy_m' => isset($payload['accuracy_m']) ? (int) round((float) $payload['accuracy_m']) : null,
             'last_reported_at' => now(),
         ]);
         $activity->assignment->update(['status' => FieldAssignmentStatus::Completed]);

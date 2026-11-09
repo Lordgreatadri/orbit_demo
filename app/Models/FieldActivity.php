@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'organization_id',
     'field_assignment_id',
     'staff_member_id',
+    'attendance_record_id',
     'started_at',
     'ended_at',
     'status',
@@ -49,6 +50,11 @@ class FieldActivity extends Model
     public function staffMember(): BelongsTo
     {
         return $this->belongsTo(StaffMember::class);
+    }
+
+    public function attendanceRecord(): BelongsTo
+    {
+        return $this->belongsTo(AttendanceRecord::class);
     }
 
     /**

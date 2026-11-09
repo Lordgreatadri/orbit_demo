@@ -428,6 +428,24 @@ final class AttendanceEngine
     }
 
     /**
+     * Store one verification decision on the attendance event trail.
+     * Accepted and rejected readings are both kept.
+     */
+    public function recordVerification(StaffMember $staff, ?AttendanceRecord $record, User $actor, string $type, VerificationDecision $decision): void
+    {
+        $this->event(
+            $staff,
+            $record,
+            $actor,
+            $type,
+            $decision->method->value,
+            $decision->accepted ? 'accepted' : 'rejected',
+            $decision->reason,
+            $decision->evidence,
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $evidence
      */
     private function event(StaffMember $staff, ?AttendanceRecord $record, ?User $actor, string $type, ?string $method, string $outcome, string $reason, array $evidence): void

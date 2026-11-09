@@ -46,5 +46,11 @@
                 <li class="px-5 py-4 text-sm text-fg-muted">Nothing scheduled.</li>
             @endforelse
         </ul>
+        @if ($assignments->hasPages())
+            <div class="flex flex-col gap-3 border-t border-edge px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs text-fg-subtle">Showing {{ $assignments->firstItem() }}–{{ $assignments->lastItem() }} of {{ $assignments->total() }}</p>
+                <div>{{ $assignments->links() }}</div>
+            </div>
+        @endif
     </x-card>
 </x-layouts.app>

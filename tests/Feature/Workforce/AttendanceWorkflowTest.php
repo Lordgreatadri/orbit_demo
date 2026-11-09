@@ -26,9 +26,12 @@ use App\Models\WorkforcePolicy;
 use App\Notifications\WorkforceMessage;
 use App\Workforce\QrSessionService;
 use App\Workforce\QrSvg;
+use App\Workforce\WorkforceReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -804,6 +807,291 @@ class AttendanceWorkflowTest extends TestCase
             ->assertDontSee('near a registered device');
 
         $this->assertSame($colleagueStaff->getKey(), AttendanceRecord::query()->where('attendance_session_id', $first->getKey())->where('staff_member_id', $colleagueStaff->getKey())->value('staff_member_id'));
+    }
+
+    #[Test]
+    public function review_fixes_keep_attendance_private_and_exports_safe(): void
+    {
+        [$admin, $member, $staff, $location] = $this->office(geofence: true);
+        $member->staffMember->update([
+            'work_type' => WorkType::Field,
+            'first_name' => '=1+1',
+            'staff_number' => '+441',
+        ]);
+
+        $this->actingAs($admin)->post(route('org.field.store'), [
+            'staff_uuid' => $staff->uuid,
+            'location_uuid' => $location->uuid,
+            'title' => 'Confidential inspection',
+            'starts_on' => '2026-11-04',
+            'ends_on' => '2026-11-04',
+        ])->assertSessionHas('status');
+
+        $unlinked = $this->createMember($admin->organization);
+        $this->actingAs($unlinked)->get(route('org.field.index'))
+            ->assertOk()
+            ->assertSee('No assignments.')
+            ->assertDontSee('Confidential inspection');
+        $this->actingAs($member)->get(route('org.field.index'))
+            ->assertOk()
+            ->assertSee('Confidential inspection');
+
+        DB::table('attendance_records')->insert([
+            'uuid' => (string) Str::uuid(),
+            'organization_id' => $admin->organization_id,
+            'staff_member_id' => $staff->getKey(),
+            'work_date' => '2026-11-03',
+            'status' => 'late',
+            'source' => 'self',
+            'period_key' => AttendanceRecord::dayPeriod('2026-11-03'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $directory = $this->createMember($admin->organization);
+        $directory->givePermissionTo('staff.view');
+        $this->actingAs($directory)->get(route('org.staff.show', $staff))
+            ->assertOk()
+            ->assertDontSee('Recent attendance')
+            ->assertDontSee('Nov 3, 2026');
+        $this->actingAs($admin)->get(route('org.staff.show', $staff))
+            ->assertOk()
+            ->assertSee('Recent attendance')
+            ->assertSee('Nov 3, 2026');
+
+        $export = $this->actingAs($admin)->get(route('org.analytics.export', [
+            'from' => '2026-11-03',
+            'to' => '2026-11-03',
+        ]));
+        $export->assertOk();
+        $csv = $export->streamedContent();
+        $this->assertStringContainsString("'=1+1", $csv);
+        $this->assertStringContainsString("'+441", $csv);
+        $this->assertStringNotContainsString(',=1+1', $csv);
+
+        $this->actingAs($admin)->get(route('org.analytics.index', [
+            'from' => '2026-09-01',
+            'to' => '2026-11-02',
+        ]))->assertOk()->assertSee('value="2026-10-03"', false)->assertDontSee('value="2026-09-01"', false);
+
+        $this->actingAs($admin)->get(route('org.analytics.index', [
+            'from' => '2026-09-02',
+            'to' => '2026-11-02',
+        ]))->assertOk()->assertSee('value="2026-09-02"', false);
+
+        DB::table('attendance_records')->insert([
+            [
+                'uuid' => (string) Str::uuid(),
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $staff->getKey(),
+                'work_date' => '2026-11-04',
+                'status' => 'present',
+                'source' => 'self',
+                'period_key' => AttendanceRecord::dayPeriod('2026-11-04'),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'uuid' => (string) Str::uuid(),
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $staff->getKey(),
+                'work_date' => '2026-11-04',
+                'status' => 'present',
+                'source' => 'self',
+                'period_key' => 'session:review',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+        $day = Carbon::parse('2026-11-04', 'Africa/Accra')->startOfDay();
+        $trend = app(WorkforceReport::class)->trend($admin->organization, $day, $day);
+        $this->assertSame(2, $trend[0]['present']);
+    }
+
+    #[Test]
+    public function review_fixes_cover_schedules_leave_sessions_and_field_finish(): void
+    {
+        [$admin, $member, $staff, $location] = $this->office(geofence: true);
+        $member->staffMember->update(['work_type' => WorkType::Field]);
+        $manager = $this->createMember($admin->organization, role: 'organization_manager');
+
+        $this->actingAs($admin)->post(route('org.schedules.store'), [
+            'name' => 'Broken clock',
+            'starts_at' => '99:99',
+            'ends_at' => '17:00',
+            'effective_from' => '2026-11-01',
+        ])->assertSessionHasErrors('starts_at');
+        $this->assertDatabaseCount('shifts', 0);
+
+        $this->actingAs($admin)->post(route('org.schedules.store'), [
+            'name' => 'Night duty',
+            'starts_at' => '22:00',
+            'ends_at' => '06:00',
+            'effective_from' => '2026-11-01',
+        ])->assertSessionHas('status');
+        $shift = Shift::query()->firstOrFail();
+        $this->actingAs($admin)->post(route('org.schedules.publish', $shift))->assertSessionHas('status');
+        $this->actingAs($admin)->post(route('org.schedules.assign', $shift), [
+            'staff_uuid' => $staff->uuid,
+            'work_date' => '2026-11-04',
+        ])->assertSessionHas('status');
+
+        Carbon::setTestNow(Carbon::parse('2026-11-05 00:30:00', 'Africa/Accra'));
+        $token = $this->openSession($admin, $location);
+        $this->actingAs($member)->post(route('org.attendance.check-in'), [
+            'methods' => ['qr'],
+            'token' => $token,
+        ])->assertSessionHas('status');
+        $overnight = AttendanceRecord::query()->where('staff_member_id', $staff->getKey())->firstOrFail();
+        $this->assertSame('late', $overnight->status->value);
+        $this->assertSame(140, $overnight->late_minutes);
+
+        Carbon::setTestNow(Carbon::parse('2026-11-04 08:05:00', 'Africa/Accra'));
+        $admin->organization->update(['timezone' => 'Europe/Berlin']);
+        $admin->unsetRelation('organization');
+        $this->actingAs($admin)->post(route('org.attendance.sessions.store'), [
+            'name' => 'Berlin register',
+            'starts_at' => '2026-11-04T09:00',
+            'ends_at' => '2026-11-04T12:00',
+        ])->assertRedirect();
+        $berlin = AttendanceSession::query()->where('name', 'Berlin register')->firstOrFail();
+        $this->assertSame('2026-11-04 08:00:00', $berlin->starts_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-11-04 11:00:00', $berlin->ends_at->format('Y-m-d H:i:s'));
+        $admin->organization->update(['timezone' => 'Africa/Accra']);
+        $admin->unsetRelation('organization');
+
+        $future = AttendanceSession::query()->create([
+            'organization_id' => $admin->organization_id,
+            'created_by' => $admin->getKey(),
+            'name' => 'Later register',
+            'starts_at' => now()->addHours(2),
+            'ends_at' => now()->addHours(4),
+            'status' => 'active',
+            'qr_ttl_seconds' => 60,
+            'require_location' => false,
+        ]);
+        $this->actingAs($admin)->get(route('org.attendance.sessions.show', $future))
+            ->assertOk()
+            ->assertSee('}, 5000);', false);
+
+        $this->actingAs($admin)->post(route('org.field.store'), [
+            'staff_uuid' => $staff->uuid,
+            'location_uuid' => $location->uuid,
+            'title' => 'Inspection',
+            'starts_on' => '2026-11-04',
+            'ends_on' => '2026-11-04',
+        ])->assertSessionHas('status');
+        $assignment = FieldAssignment::query()->firstOrFail();
+        $this->actingAs($member)->post(route('org.field.start', $assignment), $this->gps(5.6037, -0.1870, 20))
+            ->assertSessionHas('status');
+        $activity = FieldActivity::query()->firstOrFail();
+        $this->assertNotNull($activity->attendance_record_id);
+
+        $this->actingAs($member)->post(route('org.field.finish', $activity), $this->gps(5.6037, -0.1870, 900))
+            ->assertSessionHasErrors('attendance');
+        $this->assertNull($activity->fresh()->ended_at);
+        $this->assertDatabaseHas('attendance_events', [
+            'staff_member_id' => $staff->getKey(),
+            'type' => 'field_finish',
+            'outcome' => 'rejected',
+        ]);
+
+        $sessionToken = $this->openSession($admin, $location);
+        $this->actingAs($member)->post(route('org.attendance.check-in'), [
+            'methods' => ['qr'],
+            'token' => $sessionToken,
+        ])->assertSessionHas('status');
+        $sessionRecord = AttendanceRecord::query()->whereNotNull('attendance_session_id')->firstOrFail();
+
+        $this->actingAs($member)->post(route('org.field.finish', $activity), $this->gps(5.6037, -0.1870, 20))
+            ->assertSessionHas('status');
+        $activity->refresh();
+        $this->assertNotNull($activity->ended_at);
+        $this->assertEqualsWithDelta(5.6037, (float) $activity->last_latitude, 0.00001);
+        $this->assertNotNull($activity->attendanceRecord->fresh()->check_out_at);
+        $this->assertNull($sessionRecord->fresh()->check_out_at);
+        $this->assertDatabaseHas('attendance_events', [
+            'attendance_record_id' => $activity->attendance_record_id,
+            'type' => 'field_finish',
+            'outcome' => 'accepted',
+            'method' => 'gps',
+        ]);
+
+        $this->actingAs($admin)->post(route('org.leave.types.store'), [
+            'name' => 'Annual',
+            'code' => 'annual',
+            'requires_balance' => '1',
+            'default_days' => 5,
+        ])->assertSessionHas('status');
+        $type = LeaveType::query()->firstOrFail();
+        $this->actingAs($member)->post(route('org.leave.store'), [
+            'leave_type_uuid' => $type->uuid,
+            'starts_on' => '2026-11-10',
+            'ends_on' => '2026-11-14',
+            'reason' => 'First week',
+        ])->assertSessionHas('status');
+        $this->actingAs($member)->post(route('org.leave.store'), [
+            'leave_type_uuid' => $type->uuid,
+            'starts_on' => '2026-11-17',
+            'ends_on' => '2026-11-21',
+            'reason' => 'Second week',
+        ])->assertSessionHas('status');
+        $first = LeaveRequest::query()->orderBy('id')->firstOrFail();
+        $second = LeaveRequest::query()->orderByDesc('id')->firstOrFail();
+        $this->actingAs($manager)->post(route('org.leave.decide', $first), [
+            'decision' => 'approve',
+            'decision_note' => 'Granted',
+        ])->assertSessionHas('status');
+        $this->actingAs($manager)->post(route('org.leave.decide', $second), [
+            'decision' => 'approve',
+            'decision_note' => 'Too many',
+        ])->assertSessionHasErrors('leave');
+        $this->assertSame('submitted', $second->fresh()->status->value);
+        $this->assertSame(5, (int) LeaveBalance::query()->where('staff_member_id', $staff->getKey())->value('used_days'));
+
+        $this->actingAs($admin)->get(route('org.notifications.index'))
+            ->assertOk()
+            ->assertSee('type="hidden" name="events[attendance.confirmed][mail]" value="0"', false);
+        $this->actingAs($admin)->put(route('org.notifications.update'), [
+            'events' => [
+                'attendance.confirmed' => ['mail' => '0', 'database' => '0', 'sms' => '0', 'push' => '0'],
+            ],
+        ])->assertSessionHas('status');
+        $this->assertDatabaseHas('notification_preferences', [
+            'organization_id' => $admin->organization_id,
+            'event' => 'attendance.confirmed',
+            'mail' => 0,
+            'database' => 0,
+            'sms' => 0,
+            'push' => 0,
+        ]);
+
+        for ($day = 0; $day < 31; $day++) {
+            ShiftAssignment::query()->create([
+                'organization_id' => $admin->organization_id,
+                'shift_id' => $shift->getKey(),
+                'staff_member_id' => $staff->getKey(),
+                'work_date' => Carbon::parse('2026-11-05')->addDays($day)->toDateString(),
+            ]);
+        }
+        $this->actingAs($admin)->get(route('org.schedules.index'))
+            ->assertOk()
+            ->assertSee('page=2', false);
+
+        for ($row = 0; $row < 20; $row++) {
+            FieldAssignment::query()->create([
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $staff->getKey(),
+                'location_id' => $location->getKey(),
+                'assigned_by' => $admin->getKey(),
+                'title' => 'Extra task '.$row,
+                'starts_on' => '2026-11-04',
+                'ends_on' => '2026-11-04',
+                'status' => 'assigned',
+            ]);
+        }
+        $this->actingAs($admin)->get(route('org.field.index'))
+            ->assertOk()
+            ->assertSee('page=2', false);
     }
 
     /**

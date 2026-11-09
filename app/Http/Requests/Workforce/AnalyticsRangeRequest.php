@@ -31,7 +31,7 @@ class AnalyticsRangeRequest extends WorkforceRequest
         $from = Carbon::parse($this->validated('from') ?? now($timezone)->startOfMonth()->toDateString(), $timezone)->startOfDay();
         $to = Carbon::parse($this->validated('to') ?? now($timezone)->toDateString(), $timezone)->startOfDay();
 
-        if ($from->gt($to) || $from->diffInDays($to) > 62) {
+        if ($from->gt($to) || $from->diffInDays($to) > 61) {
             $from = $to->copy()->subDays(30);
         }
 
