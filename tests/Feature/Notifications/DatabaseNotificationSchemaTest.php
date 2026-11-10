@@ -42,7 +42,9 @@ class DatabaseNotificationSchemaTest extends TestCase
         $user = User::factory()->create();
         $legacyId = (string) Str::uuid();
 
+        Schema::disableForeignKeyConstraints();
         Schema::drop('notifications');
+        Schema::enableForeignKeyConstraints();
         Schema::create('notifications', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('type');

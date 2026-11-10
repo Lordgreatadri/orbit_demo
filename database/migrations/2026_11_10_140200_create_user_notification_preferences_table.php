@@ -1,0 +1,38 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Optional per-user channel choices. One row per user and category.
+ * Mandatory notices ignore these rows.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('user_notification_preferences')) {
+            return;
+        }
+
+        Schema::create('user_notification_preferences', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('organization_id')->constrained('organizations')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('category', 32);
+            $table->boolean('mail')->default(true);
+            $table->boolean('database')->default(true);
+            $table->boolean('sms')->default(false);
+            $table->timestamps();
+
+            $table->unique(['user_id', 'category']);
+            $table->index(['organization_id', 'user_id']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('user_notification_preferences');
+    }
+};

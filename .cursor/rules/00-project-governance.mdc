@@ -15,3 +15,4 @@ alwaysApply: true
 - Do not implement future roadmap features just because they are mentioned in slides or long-term architecture notes. Follow `docs/requirements/00-product-scope.md` and the phase plan.
 - Do not put secrets in source control, tests, seeders, logs, exception messages, or frontend bundles.
 - Keep documentation aligned with code. When a decision materially changes, propose/update the relevant ADR and requirements.
+- Never hide a material transformation of existing business data inside a migration when the transformation can be independently executed, observed, audited, retried, and verified as an explicit data-upgrade operation.

@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\NotificationPreference;
 use App\Models\Organization;
 use App\Models\User;
+use App\Workforce\WorkforceEvents;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -24,7 +25,8 @@ class WorkforceMessage extends Notification
      */
     public function via(object $notifiable): array
     {
-        $channels = NotificationPreference::channelsFor($this->organization, $this->event);
+        $user = $notifiable instanceof User ? $notifiable : null;
+        $channels = NotificationPreference::channelsFor($this->organization, $this->event, $user);
         $via = [];
 
         if ($channels['database']) {
@@ -40,9 +42,17 @@ class WorkforceMessage extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $name = $notifiable instanceof User && filled($notifiable->first_name)
+            ? $notifiable->first_name
+            : 'There';
+        $brand = $this->organization->name;
+
         $mail = (new MailMessage)
             ->subject($this->title)
-            ->line($this->body);
+            ->greeting('Hello '.$name.',')
+            ->line($this->body)
+            ->line('This notice is from '.$brand.'.')
+            ->salutation('— '.$brand);
 
         if (filled($this->actionUrl)) {
             $mail->action($this->actionLabel ?: 'Open', $this->actionUrl);
@@ -52,7 +62,7 @@ class WorkforceMessage extends Notification
     }
 
     /**
-     * @return array{title: string, body: string, event: string, url: ?string}
+     * @return array{title: string, body: string, event: string, category: string, url: ?string}
      */
     public function toArray(object $notifiable): array
     {
@@ -60,13 +70,8 @@ class WorkforceMessage extends Notification
             'title' => $this->title,
             'body' => $this->body,
             'event' => $this->event,
+            'category' => WorkforceEvents::definition($this->event)['category'] ?? 'attendance',
             'url' => $this->actionUrl,
         ];
-    }
-
-    public function shouldSendSms(User $user): bool
-    {
-        return NotificationPreference::channelsFor($this->organization, $this->event)['sms']
-            && filled($user->phone);
     }
 }

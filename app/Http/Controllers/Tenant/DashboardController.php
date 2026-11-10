@@ -16,6 +16,7 @@ use App\Models\LoginEvent;
 use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Workforce\Communication\Inbox;
 use App\Workforce\WorkforceReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -102,6 +103,8 @@ class DashboardController extends Controller
             'attendanceToday' => $user->can('attendance.view') ? app(WorkforceReport::class)->day($organization) : null,
             'upcomingAssignments' => $this->upcomingAssignments($user, $tz),
             'pendingLeave' => $this->pendingLeave($user),
+            'recentNotifications' => Inbox::recent($user),
+            'unreadNotifications' => Inbox::unreadCount($user),
         ]);
     }
 

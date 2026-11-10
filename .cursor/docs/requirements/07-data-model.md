@@ -13,7 +13,7 @@ This is a conceptual starting point, not a final migration specification. Inspec
 - `attendance_records` / `attendance_logs`: organisation, user/member, location, method, check-in/out, status, verification metadata.
 - `shifts`, `shift_assignments`: organisation, schedule times, location, member/role assignments.
 - `leave_requests`: organisation, requester, type, date range, reason, status, approver, decision timestamps.
-- `notifications`: recipient, type, payload/message, read/delivery state, tenant scope.
+- `notifications`: recipient, organisation, event, payload, read state. Policy, preferences, templates, and delivery claims are specified in `10-workforce-notifications.md`.
 - `invitations`: organisation, invitee, role, hashed token, expiry, acceptance/revocation timestamps, inviter.
 - `activity/audit logs`: actor, tenant, action, target, timestamp, minimal safe metadata.
 - `contact_messages`: public contact form submissions with abuse controls and retention policy.
