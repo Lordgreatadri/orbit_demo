@@ -413,7 +413,7 @@ class AttendanceWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Pending')
             ->assertSee('Two days away')
-            ->assertSee('2 days remaining');
+            ->assertSee('Entitlement 2');
     }
 
     #[Test]
@@ -1034,18 +1034,13 @@ class AttendanceWorkflowTest extends TestCase
             'starts_on' => '2026-11-17',
             'ends_on' => '2026-11-21',
             'reason' => 'Second week',
-        ])->assertSessionHas('status');
+        ])->assertSessionHasErrors('leave');
         $first = LeaveRequest::query()->orderBy('id')->firstOrFail();
-        $second = LeaveRequest::query()->orderByDesc('id')->firstOrFail();
+        $this->assertSame(1, LeaveRequest::query()->count());
         $this->actingAs($manager)->post(route('org.leave.decide', $first), [
             'decision' => 'approve',
             'decision_note' => 'Granted',
         ])->assertSessionHas('status');
-        $this->actingAs($manager)->post(route('org.leave.decide', $second), [
-            'decision' => 'approve',
-            'decision_note' => 'Too many',
-        ])->assertSessionHasErrors('leave');
-        $this->assertSame('submitted', $second->fresh()->status->value);
         $this->assertSame(5, (int) LeaveBalance::query()->where('staff_member_id', $staff->getKey())->value('used_days'));
 
         $this->actingAs($admin)->get(route('org.notifications.index'))

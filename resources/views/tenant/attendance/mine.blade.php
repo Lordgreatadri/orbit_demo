@@ -19,7 +19,12 @@
                                 {{ $record->session?->name ?? 'Work period' }}
                                 <x-badge :tone="$record->status->tone()">{{ $record->status->label() }}</x-badge>
                             </p>
-                            <p class="mt-1 text-sm text-fg-muted">In {{ $record->check_in_at?->timezone($timezone)->format('H:i') ?? '—' }} · Out {{ $record->check_out_at?->timezone($timezone)->format('H:i') ?? '—' }}</p>
+                            <p class="mt-1 text-sm text-fg-muted">
+                                @if ($record->work_date->toDateString() !== $today)
+                                    Overnight from {{ $record->work_date->format('D j M') }} ·
+                                @endif
+                                In {{ $record->check_in_at?->timezone($timezone)->format('H:i') ?? '—' }} · Out {{ $record->check_out_at?->timezone($timezone)->format('H:i') ?? '—' }}
+                            </p>
                             @if ($record->check_in_at && ! $record->check_out_at && $record->status->blocksCheckIn())
                                 <form method="POST" action="{{ route('org.attendance.check-out') }}" class="mt-3">
                                     @csrf

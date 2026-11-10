@@ -68,7 +68,7 @@ The organisation **slug is not the permanent URL**. Domains are registered rows.
 - Invitation-only membership; no open staff/student sign-up.
 - Host-only session cookies. Sessions do **not** follow a redirect across hostnames.
 - Platform console stays on the central host; organisation workspace stays on a tenant host.
-- Attendance, QR, field, schedules, leave, notifications, analytics remain labelled placeholders.
+- Attendance, QR, field, schedules, leave, notifications, and analytics are implemented workspace modules. Schedule and leave policy are described in `schedule-and-leave.md` and ADR-0014. This bullet originally recorded them as placeholders.
 
 ## 6. Proposed files (implemented)
 

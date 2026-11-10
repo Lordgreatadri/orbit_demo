@@ -40,11 +40,19 @@
     </x-card>
 
     @if ($canManage)
+        <x-card title="Find a person or work area" description="People appear after a search. Work areas show the first 60, or the matches for a search.">
+            <form method="GET" action="{{ route('org.field.index') }}" class="grid gap-4 sm:grid-cols-3">
+                <x-form.input id="field-person-find" name="person" label="Person" :value="$personFind" hint="At least two letters." />
+                <x-form.input id="field-place-find" name="place" label="Work area" :value="$placeFind" />
+                <div class="flex items-end"><x-button type="submit" variant="secondary" size="sm">Search</x-button></div>
+            </form>
+        </x-card>
+
         <x-card title="New assignment">
             <form method="POST" action="{{ route('org.field.store') }}" class="grid gap-4 sm:grid-cols-2">
                 @csrf
-                <x-form.select name="staff_uuid" label="Person" :options="$staff->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->all()" required />
-                <x-form.select name="location_uuid" label="Work area" :options="$locations->mapWithKeys(fn ($location) => [$location->uuid => $location->name])->all()" required />
+                <x-form.select id="field-person" name="staff_uuid" label="Person" :options="$staff->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->all()" required />
+                <x-form.select id="field-place" name="location_uuid" label="Work area" :options="$locations->mapWithKeys(fn ($location) => [$location->uuid => $location->name])->all()" required />
                 <x-form.input name="title" label="Task" required />
                 <x-form.input name="instructions" label="Instructions" />
                 <x-form.input type="date" name="starts_on" label="Starts" required />

@@ -7,8 +7,11 @@ use App\Enums\StaffStatus;
 use App\Enums\VerificationMethod;
 use App\Models\AttendanceEvent;
 use App\Models\AttendanceRecord;
+use App\Models\LeaveRequest;
 use App\Models\Organization;
+use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
+use App\Support\CalendarDay;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -24,15 +27,13 @@ final class WorkforceReport
     {
         $date ??= now($organization->timezone ?: 'UTC')->toDateString();
 
-        $counts = AttendanceRecord::query()
-            ->whereDate('work_date', $date)
+        $counts = CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date)
             ->select('status', DB::raw('count(distinct staff_member_id) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
 
         $active = StaffMember::query()->where('status', StaffStatus::Active->value)->count();
-        $covered = (int) AttendanceRecord::query()
-            ->whereDate('work_date', $date)
+        $covered = (int) CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date)
             ->whereIn('status', [
                 AttendanceStatus::Present->value,
                 AttendanceStatus::Late->value,
@@ -60,7 +61,8 @@ final class WorkforceReport
     public function trend(Organization $organization, Carbon $from, Carbon $to): array
     {
         $rows = AttendanceRecord::query()
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->where('work_date', '>=', $from->toDateString())
+            ->where('work_date', '<', CalendarDay::following($to->toDateString()))
             ->select('work_date', 'status', DB::raw('count(*) as total'))
             ->groupBy('work_date', 'status')
             ->get();
@@ -103,7 +105,8 @@ final class WorkforceReport
     {
         $rows = AttendanceRecord::query()
             ->where('organization_id', $organization->getKey())
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->where('work_date', '>=', $from->toDateString())
+            ->where('work_date', '<', CalendarDay::following($to->toDateString()))
             ->select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get();
@@ -156,5 +159,95 @@ final class WorkforceReport
             'label' => $method->label(),
             'total' => (int) ($counts[$method->value] ?? 0),
         ], $methods);
+    }
+
+    /**
+     * Leave requests whose start falls in the range, grouped by status.
+     *
+     * @return array<string, int>
+     */
+    public function leaveDecisions(Organization $organization, Carbon $from, Carbon $to): array
+    {
+        $counts = [];
+
+        foreach (
+            LeaveRequest::query()
+                ->where('organization_id', $organization->getKey())
+                ->where('starts_on', '>=', $from->toDateString())
+                ->where('starts_on', '<', CalendarDay::following($to->toDateString()))
+                ->select('status', DB::raw('count(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status') as $status => $total
+        ) {
+            $key = $status instanceof \BackedEnum ? $status->value : (string) $status;
+            $counts[$key] = (int) $total;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Published assignments in the range, and how many of those person-dates have a present or late record.
+     *
+     * @return array{scheduled: int, attended: int}
+     */
+    public function scheduleAdherence(Organization $organization, Carbon $from, Carbon $to): array
+    {
+        $base = ShiftAssignment::query()
+            ->where('organization_id', $organization->getKey())
+            ->where('work_date', '>=', $from->toDateString())
+            ->where('work_date', '<', CalendarDay::following($to->toDateString()))
+            ->whereHas('shift', fn ($query) => $query->where('status', 'published'));
+
+        $scheduled = (clone $base)->count();
+        $attended = (clone $base)->whereExists(function ($query): void {
+            $query->selectRaw('1')
+                ->from('attendance_records')
+                ->whereColumn('attendance_records.organization_id', 'shift_assignments.organization_id')
+                ->whereColumn('attendance_records.staff_member_id', 'shift_assignments.staff_member_id')
+                ->whereIn('attendance_records.status', ['present', 'late'])
+                ->where(function ($match): void {
+                    $match->whereColumn('attendance_records.shift_assignment_id', 'shift_assignments.id')
+                        ->orWhere(function ($legacy): void {
+                            $legacy->whereNull('attendance_records.shift_assignment_id')
+                                ->whereNull('attendance_records.attendance_session_id')
+                                ->whereColumn('attendance_records.work_date', 'shift_assignments.work_date')
+                                ->whereRaw(
+                                    '(select count(*) from shift_assignments as siblings
+                                        inner join shifts on shifts.id = siblings.shift_id and shifts.status = ?
+                                        where siblings.staff_member_id = shift_assignments.staff_member_id
+                                          and siblings.work_date = shift_assignments.work_date
+                                          and siblings.organization_id = shift_assignments.organization_id) = 1',
+                                    ['published'],
+                                );
+                        });
+                });
+        })->count();
+
+        return ['scheduled' => $scheduled, 'attended' => $attended];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function arrangementMix(Organization $organization, Carbon $from, Carbon $to): array
+    {
+        return ShiftAssignment::query()
+            ->join('work_arrangements', 'work_arrangements.id', '=', 'shift_assignments.work_arrangement_id')
+            ->where('shift_assignments.organization_id', $organization->getKey())
+            ->whereColumn('work_arrangements.organization_id', 'shift_assignments.organization_id')
+            ->where('shift_assignments.work_date', '>=', $from->toDateString())
+            ->where('shift_assignments.work_date', '<', CalendarDay::following($to->toDateString()))
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('shifts')
+                    ->whereColumn('shifts.id', 'shift_assignments.shift_id')
+                    ->where('shifts.status', 'published');
+            })
+            ->select('work_arrangements.kind', DB::raw('count(*) as total'))
+            ->groupBy('work_arrangements.kind')
+            ->pluck('total', 'kind')
+            ->map(fn ($total) => (int) $total)
+            ->all();
     }
 }

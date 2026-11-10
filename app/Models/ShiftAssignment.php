@@ -8,7 +8,19 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['organization_id', 'shift_id', 'staff_member_id', 'work_date'])]
+#[Fillable([
+    'organization_id',
+    'shift_id',
+    'staff_member_id',
+    'work_arrangement_id',
+    'location_id',
+    'work_pattern_id',
+    'work_date',
+    'starts_at',
+    'ends_at',
+    'crosses_midnight',
+    'reminded_at',
+])]
 class ShiftAssignment extends Model
 {
     use BelongsToOrganization, HasPublicUuid;
@@ -18,7 +30,11 @@ class ShiftAssignment extends Model
      */
     protected function casts(): array
     {
-        return ['work_date' => 'date'];
+        return [
+            'work_date' => 'date',
+            'crosses_midnight' => 'boolean',
+            'reminded_at' => 'datetime',
+        ];
     }
 
     public function shift(): BelongsTo
@@ -29,5 +45,15 @@ class ShiftAssignment extends Model
     public function staffMember(): BelongsTo
     {
         return $this->belongsTo(StaffMember::class);
+    }
+
+    public function arrangement(): BelongsTo
+    {
+        return $this->belongsTo(WorkArrangement::class, 'work_arrangement_id');
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 }

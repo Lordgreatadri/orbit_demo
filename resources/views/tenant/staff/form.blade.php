@@ -4,6 +4,13 @@
         <x-button :href="$editing ? route('org.staff.show', $staff) : route('org.staff.index')" variant="ghost" size="sm"><x-icon name="chevron-left" class="size-4" /> Back</x-button>
     </x-page-header>
 
+    <x-card title="Find a line manager" description="Search by name. The current manager stays selected.">
+        <form method="GET" action="{{ $editing ? route('org.staff.edit', $staff) : route('org.staff.create') }}" class="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <x-form.input id="staff-manager-find" name="manager_find" label="Name" :value="$managerFind" hint="At least two letters." />
+            <x-button type="submit" variant="secondary" size="sm">Search</x-button>
+        </form>
+    </x-card>
+
     <form method="POST" action="{{ $editing ? route('org.staff.update', $staff) : route('org.staff.store') }}" class="space-y-6">
         @csrf
         @if ($editing) @method('PUT') @endif
@@ -14,6 +21,10 @@
                 <x-form.input name="last_name" label="Last name" :value="$staff->last_name" required autocomplete="off" />
                 <x-form.input name="staff_number" label="Staff number" :value="$staff->staff_number" required hint="Unique within your organisation. Letters, numbers, dashes." class="font-mono uppercase" />
                 <x-form.input name="job_title" label="Job title" :value="$staff->job_title" />
+                <x-form.input name="grade" label="Grade" :value="$staff->grade" hint="Used only when a leave rule matches on grade." />
+                <x-form.input name="employment_type" label="Employment type" :value="$staff->employment_type" hint="For example permanent or contract. The organisation chooses the words." />
+                <x-form.select name="staff_category" label="Staff category" :options="$categories" :value="$staff->category?->uuid" placeholder="— None —" />
+                <x-form.select id="staff-reports-to" name="reports_to" label="Line manager" :options="$managers" :value="$staff->reportsTo?->uuid" placeholder="— None —" hint="Search above when the manager is not listed." />
                 <x-form.input name="email" type="email" label="Work e-mail" :value="$staff->email" hint="Used for notifications when no account is linked." />
                 <x-form.input name="phone" type="tel" label="Phone" :value="$staff->phone" placeholder="+233201234567" />
             </div>

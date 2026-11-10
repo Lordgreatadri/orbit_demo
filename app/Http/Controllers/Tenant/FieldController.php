@@ -45,10 +45,17 @@ class FieldController extends Controller
             'activities' => $activities,
             'delayMinutes' => $policy->field_delay_minutes,
             'canManage' => $user->can('attendance.manage'),
-            'staff' => $user->can('attendance.manage')
-                ? StaffMember::query()->orderBy('last_name')->limit(200)->get(['uuid', 'first_name', 'last_name'])
+            'staff' => $user->can('attendance.manage') && strlen($person = trim((string) $request->query('person', ''))) >= 2
+                ? StaffMember::query()->search($person)->orderBy('last_name')->limit(30)->get(['uuid', 'first_name', 'last_name'])
                 : collect(),
-            'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['uuid', 'name']),
+            'locations' => Location::query()
+                ->where('is_active', true)
+                ->when(strlen($place = trim((string) $request->query('place', ''))) >= 2, fn ($query) => $query->where('name', 'like', '%'.$place.'%'))
+                ->orderBy('name')
+                ->limit(60)
+                ->get(['uuid', 'name']),
+            'personFind' => trim((string) $request->query('person', '')),
+            'placeFind' => trim((string) $request->query('place', '')),
             'timezone' => $user->organization->timezone,
         ]);
     }

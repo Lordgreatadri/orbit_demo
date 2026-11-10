@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Structure;
 
 use App\Models\Department;
+use App\Models\StaffMember;
 use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -21,11 +22,16 @@ class DepartmentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $payload = [
             'name' => trim((string) $this->input('name')),
-            'code' => Str::upper(trim((string) $this->input('code'))) ?: null,
             'is_active' => $this->boolean('is_active', true),
-        ]);
+        ];
+
+        if ($this->exists('code')) {
+            $payload['code'] = Str::upper(trim((string) $this->input('code'))) ?: null;
+        }
+
+        $this->merge($payload);
     }
 
     /**
@@ -41,6 +47,24 @@ class DepartmentRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:32', 'regex:/^[A-Z0-9\-_]+$/', Rule::unique('departments', 'code')->where('organization_id', $tenantId)->ignore($ignore)],
             'description' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
+            'head' => ['nullable', 'string', Rule::exists('staff_members', 'uuid')->where('organization_id', $tenantId)],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function departmentAttributes(): array
+    {
+        $data = $this->safe()->except(['head']);
+
+        if ($this->exists('head')) {
+            $head = $this->validated('head');
+            $data['head_staff_member_id'] = $head
+                ? StaffMember::query()->where('uuid', $head)->value('id')
+                : null;
+        }
+
+        return $data;
     }
 }

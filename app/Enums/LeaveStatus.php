@@ -8,6 +8,7 @@ enum LeaveStatus: string
     case Approved = 'approved';
     case Rejected = 'rejected';
     case Cancelled = 'cancelled';
+    case Withdrawn = 'withdrawn';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum LeaveStatus: string
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
             self::Cancelled => 'Cancelled',
+            self::Withdrawn => 'Withdrawn',
         };
     }
 
@@ -26,6 +28,7 @@ enum LeaveStatus: string
             self::Approved => 'success',
             self::Rejected => 'danger',
             self::Cancelled => 'neutral',
+            self::Withdrawn => 'neutral',
         };
     }
 }

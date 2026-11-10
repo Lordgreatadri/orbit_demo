@@ -17,6 +17,8 @@ class AssignShiftRequest extends WorkforceRequest
         return [
             'staff_uuid' => ['required', 'uuid', $this->tenantExists('staff_members')],
             'work_date' => ['required', 'date'],
+            'arrangement_uuid' => ['nullable', 'uuid', $this->tenantExists('work_arrangements')],
+            'location_uuid' => ['nullable', 'uuid', $this->tenantExists('locations')],
         ];
     }
 }
