@@ -296,3 +296,24 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan db:seed --class=Database\\Seeders\\WorkforceScenarioSeeder --force` | Completed in 783 ms |
 | `php84 artisan db:seed --class=Database\\Seeders\\SystemDemoUserSeeder --force` | Completed in 4.6 s. Refreshed the fictional EPA and UPSA directories |
 
+## Schedule and leave review remediation (2026-11-10)
+- [x] A leave-year anchor cannot change while that type has a balance or a submitted or approved request. The period end is the day before the next configured anchor.
+- [x] Checkout, My attendance, and missing-checkout cleanup include an open overnight period until its scheduled end. Checkout punctuality uses the record's assignment.
+- [x] A published assignment's location is authoritative. A conflicting supplied location is rejected.
+- [x] Between two periods, early check-in uses `grace_minutes` and does not select a period that has ended.
+- [x] Assignment removal and check-in lock the person row. Removal rechecks attendance inside that lock.
+- [x] A queued notice restores the tenant that was current before the job. Delivery is claimed per recipient, key, and channel.
+- [x] Legacy submitted leave is reserved. The stored entitlement is not rewritten. A shortfall is one audited adjustment. Legacy approved leave cancels against its original calendar year. Unambiguous legacy attendance is linked to its assignment.
+- [x] The approval queue follows the policy mode. An authorised approver can open and cancel another person's approved leave.
+- [x] Schedule adherence counts the matching assignment. Scheduled arrangements exclude draft shifts.
+- [x] The department form keeps the code field beside the department head.
+- [x] Design updated in ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-10 review remediation)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/ScheduleLeaveReviewTest.php tests/Feature/Tenancy/HostnameRoutingTest.php tests/Feature/Staff/StructureTest.php tests/Feature/Workforce/ScheduleLeaveFoundationTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php` | **62 passed, 752 assertions** |
+| `php84 artisan test --compact` | **276 passed, 2315 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate --no-interaction` | Applied `2026_11_10_090000_schedule_leave_legacy_backfill` in 710 ms. That run used the earlier class, which could raise `entitled_days`. The class now records a shortfall as an adjustment and does not rewrite entitlement. This database will not re-run the migration. Its five balances are inside the check and have no legacy adjustment rows |
+

@@ -95,8 +95,8 @@ final class LeaveService
                 throw new AttendanceException('invalid_dates', 'The leave end date must be on or after the start date.');
             }
 
-            $locked->loadMissing('leaveType');
-            $policy = $locked->policy ?? $this->planner->policyOn($locked->leaveType, $starts);
+            $locked->loadMissing('leaveType', 'policy');
+            $policy = $locked->policy;
             $dates = $this->planner->coveredDates($policy, (int) $staff->organization_id, $starts, $ends);
 
             if ($dates === []) {
@@ -187,10 +187,18 @@ final class LeaveService
             $this->assertCanDecide($actor, $staff, $locked->policy);
 
             if ($locked->leaveType()->value('requires_balance')) {
+                $on = $locked->starts_on->toDateString();
                 $policy = $locked->policy;
-                $balance = $policy === null
-                    ? null
-                    : $this->lockedBalance($staff, $locked->leaveType, $policy, $locked->starts_on->toDateString());
+                $start = $policy === null
+                    ? substr($on, 0, 4).'-01-01'
+                    : $this->planner->period($policy, $on)[0];
+                $balance = CalendarDay::constrain(
+                    LeaveBalance::query()
+                        ->where('staff_member_id', $staff->getKey())
+                        ->where('leave_type_id', $locked->leave_type_id),
+                    'period_start',
+                    $start,
+                )->lockForUpdate()->first();
 
                 if ($balance !== null) {
                     $restore = min($locked->dayCount(), (int) $balance->used_days);
@@ -363,7 +371,7 @@ final class LeaveService
             return;
         }
 
-        $policy = $request->policy ?? $this->planner->policyOn($request->leaveType, $request->starts_on->toDateString());
+        $policy = $request->policy;
         $balance = $this->lockedBalance($staff, $request->leaveType, $policy, $request->starts_on->toDateString());
         $days = $request->dayCount();
         $held = min($days, (int) $balance->pending_days);
@@ -390,9 +398,16 @@ final class LeaveService
 
         $request->loadMissing('leaveType', 'policy');
         $policy = $request->policy;
+        $on = $request->starts_on->toDateString();
         $balance = $policy === null
-            ? LeaveBalance::query()->where('staff_member_id', $staff->getKey())->where('leave_type_id', $request->leave_type_id)->lockForUpdate()->first()
-            : $this->lockedBalance($staff, $request->leaveType, $policy, $request->starts_on->toDateString());
+            ? CalendarDay::constrain(
+                LeaveBalance::query()
+                    ->where('staff_member_id', $staff->getKey())
+                    ->where('leave_type_id', $request->leave_type_id),
+                'period_start',
+                substr($on, 0, 4).'-01-01',
+            )->lockForUpdate()->first()
+            : $this->lockedBalance($staff, $request->leaveType, $policy, $on);
 
         if ($balance === null) {
             return;

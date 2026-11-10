@@ -112,30 +112,21 @@ class LeaveController extends Controller
             : (clone $ownBase)->whereIn('status', [LeaveStatus::Rejected->value, LeaveStatus::Cancelled->value, LeaveStatus::Withdrawn->value])->orderByDesc('starts_on')->paginate(15, ['*'], 'closed')->withQueryString();
 
         $queue = $approve
-            ? LeaveRequest::query()
-                ->with(['staffMember:id,first_name,last_name,reports_to_id,department_id', 'leaveType:id,name,requires_balance', 'decider:id,first_name,last_name', 'policy:id,approval_mode,allow_self_approval'])
-                ->where('status', LeaveStatus::Submitted->value)
-                ->when($staff !== null, fn ($query) => $query->where('staff_member_id', '!=', $staff->getKey()))
-                ->when(! $policyAdmin, function ($query) use ($staff): void {
-                    $mine = $staff?->getKey() ?? 0;
-                    $query->where(function ($outer) use ($mine): void {
-                        $outer->whereDoesntHave('policy')
-                            ->orWhereHas('policy', fn ($policy) => $policy->where('approval_mode', 'any_approver'))
-                            ->orWhereHas('staffMember', function ($person) use ($mine): void {
-                                $person->where('reports_to_id', $mine)
-                                    ->orWhereNull('reports_to_id')
-                                    ->orWhereHas('department', fn ($department) => $department->where('head_staff_member_id', $mine));
-                            });
-                    });
-                })
+            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Submitted->value)
                 ->orderBy('starts_on')
                 ->paginate(20, ['*'], 'queue')
+                ->withQueryString()
+            : collect();
+        $cancellable = $approve
+            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Approved->value)
+                ->orderByDesc('starts_on')
+                ->paginate(15, ['*'], 'cancellable')
                 ->withQueryString()
             : collect();
 
         $visible = collect();
 
-        foreach ([$pending, $due, $approved, $closed, $queue] as $page) {
+        foreach ([$pending, $due, $approved, $closed, $queue, $cancellable] as $page) {
             $visible = $visible->merge($page instanceof Paginator ? $page->getCollection() : $page);
         }
 
@@ -192,6 +183,7 @@ class LeaveController extends Controller
             'approved' => $approved,
             'closed' => $closed,
             'queue' => $queue,
+            'cancellable' => $cancellable,
             'details' => $details,
             'types' => $types,
             'typeOptions' => $typeOptions,
@@ -349,6 +341,16 @@ class LeaveController extends Controller
     public function updatePolicy(UpdateLeavePolicyRequest $request, LeavePolicy $leavePolicy): RedirectResponse
     {
         $input = $request->validated();
+        $month = (int) $input['year_start_month'];
+        $day = (int) $input['year_start_day'];
+        $anchorChanged = $month !== (int) $leavePolicy->year_start_month || $day !== (int) $leavePolicy->year_start_day;
+
+        if ($anchorChanged && $this->leaveYearIsInUse($leavePolicy)) {
+            return back()->withErrors([
+                'leave' => 'The leave year cannot change while this leave type still has a balance or a pending or approved request. Those days stay on the original leave year.',
+            ]);
+        }
+
         $leavePolicy->update([
             'year_start_month' => (int) $input['year_start_month'],
             'year_start_day' => (int) $input['year_start_day'],
@@ -431,5 +433,43 @@ class LeaveController extends Controller
         ]);
 
         return back()->with('status', 'Staff category saved. People and entitlement rules can use it.');
+    }
+
+    private function requestsForApprover(?StaffMember $staff, bool $policyAdmin, string $status)
+    {
+        return LeaveRequest::query()
+            ->with(['staffMember:id,first_name,last_name,reports_to_id,department_id', 'leaveType:id,name,requires_balance', 'decider:id,first_name,last_name', 'policy:id,approval_mode,allow_self_approval'])
+            ->where('status', $status)
+            ->when($staff !== null, fn ($query) => $query->where('staff_member_id', '!=', $staff->getKey()))
+            ->when(! $policyAdmin, function ($query) use ($staff): void {
+                $mine = $staff?->getKey() ?? 0;
+                $query->where(function ($outer) use ($mine): void {
+                    $outer->whereDoesntHave('policy')
+                        ->orWhereHas('policy', fn ($policy) => $policy->where('approval_mode', 'any_approver'))
+                        ->orWhere(function ($line) use ($mine): void {
+                            $line->whereHas('policy', fn ($policy) => $policy->where('approval_mode', 'line_manager'))
+                                ->whereHas('staffMember', fn ($person) => $person->where('reports_to_id', $mine)->orWhereNull('reports_to_id'));
+                        })
+                        ->orWhere(function ($head) use ($mine): void {
+                            $head->whereHas('policy', fn ($policy) => $policy->where('approval_mode', 'department_head'))
+                                ->whereHas('staffMember', function ($person) use ($mine): void {
+                                    $person->whereDoesntHave('department')
+                                        ->orWhereHas('department', fn ($department) => $department->whereNull('head_staff_member_id')->orWhere('head_staff_member_id', $mine));
+                                });
+                        });
+                });
+            });
+    }
+
+    private function leaveYearIsInUse(LeavePolicy $policy): bool
+    {
+        $typeId = $policy->leave_type_id;
+        $hasBalance = LeaveBalance::query()->where('leave_type_id', $typeId)->exists();
+        $hasRequest = LeaveRequest::query()
+            ->where('leave_type_id', $typeId)
+            ->whereIn('status', [LeaveStatus::Submitted->value, LeaveStatus::Approved->value])
+            ->exists();
+
+        return $hasBalance || $hasRequest;
     }
 }

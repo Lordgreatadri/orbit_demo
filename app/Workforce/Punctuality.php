@@ -3,6 +3,7 @@
 namespace App\Workforce;
 
 use App\Enums\AttendanceStatus;
+use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
 use App\Models\WorkforcePolicy;
 use Carbon\CarbonInterface;
@@ -28,9 +29,9 @@ final class Punctuality
         return [AttendanceStatus::Present, 0];
     }
 
-    public function earlyLeaveMinutes(StaffMember $staff, WorkforcePolicy $policy, CarbonInterface $at): int
+    public function earlyLeaveMinutes(StaffMember $staff, WorkforcePolicy $policy, CarbonInterface $at, ?ShiftAssignment $assignment = null): int
     {
-        [, $end] = $this->window($staff, $policy, $at);
+        [, $end] = $this->window($staff, $policy, $at, $assignment);
         $local = $at->copy()->timezone($this->timezone($staff));
 
         if ($local->greaterThanOrEqualTo($end)) {
@@ -43,10 +44,10 @@ final class Punctuality
     /**
      * @return array{0: Carbon, 1: Carbon, 2: int}
      */
-    public function window(StaffMember $staff, WorkforcePolicy $policy, CarbonInterface $at): array
+    public function window(StaffMember $staff, WorkforcePolicy $policy, CarbonInterface $at, ?ShiftAssignment $assignment = null): array
     {
         $tz = $this->timezone($staff);
-        $period = $this->schedules->periodAt($staff, $at);
+        $period = $assignment?->shift ? $assignment : $this->schedules->periodAt($staff, $at);
 
         if ($period?->shift) {
             [$start, $end] = $this->schedules->bounds($period->work_date->toDateString(), $period->shift, $tz, $period);

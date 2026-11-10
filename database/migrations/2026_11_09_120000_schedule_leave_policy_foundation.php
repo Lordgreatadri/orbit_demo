@@ -1,5 +1,6 @@
 <?php
 
+use App\Workforce\LegacyWorkforceBackfill;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
@@ -196,6 +197,8 @@ return new class extends Migration
                 ]);
             }
         });
+
+        LegacyWorkforceBackfill::leaveAccounts();
     }
 
     public function down(): void

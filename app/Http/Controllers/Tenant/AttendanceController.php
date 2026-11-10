@@ -82,8 +82,9 @@ class AttendanceController extends Controller
 
         return view('tenant.attendance.mine', [
             'staff' => $staff,
+            'today' => $today,
             'todayRecords' => $staff
-                ? AttendanceRecord::query()->with('session:id,name')->where('staff_member_id', $staff->getKey())->tap(fn ($query) => CalendarDay::constrain($query, 'work_date', $today))->orderByDesc('check_in_at')->get()
+                ? app(AttendanceEngine::class)->recordsForAttendancePage($staff, $today)
                 : collect(),
             'history' => $staff
                 ? AttendanceRecord::query()->with('session:id,name')->where('staff_member_id', $staff->getKey())->orderByDesc('work_date')->orderByDesc('id')->limit(14)->get()

@@ -69,7 +69,9 @@ final class LeavePlanner
             $start = $this->anchor($date->year - 1, (int) $policy->year_start_month, (int) $policy->year_start_day);
         }
 
-        return [$start->toDateString(), $start->copy()->addYear()->subDay()->toDateString()];
+        $next = $this->anchor($start->year + 1, (int) $policy->year_start_month, (int) $policy->year_start_day);
+
+        return [$start->toDateString(), $next->copy()->subDay()->toDateString()];
     }
 
     /**

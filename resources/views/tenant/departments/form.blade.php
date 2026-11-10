@@ -26,7 +26,10 @@
         <x-card title="Department">
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-form.input name="name" label="Name" :value="$department->name" required />
-                <x-form.select id="department-head" name="head" label="Department head" :options="collect($people ?? [])->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->prepend('No head', '')->all()" :value="$department->head?->uuid ?? ''" hint="Used when leave approval is set to the department head. Search above when the person is not listed." />
+                <x-form.input id="department-code" name="code" label="Code" :value="$department->code" hint="Optional short code, e.g. FIN or OPS." class="font-mono uppercase" />
+                <div class="sm:col-span-2">
+                    <x-form.select id="department-head" name="head" label="Department head" :options="collect($people ?? [])->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->prepend('No head', '')->all()" :value="$department->head?->uuid ?? ''" hint="Used when leave approval is set to the department head. Search above when the person is not listed." />
+                </div>
                 <div class="sm:col-span-2">
                     <x-form.textarea name="description" label="Description" :value="$department->description" rows="3" />
                 </div>

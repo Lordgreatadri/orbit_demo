@@ -107,6 +107,11 @@ class AttendanceRecord extends Model
         return $this->belongsTo(AttendanceSession::class, 'attendance_session_id');
     }
 
+    public function shiftAssignment(): BelongsTo
+    {
+        return $this->belongsTo(ShiftAssignment::class);
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(AttendanceEvent::class);

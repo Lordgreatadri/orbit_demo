@@ -18,6 +18,7 @@ use App\Support\Audit;
 use App\Support\CalendarDay;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 final class ScheduleService
 {
@@ -132,22 +133,88 @@ final class ScheduleService
             throw new AttendanceException('schedule_closed', 'A past assignment stays on record so attendance can still be explained.');
         }
 
-        $checkedIn = AttendanceRecord::query()
-            ->where('shift_assignment_id', $assignment->getKey())
+        DB::transaction(function () use ($actor, $assignment): void {
+            StaffMember::query()->whereKey($assignment->staff_member_id)->lockForUpdate()->first();
+            $locked = ShiftAssignment::query()->whereKey($assignment->getKey())->lockForUpdate()->first();
+
+            if ($locked === null) {
+                return;
+            }
+
+            if ($this->assignmentHasCheckIn($locked)) {
+                throw new AttendanceException('schedule_closed', 'This assignment already has a check-in, so it stays on record.');
+            }
+
+            $published = $locked->shift?->status === ShiftStatus::Published;
+            Audit::log('schedule.removed', $locked, ['work_date' => $locked->work_date?->toDateString()], $actor);
+            $locked->delete();
+
+            if ($published) {
+                app(WorkforceNotifier::class)->scheduleRemoved($locked);
+            }
+        });
+    }
+
+    /**
+     * Recheck inside the staff lock. A legacy day record counts when it can
+     * only belong to this assignment.
+     */
+    private function assignmentHasCheckIn(ShiftAssignment $assignment): bool
+    {
+        $direct = AttendanceRecord::query()
+            ->where('staff_member_id', $assignment->staff_member_id)
+            ->where(function ($query) use ($assignment): void {
+                $query->where('shift_assignment_id', $assignment->getKey())
+                    ->orWhere('period_key', AttendanceRecord::shiftPeriod((int) $assignment->getKey()));
+            })
             ->whereNotNull('check_in_at')
+            ->lockForUpdate()
             ->exists();
 
-        if ($checkedIn) {
-            throw new AttendanceException('schedule_closed', 'This assignment already has a check-in, so it stays on record.');
+        if ($direct) {
+            return true;
         }
 
-        $published = $assignment->shift?->status === ShiftStatus::Published;
-        Audit::log('schedule.removed', $assignment, ['work_date' => $assignment->work_date?->toDateString()], $actor);
-        $assignment->delete();
+        $date = $assignment->work_date->toDateString();
+        $legacy = AttendanceRecord::query()
+            ->where('staff_member_id', $assignment->staff_member_id)
+            ->where('period_key', AttendanceRecord::dayPeriod($date))
+            ->whereNull('shift_assignment_id')
+            ->whereNull('attendance_session_id')
+            ->whereNotNull('check_in_at')
+            ->lockForUpdate()
+            ->first();
 
-        if ($published) {
-            app(WorkforceNotifier::class)->scheduleRemoved($assignment);
+        if ($legacy === null) {
+            return false;
         }
+
+        $published = ShiftAssignment::query()
+            ->where('staff_member_id', $assignment->staff_member_id)
+            ->tap(fn ($query) => CalendarDay::constrain($query, 'work_date', $date))
+            ->whereHas('shift', fn ($query) => $query->where('status', ShiftStatus::Published->value))
+            ->with('shift')
+            ->lockForUpdate()
+            ->get();
+
+        if ($published->count() === 1) {
+            return (int) $published->first()->getKey() === (int) $assignment->getKey();
+        }
+
+        $assignment->loadMissing('organization', 'shift');
+        $timezone = $assignment->organization->timezone ?: 'UTC';
+        $at = $legacy->check_in_at->copy()->timezone($timezone);
+        $containing = $published->filter(function (ShiftAssignment $candidate) use ($date, $timezone, $at): bool {
+            if ($candidate->shift === null) {
+                return false;
+            }
+
+            [$start, $end] = $this->resolver->bounds($date, $candidate->shift, $timezone, $candidate);
+
+            return $at->greaterThanOrEqualTo($start) && $at->lessThan($end);
+        });
+
+        return $containing->count() === 1 && (int) $containing->first()->getKey() === (int) $assignment->getKey();
     }
 
     public function savePattern(

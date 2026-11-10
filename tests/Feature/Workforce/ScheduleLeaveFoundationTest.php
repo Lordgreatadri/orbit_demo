@@ -229,7 +229,7 @@ class ScheduleLeaveFoundationTest extends TestCase
             'ends_on' => '2026-12-03',
             'reason' => 'Again',
         ])->assertSessionHas('status');
-        $again = LeaveRequest::query()->where('status', 'submitted')->firstOrFail();
+        $again = LeaveRequest::query()->where('staff_member_id', $staff->getKey())->where('status', 'submitted')->firstOrFail();
         $this->actingAs($manager)->post(route('org.leave.decide', $again), [
             'decision' => 'approve',
             'decision_note' => 'Yes',

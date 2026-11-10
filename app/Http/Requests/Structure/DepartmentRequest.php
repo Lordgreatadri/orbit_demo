@@ -22,11 +22,16 @@ class DepartmentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $payload = [
             'name' => trim((string) $this->input('name')),
-            'code' => Str::upper(trim((string) $this->input('code'))) ?: null,
             'is_active' => $this->boolean('is_active', true),
-        ]);
+        ];
+
+        if ($this->exists('code')) {
+            $payload['code'] = Str::upper(trim((string) $this->input('code'))) ?: null;
+        }
+
+        $this->merge($payload);
     }
 
     /**

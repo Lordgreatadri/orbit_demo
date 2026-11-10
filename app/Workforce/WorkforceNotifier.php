@@ -21,10 +21,12 @@ use App\Models\ShiftAssignment;
 use App\Models\SmsProvider;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Models\WorkforceNoticeDelivery;
 use App\Models\WorkforcePolicy;
 use App\Notifications\WorkforceMessage;
 use App\Support\CalendarDay;
 use App\Tenancy\Origin;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 final class WorkforceNotifier
 {
@@ -326,6 +328,12 @@ final class WorkforceNotifier
         )->afterCommit();
     }
 
+    /**
+     * One logical notice per recipient, dedupe key, and channel. A completed
+     * claim is not sent again. SMS also stores that key on sms_messages.
+     * Mail and push have no provider idempotency key, so a provider that
+     * accepted the message and then timed out can still deliver it twice.
+     */
     public function deliver(
         User $user,
         string $event,
@@ -342,12 +350,24 @@ final class WorkforceNotifier
             return;
         }
 
-        $user->notify(new WorkforceMessage($organization, $event, $title, $body, $actionUrl, $actionLabel));
-
         $channels = NotificationPreference::channelsFor($organization, $event);
 
-        if ($channels['push']) {
-            $this->push->send($user, $title, $body);
+        if ($this->claim($user, $organization, $dedupeKey, 'notice')) {
+            try {
+                $user->notify(new WorkforceMessage($organization, $event, $title, $body, $actionUrl, $actionLabel));
+            } catch (\Throwable $exception) {
+                $this->release($user, $dedupeKey, 'notice');
+                throw $exception;
+            }
+        }
+
+        if ($channels['push'] && $this->claim($user, $organization, $dedupeKey, 'push')) {
+            try {
+                $this->push->send($user, $title, $body);
+            } catch (\Throwable $exception) {
+                $this->release($user, $dedupeKey, 'push');
+                throw $exception;
+            }
         }
 
         if (! $channels['sms'] || blank($user->phone)) {
@@ -369,5 +389,30 @@ final class WorkforceNotifier
         } catch (\Throwable $exception) {
             report($exception);
         }
+    }
+
+    private function claim(User $user, Organization $organization, string $dedupeKey, string $channel): bool
+    {
+        try {
+            WorkforceNoticeDelivery::query()->create([
+                'organization_id' => $organization->getKey(),
+                'user_id' => $user->getKey(),
+                'dedupe_key' => $dedupeKey,
+                'channel' => $channel,
+            ]);
+
+            return true;
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
+    }
+
+    private function release(User $user, string $dedupeKey, string $channel): void
+    {
+        WorkforceNoticeDelivery::query()
+            ->where('user_id', $user->getKey())
+            ->where('dedupe_key', $dedupeKey)
+            ->where('channel', $channel)
+            ->delete();
     }
 }

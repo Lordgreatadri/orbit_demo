@@ -136,6 +136,36 @@
                     @endif
                 @endif
             </section>
+
+            <section aria-labelledby="leave-cancellable-heading">
+                <div class="mb-3">
+                    <h2 id="leave-cancellable-heading" class="text-base font-semibold text-fg">Approved leave you can cancel</h2>
+                    <p class="text-sm text-fg-muted">Approved requests from other people. Cancelling restores the days and removes the leave from the calendar.</p>
+                </div>
+                @if ($cancellable->isEmpty())
+                    <div class="rounded-xl border border-edge bg-surface px-5 py-10 text-center">
+                        <p class="text-sm text-fg-muted">No approved leave is waiting to be cancelled.</p>
+                    </div>
+                @else
+                    <ul class="space-y-3">
+                        @foreach ($cancellable as $leaveRequest)
+                            <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge border-l-4 border-l-primary bg-surface px-4 py-3">
+                                <div>
+                                    <p class="font-medium text-fg">{{ $leaveRequest->staffMember?->name }}</p>
+                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>
+                                    <x-button type="button" variant="secondary" size="sm" x-on:click="openDetail('{{ $leaveRequest->uuid }}')">View</x-button>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if ($cancellable instanceof \Illuminate\Contracts\Pagination\Paginator && $cancellable->hasPages())
+                        <div class="mt-3">{{ $cancellable->links() }}</div>
+                    @endif
+                @endif
+            </section>
         @endif
 
         @if ($canManageTypes)

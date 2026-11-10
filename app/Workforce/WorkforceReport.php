@@ -205,8 +205,23 @@ final class WorkforceReport
                 ->from('attendance_records')
                 ->whereColumn('attendance_records.organization_id', 'shift_assignments.organization_id')
                 ->whereColumn('attendance_records.staff_member_id', 'shift_assignments.staff_member_id')
-                ->whereColumn('attendance_records.work_date', 'shift_assignments.work_date')
-                ->whereIn('attendance_records.status', ['present', 'late']);
+                ->whereIn('attendance_records.status', ['present', 'late'])
+                ->where(function ($match): void {
+                    $match->whereColumn('attendance_records.shift_assignment_id', 'shift_assignments.id')
+                        ->orWhere(function ($legacy): void {
+                            $legacy->whereNull('attendance_records.shift_assignment_id')
+                                ->whereNull('attendance_records.attendance_session_id')
+                                ->whereColumn('attendance_records.work_date', 'shift_assignments.work_date')
+                                ->whereRaw(
+                                    '(select count(*) from shift_assignments as siblings
+                                        inner join shifts on shifts.id = siblings.shift_id and shifts.status = ?
+                                        where siblings.staff_member_id = shift_assignments.staff_member_id
+                                          and siblings.work_date = shift_assignments.work_date
+                                          and siblings.organization_id = shift_assignments.organization_id) = 1',
+                                    ['published'],
+                                );
+                        });
+                });
         })->count();
 
         return ['scheduled' => $scheduled, 'attended' => $attended];
@@ -223,6 +238,12 @@ final class WorkforceReport
             ->whereColumn('work_arrangements.organization_id', 'shift_assignments.organization_id')
             ->where('shift_assignments.work_date', '>=', $from->toDateString())
             ->where('shift_assignments.work_date', '<', CalendarDay::following($to->toDateString()))
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('shifts')
+                    ->whereColumn('shifts.id', 'shift_assignments.shift_id')
+                    ->where('shifts.status', 'published');
+            })
             ->select('work_arrangements.kind', DB::raw('count(*) as total'))
             ->groupBy('work_arrangements.kind')
             ->pluck('total', 'kind')

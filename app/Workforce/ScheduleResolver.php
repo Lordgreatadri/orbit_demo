@@ -6,6 +6,7 @@ use App\Enums\ShiftStatus;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
+use App\Models\WorkforcePolicy;
 use App\Support\CalendarDay;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -40,34 +41,61 @@ final class ScheduleResolver
         $today = $local->toDateString();
         $yesterday = $local->copy()->subDay()->toDateString();
 
-        $rows = $this->publishedOn($staff, $yesterday)->concat($this->publishedOn($staff, $today));
+        $tomorrow = $local->copy()->addDay()->toDateString();
+        $rows = $this->publishedOn($staff, $yesterday)
+            ->concat($this->publishedOn($staff, $today))
+            ->concat($this->publishedOn($staff, $tomorrow));
 
-        $containing = $rows->first(function (ShiftAssignment $assignment) use ($local, $tz): bool {
-            if ($assignment->shift === null) {
-                return false;
-            }
+        $containing = $rows
+            ->filter(function (ShiftAssignment $assignment) use ($local, $tz): bool {
+                if ($assignment->shift === null) {
+                    return false;
+                }
 
-            [$start, $end] = $this->bounds($assignment->work_date->toDateString(), $assignment->shift, $tz, $assignment);
+                [$start, $end] = $this->bounds($assignment->work_date->toDateString(), $assignment->shift, $tz, $assignment);
 
-            return $local->greaterThanOrEqualTo($start) && $local->lessThan($end);
-        });
+                return $local->greaterThanOrEqualTo($start) && $local->lessThan($end);
+            })
+            ->sortByDesc(function (ShiftAssignment $assignment) use ($tz): int {
+                [$start] = $this->bounds($assignment->work_date->toDateString(), $assignment->shift, $tz, $assignment);
+
+                return $start->getTimestamp();
+            })
+            ->first();
 
         if ($containing !== null) {
             return $containing;
         }
 
-        $todays = $rows->filter(fn (ShiftAssignment $assignment): bool => $assignment->work_date->toDateString() === $today && $assignment->shift !== null);
+        $staff->loadMissing('organization');
+        $early = (int) WorkforcePolicy::resolve($staff->organization)->grace_minutes;
 
-        $started = $todays
-            ->filter(function (ShiftAssignment $assignment) use ($local, $tz): bool {
-                [$start] = $this->bounds($assignment->work_date->toDateString(), $assignment->shift, $tz, $assignment);
+        if ($early <= 0) {
+            return null;
+        }
 
-                return $start->lessThanOrEqualTo($local);
-            })
-            ->sortByDesc(fn (ShiftAssignment $assignment): string => (string) ($assignment->starts_at ?: $assignment->shift->starts_at))
-            ->first();
+        $limit = $local->copy()->addMinutes($early);
+        $upcoming = null;
+        $upcomingStart = null;
 
-        return $started ?? $todays->sortBy(fn (ShiftAssignment $assignment): string => (string) ($assignment->starts_at ?: $assignment->shift->starts_at))->first();
+        foreach ($rows as $assignment) {
+            if ($assignment->shift === null) {
+                continue;
+            }
+
+            [$start] = $this->bounds($assignment->work_date->toDateString(), $assignment->shift, $tz, $assignment);
+
+            if ($start->lessThanOrEqualTo($local) || $start->greaterThan($limit)) {
+                continue;
+            }
+
+            if ($upcomingStart === null || $start->lessThan($upcomingStart)) {
+                $upcoming = $assignment;
+                $upcomingStart = $start;
+            }
+        }
+
+        return $upcoming;
     }
 
     /**

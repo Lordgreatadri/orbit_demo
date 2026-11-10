@@ -40,7 +40,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
@@ -82,7 +81,6 @@ class AppServiceProvider extends ServiceProvider
         $this->configurePolicies();
         $this->configureRouteBindings();
         $this->configureEvents();
-        $this->configureQueueTenantReset();
         $this->configureNotificationUrls();
         $this->configureBrandingShare();
     }
@@ -155,17 +153,6 @@ class AppServiceProvider extends ServiceProvider
     private function configureEvents(): void
     {
         Event::subscribe(RecordLoginEvent::class);
-    }
-
-    /**
-     * Tenant context must never leak from one queued job to the next. Jobs that
-     * process tenant data set the context explicitly from their own payload.
-     */
-    private function configureQueueTenantReset(): void
-    {
-        Queue::before(fn () => $this->app->make(TenantContext::class)->clear());
-        Queue::after(fn () => $this->app->make(TenantContext::class)->clear());
-        Queue::failing(fn () => $this->app->make(TenantContext::class)->clear());
     }
 
     /**
