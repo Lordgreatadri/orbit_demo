@@ -131,6 +131,7 @@ final class AttendanceEngine
             });
         } catch (AttendanceException $exception) {
             $this->rememberRejection($staff, $actor, $payload, $exception->reason, $attempt);
+            app(WorkforceNotifier::class)->attendanceRejected($staff, $actor, $exception->reason);
             throw $exception;
         } catch (UniqueConstraintViolationException) {
             $this->rememberRejection($staff, $actor, $payload, 'duplicate', $attempt);

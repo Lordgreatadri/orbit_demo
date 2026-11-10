@@ -97,6 +97,29 @@
         </div>
 
         <div class="space-y-6">
+            <x-card title="Notifications" :description="$unreadNotifications === 1 ? '1 unread' : $unreadNotifications.' unread'" :padding="false">
+                <x-slot:actions><x-button :href="route('org.notifications.index')" variant="ghost" size="sm">View all</x-button></x-slot:actions>
+                @if ($recentNotifications->isEmpty())
+                    <p class="px-5 py-4 text-sm text-fg-muted">No notifications yet.</p>
+                @else
+                    <ul class="divide-y divide-edge">
+                        @foreach ($recentNotifications as $notification)
+                            <li class="px-5 py-3 text-sm">
+                                <p class="flex items-center gap-2 font-medium text-fg">
+                                    <span class="min-w-0 truncate">{{ $notification->data['title'] ?? 'Notice' }}</span>
+                                    @if ($notification->read_at === null)
+                                        <x-badge tone="warning">Unread</x-badge>
+                                    @else
+                                        <x-badge>Read</x-badge>
+                                    @endif
+                                </p>
+                                <p class="mt-0.5 line-clamp-2 text-xs text-fg-muted">{{ $notification->data['body'] ?? '' }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-card>
+
             @if ($user->can('schedules.view'))
                 <x-card title="Upcoming assignments" description="Next five, earliest date first." :padding="false">
                     <x-slot:actions><x-button :href="route('org.schedules.index')" variant="ghost" size="sm">Schedules</x-button></x-slot:actions>

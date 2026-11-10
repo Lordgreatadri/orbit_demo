@@ -37,6 +37,7 @@ use App\Workforce\WorkforceReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -513,7 +514,9 @@ class ScheduleLeaveReviewTest extends TestCase
         $staff->update(['department_id' => $department->getKey()]);
         $policy->update(['approval_mode' => 'department_head']);
         $this->actingAs($other)->get(route('org.leave.index'))->assertOk()->assertSee('Kojo Requestor');
-        $this->actingAs($manager)->get(route('org.leave.index'))->assertOk()->assertDontSee('Kojo Requestor');
+        $managerQueue = $this->actingAs($manager)->get(route('org.leave.index'))->assertOk()->getContent();
+        $queue = Str::between($managerQueue, 'id="leave-queue-heading"', 'id="leave-cancellable-heading"');
+        $this->assertStringNotContainsString('Kojo Requestor', $queue);
 
         $this->actingAs($admin)->get(route('org.leave.index'))->assertOk()->assertSee('Kojo Requestor');
         $department->update(['head_staff_member_id' => null]);

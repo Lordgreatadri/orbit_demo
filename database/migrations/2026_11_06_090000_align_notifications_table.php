@@ -29,6 +29,8 @@ return new class extends Migration
         Schema::create('notifications', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
+            $table->unsignedBigInteger('organization_id')->nullable();
+            $table->string('event', 64)->nullable();
             $table->string('type');
             $table->morphs('notifiable');
             $table->text('data')->nullable();

@@ -19,7 +19,7 @@ The MVP is a Laravel modular monolith, not a collection of microservices. It sho
 ## 3. Logical layers
 1. Presentation: public Blade pages, authenticated dashboards, forms, accessible reusable components.
 2. HTTP boundary: routes, middleware, Form Requests, controllers, API Resources.
-3. Application/domain: use-case services/actions and policies for organisations, invitations, attendance, locations, schedules, leave, and notifications.
+3. Application/domain: use-case services/actions and policies for organisations, invitations, attendance, locations, schedules, leave, and notifications. Workforce notices are ADR-0015: the business transaction commits, then a queued job resolves the recipient and delivers in-app, mail, or SMS.
 4. Integration boundary: contracts plus provider-specific adapters for SMS, email, maps/geocoding, payments (future), and external APIs.
 5. Persistence: Eloquent models, migrations, database constraints, indexes, seeders.
 6. Async/operations: jobs, queues, scheduled tasks, logs, metrics, backups, health checks.

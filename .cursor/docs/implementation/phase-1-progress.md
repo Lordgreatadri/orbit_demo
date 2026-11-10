@@ -317,3 +317,63 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan test --compact` | **276 passed, 2315 assertions**. No failures. No skipped tests |
 | `php84 artisan migrate --no-interaction` | Applied `2026_11_10_090000_schedule_leave_legacy_backfill` in 710 ms. That run used the earlier class, which could raise `entitled_days`. The class now records a shortfall as an adjustment and does not rewrite entitlement. This database will not re-run the migration. Its five balances are inside the check and have no legacy adjustment rows |
 
+## Workforce notifications (2026-11-10)
+- [x] Extend the existing notifier, queued job, SMS transmitter, and database notifications. No second provider interface, no public API, no push or WhatsApp delivery.
+- [x] Tenant communication policy, optional personal preferences, and server-rendered templates. Mandatory events ignore a personal opt-out.
+- [x] In-app inbox with unread count, categories, pagination, and safe action links. Dashboard card and header count.
+- [x] Leave, schedule, and attendance notices dispatch after commit. A provider failure does not undo the business row. Delivery claims stop a duplicate send.
+- [x] Daily reminders for tomorrow's shift, yesterday's missed attendance, leave waiting two days, and balances ending within 14 days.
+- [x] Design in ADR-0015, `requirements/10-workforce-notifications.md`, and `implementation/workforce-notifications.md`.
+
+## Commands executed and observed results (2026-11-10 workforce notifications)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact tests/Feature/Notifications/WorkforceCommunicationTest.php tests/Feature/Notifications/DatabaseNotificationSchemaTest.php` | **8 passed, 112 assertions** |
+| `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php tests/Feature/Workforce/ScheduleLeaveReviewTest.php tests/Feature/Shell/WorkspaceShellTest.php tests/Feature/Staff/StaffRegisterTest.php tests/Feature/Tenancy/HostnameRoutingTest.php` | **60 passed, 748 assertions** |
+| `php84 vendor/bin/pint --dirty` | Fixed `WorkforceNotifier.php` and `WorkforceCommunicationTest.php`, then a second run **passed** |
+| `php84 artisan test --compact` | **282 passed, 2418 assertions**. No failures. No skipped tests |
+
+## Notification read audit and bell (2026-11-10)
+- [x] One migration per communication table (`2026_11_10_140100` through `140600`), including `notification_read_audits`.
+- [x] Inbox ownership stays on `User`. Read state is `read_at`. The first unread-to-read transition writes one audit row. Mark-all audits only those transitions.
+- [x] Header bell lists five recent notices, marks the opened notice read, and follows a safe action URL. View all opens the paginated centre.
+- [x] ADR-0015, `requirements/10-workforce-notifications.md`, and `implementation/workforce-notifications.md` describe ownership, read audit, bell, delivery versus read state, tenant scope, at-least-once mail, and the production queue worker.
+
+## Commands executed and observed results (2026-11-10 notification gate)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact` on the notification feature tests | **12 passed, 166 assertions** |
+| `php84 artisan test --compact tests/Feature/Workforce/ScheduleLeaveReviewTest.php --filter=the_approval_queue_follows_the_policy_approval_mode` | **1 passed, 20 assertions** |
+| `php84 vendor/bin/pint --dirty` | Fixed import order in `ScheduleLeaveReviewTest.php`, then a second run **passed** |
+| `php84 artisan test --compact` | **286 passed, 2472 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate` | Applied `140100` through `140600` on the local database |
+
+## Database operation split (2026-11-10)
+- [x] `2026_11_09_120000_schedule_leave_policy_foundation` is replaced by one schema file per table, `120100` through `121300`.
+- [x] Existing-data repair is `orbit:data:backfill-leave-periods`, `backfill-leave-requests`, `backfill-workforce-v1`, `backfill-shift-clocks`, `backfill-notice-claims`, `backfill-notification-inbox`, and `backfill-notification-reads`.
+- [x] `2026_11_10_140400` adds nullable delivery status and does not mark claims sent. A null claim is not resent. `orbit:data:backfill-notice-claims` records it as sent.
+- [x] `2026_11_10_140500` adds nullable inbox organisation and event and does not copy existing rows. `orbit:data:backfill-notification-inbox` fills what it can. The columns stay nullable.
+- [x] `2026_11_10_090000_create_workforce_notice_deliveries` is the structural name. The historical local filename was `2026_11_10_090000_schedule_leave_legacy_backfill`. It was not released to production.
+- [x] Guideline in `architecture/database-operations.md`.
+
+## Commands executed and observed results (2026-11-10 database operations)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact tests/Feature/Database/DataUpgradeTest.php --filter=workforce_backfill_links_a_legacy_request_once` | **1 passed, 9 assertions**. The first full file run had failed this test on the expected update count |
+| `php84 vendor/bin/pint --dirty` | Fixed an end-of-file line in `BackfillNotificationReads.php`, then a second run **passed** |
+| `php84 artisan test --compact` | **292 passed, 2519 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate --force` | Recorded `120100` through `121300`. Existing tables were left in place |
+
+## Final database-operation review (2026-11-10)
+- [x] `140400` no longer marks claims sent. Null status is not resent. `orbit:data:backfill-notice-claims` records it as sent.
+- [x] `140500` no longer copies inbox rows. `orbit:data:backfill-notification-inbox` fills a missing organisation and event. The columns stay nullable.
+- [x] `2026_11_10_090000_create_workforce_notice_deliveries` is the file on disk. The historical local name is documented. It was not released to production.
+- [x] Migration-history rollback limits are in `architecture/database-operations.md`.
+
+## Commands executed and observed results (2026-11-10 final review)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+| `php84 artisan test --compact tests/Feature/Database/DataUpgradeTest.php` | **8 passed, 75 assertions** |
+| `php84 artisan test --compact` | **294 passed, 2547 assertions**. No failures. No skipped tests |
+

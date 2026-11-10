@@ -6,43 +6,34 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Assignment clocks are copied at publish time so a later template edit
- * does not rewrite the period attendance already explained.
+ * Assignment clocks are stored on the assignment so a later template edit
+ * does not rewrite a period attendance already explained. Existing rows are
+ * copied by `php artisan orbit:data:backfill-shift-clocks`.
  * A check-in during a published period is stored against that assignment.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('shift_assignments', function (Blueprint $table): void {
-            $table->time('starts_at')->nullable()->after('work_date');
-            $table->time('ends_at')->nullable()->after('starts_at');
-            $table->boolean('crosses_midnight')->default(false)->after('ends_at');
-        });
+        if (! Schema::hasColumn('shift_assignments', 'starts_at')) {
+            Schema::table('shift_assignments', function (Blueprint $table): void {
+                $table->time('starts_at')->nullable()->after('work_date');
+                $table->time('ends_at')->nullable()->after('starts_at');
+                $table->boolean('crosses_midnight')->default(false)->after('ends_at');
+            });
+        }
 
-        DB::table('shift_assignments')->orderBy('id')->chunkById(200, function ($rows): void {
-            foreach ($rows as $row) {
-                $shift = DB::table('shifts')->where('id', $row->shift_id)->first();
+        if (! Schema::hasColumn('attendance_records', 'shift_assignment_id')) {
+            Schema::table('attendance_records', function (Blueprint $table): void {
+                $table->foreignId('shift_assignment_id')->nullable()->after('attendance_session_id')->constrained('shift_assignments')->nullOnDelete();
+            });
+        }
 
-                if ($shift === null) {
-                    continue;
-                }
-
-                DB::table('shift_assignments')->where('id', $row->id)->update([
-                    'starts_at' => $shift->starts_at,
-                    'ends_at' => $shift->ends_at,
-                    'crosses_midnight' => $shift->crosses_midnight,
-                ]);
-            }
-        });
-
-        Schema::table('attendance_records', function (Blueprint $table): void {
-            $table->foreignId('shift_assignment_id')->nullable()->after('attendance_session_id')->constrained('shift_assignments')->nullOnDelete();
-        });
-
-        Schema::table('leave_requests', function (Blueprint $table): void {
-            $table->index(['organization_id', 'staff_member_id', 'status', 'starts_on'], 'leave_requests_staff_status_start');
-        });
+        if (! Schema::hasIndex('leave_requests', 'leave_requests_staff_status_start')) {
+            Schema::table('leave_requests', function (Blueprint $table): void {
+                $table->index(['organization_id', 'staff_member_id', 'status', 'starts_on'], 'leave_requests_staff_status_start');
+            });
+        }
 
         $this->balanceCheck();
     }

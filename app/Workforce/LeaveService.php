@@ -117,6 +117,7 @@ final class LeaveService
             ]);
 
             Audit::log('leave.amended', $locked, ['days' => count($dates)], $actor);
+            DB::afterCommit(fn () => app(WorkforceNotifier::class)->leaveAmended($locked));
         });
     }
 
@@ -170,7 +171,14 @@ final class LeaveService
             Audit::log($approve ? 'leave.approved' : 'leave.rejected', $locked, [
                 'days' => $locked->dayCount(),
             ], $actor);
-            DB::afterCommit(fn () => app(WorkforceNotifier::class)->leaveDecided($locked));
+            DB::afterCommit(function () use ($locked, $approve): void {
+                $notifier = app(WorkforceNotifier::class);
+                $notifier->leaveDecided($locked);
+
+                if ($approve) {
+                    $notifier->warnLowBalance($locked);
+                }
+            });
         });
     }
 
@@ -246,6 +254,7 @@ final class LeaveService
             ]);
 
             Audit::log('leave.adjusted', $adjustment, ['days' => $days, 'leave_type' => $type->code], $actor);
+            DB::afterCommit(fn () => app(WorkforceNotifier::class)->warnAdjustedBalance($balance));
 
             return $adjustment;
         });
