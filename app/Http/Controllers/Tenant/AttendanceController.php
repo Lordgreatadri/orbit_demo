@@ -14,6 +14,7 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\StaffMember;
 use App\Models\WifiNetwork;
+use App\Support\CalendarDay;
 use App\Workforce\AttendanceEngine;
 use App\Workforce\AttendanceException;
 use App\Workforce\QrSessionService;
@@ -35,7 +36,7 @@ class AttendanceController extends Controller
 
         $records = AttendanceRecord::query()
             ->with(['staffMember:id,uuid,first_name,last_name,staff_number', 'department:id,name', 'location:id,name', 'session:id,name'])
-            ->whereDate('work_date', $date)
+            ->where(fn ($query) => CalendarDay::constrain($query, 'work_date', $date))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['department'] ?? null, function ($query, $uuid): void {
                 $query->whereIn('department_id', Department::query()->where('uuid', $uuid)->select('id'));
@@ -81,8 +82,9 @@ class AttendanceController extends Controller
 
         return view('tenant.attendance.mine', [
             'staff' => $staff,
+            'today' => $today,
             'todayRecords' => $staff
-                ? AttendanceRecord::query()->with('session:id,name')->where('staff_member_id', $staff->getKey())->whereDate('work_date', $today)->orderByDesc('check_in_at')->get()
+                ? app(AttendanceEngine::class)->recordsForAttendancePage($staff, $today)
                 : collect(),
             'history' => $staff
                 ? AttendanceRecord::query()->with('session:id,name')->where('staff_member_id', $staff->getKey())->orderByDesc('work_date')->orderByDesc('id')->limit(14)->get()

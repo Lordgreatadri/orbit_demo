@@ -27,7 +27,10 @@
                             <p class="text-sm font-medium text-fg">{{ $type->name }}</p>
                             <p class="mt-1 text-sm text-fg-muted">
                                 @if ($meta && $meta['limited'])
-                                    {{ rtrim(rtrim(number_format((float) $meta['remaining'], 1), '0'), '.') }} days remaining
+                                    {{ rtrim(rtrim(number_format((float) $meta['remaining'], 1), '0'), '.') }} days available
+                                    @if ($meta['entitled'] !== null)
+                                        <span class="block text-xs text-fg-subtle">Entitlement {{ rtrim(rtrim(number_format((float) $meta['entitled'], 1), '0'), '.') }}</span>
+                                    @endif
                                 @else
                                     No day limit
                                 @endif
@@ -69,6 +72,9 @@
                                 </li>
                             @endforeach
                         </ul>
+                        @if ($rows instanceof \Illuminate\Contracts\Pagination\Paginator && $rows->hasPages())
+                            <div class="mt-3">{{ $rows->links() }}</div>
+                        @endif
                     @endif
                 </section>
             @endforeach
@@ -90,6 +96,9 @@
                             </li>
                         @endforeach
                     </ul>
+                    @if ($closed instanceof \Illuminate\Contracts\Pagination\Paginator && $closed->hasPages())
+                        <div class="mt-3">{{ $closed->links() }}</div>
+                    @endif
                 </section>
             @endif
         @else
@@ -122,6 +131,39 @@
                             </li>
                         @endforeach
                     </ul>
+                    @if ($queue->hasPages())
+                        <div class="mt-3">{{ $queue->links() }}</div>
+                    @endif
+                @endif
+            </section>
+
+            <section aria-labelledby="leave-cancellable-heading">
+                <div class="mb-3">
+                    <h2 id="leave-cancellable-heading" class="text-base font-semibold text-fg">Approved leave you can cancel</h2>
+                    <p class="text-sm text-fg-muted">Approved requests from other people. Cancelling restores the days and removes the leave from the calendar.</p>
+                </div>
+                @if ($cancellable->isEmpty())
+                    <div class="rounded-xl border border-edge bg-surface px-5 py-10 text-center">
+                        <p class="text-sm text-fg-muted">No approved leave is waiting to be cancelled.</p>
+                    </div>
+                @else
+                    <ul class="space-y-3">
+                        @foreach ($cancellable as $leaveRequest)
+                            <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge border-l-4 border-l-primary bg-surface px-4 py-3">
+                                <div>
+                                    <p class="font-medium text-fg">{{ $leaveRequest->staffMember?->name }}</p>
+                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>
+                                    <x-button type="button" variant="secondary" size="sm" x-on:click="openDetail('{{ $leaveRequest->uuid }}')">View</x-button>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if ($cancellable instanceof \Illuminate\Contracts\Pagination\Paginator && $cancellable->hasPages())
+                        <div class="mt-3">{{ $cancellable->links() }}</div>
+                    @endif
                 @endif
             </section>
         @endif
@@ -172,13 +214,120 @@
                     <div class="sm:col-span-2">
                         <h3 class="text-sm font-medium text-fg">New leave type</h3>
                     </div>
-                    <x-form.input name="name" label="Name" required />
-                    <x-form.input name="code" label="Code" required />
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="paid" value="1" checked> Paid</label>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="requires_balance" value="1"> Use a balance</label>
-                    <x-form.input type="number" name="default_days" label="Default days" value="0" step="1" min="0" />
+                    <x-form.input id="leave-type-name" name="name" label="Name" required />
+                    <x-form.input id="leave-type-code" name="code" label="Code" required />
+                    <label class="flex items-center gap-2 text-sm" for="leave-type-paid"><input id="leave-type-paid" type="checkbox" name="paid" value="1" checked> Paid</label>
+                    <label class="flex items-center gap-2 text-sm" for="leave-type-balance"><input id="leave-type-balance" type="checkbox" name="requires_balance" value="1"> Use a balance</label>
+                    <x-form.input id="leave-type-days" type="number" name="default_days" label="Default days" value="0" step="1" min="0" />
                     <div class="sm:col-span-2"><x-button type="submit" size="sm">Save type</x-button></div>
                 </form>
+
+                <div class="rounded-xl border border-edge bg-surface px-5 py-4">
+                    <h3 class="text-sm font-medium text-fg">Staff categories</h3>
+                    <p class="mt-1 text-sm text-fg-muted">Categories such as teaching, administration, or permanent staff. Entitlement rules can match them. They are not tied to an organisation type.</p>
+                    <ul class="mt-3 flex flex-wrap gap-2">
+                        @forelse ($categories as $category)
+                            <li><x-badge>{{ $category->name }}</x-badge></li>
+                        @empty
+                            <li class="text-sm text-fg-muted">No categories yet.</li>
+                        @endforelse
+                    </ul>
+                    <form method="POST" action="{{ route('org.leave.categories.store') }}" class="mt-4 grid gap-4 sm:grid-cols-3">
+                        @csrf
+                        <x-form.input id="category-name" name="name" label="Name" required />
+                        <x-form.input id="category-code" name="code" label="Code" required />
+                        <div class="flex items-end"><x-button type="submit" size="sm" variant="secondary">Save category</x-button></div>
+                    </form>
+                </div>
+
+                @foreach ($policies as $policy)
+                    <form method="POST" action="{{ route('org.leave.policies.update', $policy) }}" class="grid gap-4 rounded-xl border border-edge bg-surface px-5 py-4 sm:grid-cols-2">
+                        @csrf
+                        <div class="sm:col-span-2">
+                            <h3 class="text-sm font-medium text-fg">{{ $policy->leaveType?->name }} policy</h3>
+                            <p class="text-sm text-fg-muted">The leave year starts on the month and day you set. A rule added below replaces the type's fallback days for people who match it. Open balances are not rewritten.</p>
+                        </div>
+                        <x-form.input :id="'policy-'.$policy->id.'-month'" type="number" name="year_start_month" label="Year starts, month" min="1" max="12" :value="$policy->year_start_month" required />
+                        <x-form.input :id="'policy-'.$policy->id.'-day'" type="number" name="year_start_day" label="Year starts, day" min="1" max="31" :value="$policy->year_start_day" required />
+                        <x-form.select :id="'policy-'.$policy->id.'-count'" name="count_mode" label="Days that count" :options="['calendar' => 'Every calendar day', 'working' => 'Working days only']" :value="$policy->count_mode->value" />
+                        <x-form.select :id="'policy-'.$policy->id.'-approval'" name="approval_mode" label="Who approves" :options="['any_approver' => 'Any approver', 'line_manager' => 'Line manager', 'department_head' => 'Department head']" :value="$policy->approval_mode->value" />
+                        <fieldset class="sm:col-span-2">
+                            <legend class="mb-2 text-sm font-medium text-fg">Weekend days (ISO, Monday is 1)</legend>
+                            <div class="flex flex-wrap gap-3 text-sm">
+                                @foreach ([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'] as $number => $label)
+                                    <label class="inline-flex items-center gap-2">
+                                        <input id="policy-{{ $policy->id }}-weekend-{{ $number }}" type="checkbox" name="weekend_days[]" value="{{ $number }}" @checked(in_array($number, $policy->weekend_days ?? [], true))>
+                                        {{ $label }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                        <label class="flex items-center gap-2 text-sm" for="policy-{{ $policy->id }}-skip"><input id="policy-{{ $policy->id }}-skip" type="checkbox" name="exclude_non_working" value="1" @checked($policy->exclude_non_working)> Skip the non-working calendar when counting working days</label>
+                        <label class="flex items-center gap-2 text-sm" for="policy-{{ $policy->id }}-self"><input id="policy-{{ $policy->id }}-self" type="checkbox" name="allow_self_approval" value="1" @checked($policy->allow_self_approval)> Allow a person to approve their own request</label>
+                        <div class="sm:col-span-2"><x-button type="submit" size="sm" variant="secondary">Save policy</x-button></div>
+                        @if ($policy->rules->isNotEmpty())
+                            <div class="sm:col-span-2 overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <caption class="sr-only">Entitlement rules for {{ $policy->name }}</caption>
+                                    <thead>
+                                        <tr class="border-b border-edge text-left text-fg-muted">
+                                            <th scope="col" class="py-2 pr-3 font-medium">Priority</th>
+                                            <th scope="col" class="py-2 pr-3 font-medium">Match</th>
+                                            <th scope="col" class="py-2 font-medium">Days</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($policy->rules as $rule)
+                                            <tr class="border-b border-edge last:border-0">
+                                                <td class="py-2 pr-3 tabular-nums">{{ $rule->priority }}</td>
+                                                <td class="py-2 pr-3 text-fg-muted">{{ $rule->isCatchAll() ? 'Everyone' : 'Specific criteria' }}</td>
+                                                <td class="py-2 tabular-nums">{{ $rule->entitled_days }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </form>
+                @endforeach
+
+                <form method="POST" action="{{ route('org.leave.rules.store') }}" class="grid gap-4 rounded-xl border border-edge bg-surface px-5 py-4 sm:grid-cols-2">
+                    @csrf
+                    <div class="sm:col-span-2">
+                        <h3 class="text-sm font-medium text-fg">Entitlement rule</h3>
+                        <p class="text-sm text-fg-muted">Leave a match blank to cover everyone. A lower priority number is checked first. Values belong to this organisation.</p>
+                    </div>
+                    <x-form.select id="rule-type" name="leave_type_uuid" label="Leave type" :options="$managedTypes->mapWithKeys(fn ($type) => [$type->uuid => $type->name])->all()" required />
+                    <x-form.input id="rule-priority" type="number" name="priority" label="Priority" value="100" min="1" required />
+                    <x-form.input id="rule-days" type="number" name="entitled_days" label="Days" min="0" required />
+                    <x-form.input id="rule-from" type="date" name="effective_from" label="Effective from" required />
+                    <x-form.select id="rule-category" name="staff_category_uuid" label="Staff category" :options="$categories->mapWithKeys(fn ($category) => [$category->uuid => $category->name])->prepend('Any', '')->all()" />
+                    <x-form.select id="rule-department" name="department_uuid" label="Department" :options="$departments->mapWithKeys(fn ($department) => [$department->uuid => $department->name])->prepend('Any', '')->all()" />
+                    <x-form.input id="rule-grade" name="grade" label="Grade" />
+                    <x-form.input id="rule-employment" name="employment_type" label="Employment type" />
+                    <x-form.input id="rule-min-service" type="number" name="min_service_months" label="Minimum months of service" min="0" />
+                    <x-form.input id="rule-max-service" type="number" name="max_service_months" label="Maximum months of service" min="0" />
+                    <div class="sm:col-span-2"><x-button type="submit" size="sm">Save rule</x-button></div>
+                </form>
+
+                <div class="space-y-4 rounded-xl border border-edge bg-surface px-5 py-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-fg">Balance adjustment</h3>
+                        <p class="text-sm text-fg-muted">Add or remove days for one person in the open leave period. The reason is kept on the audit trail.</p>
+                    </div>
+                    <form method="GET" action="{{ route('org.leave.index') }}" class="flex flex-wrap items-end gap-2">
+                        <x-form.input id="adjust-find" name="person" label="Find a person" :value="$personFind" hint="At least two letters. Then choose them below." />
+                        <x-button type="submit" size="sm" variant="secondary">Find</x-button>
+                    </form>
+                    <form method="POST" action="{{ route('org.leave.adjustments.store') }}" class="grid gap-4 sm:grid-cols-2">
+                        @csrf
+                        <x-form.select id="adjust-person" name="staff_uuid" label="Person" :options="$adjustPeople->mapWithKeys(fn ($person) => [$person->uuid => $person->first_name.' '.$person->last_name])->all()" required />
+                        <x-form.select id="adjust-type" name="leave_type_uuid" label="Leave type" :options="$managedTypes->mapWithKeys(fn ($type) => [$type->uuid => $type->name])->all()" required />
+                        <x-form.input id="adjust-days" type="number" name="days" label="Days" hint="Use a negative number to remove days." required />
+                        <x-form.input id="adjust-reason" name="reason" label="Reason" required />
+                        <div class="sm:col-span-2"><x-button type="submit" size="sm" variant="secondary">Record adjustment</x-button></div>
+                    </form>
+                </div>
             </section>
         @endif
 
@@ -205,19 +354,19 @@
                 </header>
                 <form method="POST" action="{{ route('org.leave.store') }}" enctype="multipart/form-data" class="space-y-4 overflow-y-auto px-5 py-4">
                     @csrf
-                    <x-form.select name="leave_type_uuid" label="Type of leave" :options="$typeOptions" required placeholder="Choose a type" x-model="type" />
+                    <x-form.select id="request-type" name="leave_type_uuid" label="Type of leave" :options="$typeOptions" required placeholder="Choose a type" x-model="type" />
                     <p class="text-sm text-fg-muted" x-show="remainingLabel" x-text="remainingLabel"></p>
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <x-form.input type="date" name="starts_on" label="Start date" required x-model="starts" />
-                        <x-form.input type="date" name="ends_on" label="End date" required x-model="ends" />
+                        <x-form.input id="request-start" type="date" name="starts_on" label="Start date" required x-model="starts" />
+                        <x-form.input id="request-end" type="date" name="ends_on" label="End date" required x-model="ends" />
                     </div>
                     <div>
                         <label for="leave-days" class="mb-1.5 block text-sm font-medium text-fg">Number of days</label>
                         <input id="leave-days" type="text" readonly tabindex="-1" class="block h-10 w-full rounded-lg border border-edge bg-surface-muted px-3 text-sm text-fg" :value="dayCount" aria-readonly="true">
-                        <p class="mt-1.5 text-xs text-fg-subtle">Calendar days, including the start and end dates.</p>
+                        <p class="mt-1.5 text-xs text-fg-subtle">The organisation's leave policy confirms which days count when you submit. Weekends and holidays are skipped only when that policy says so.</p>
                     </div>
-                    <x-form.textarea name="reason" label="Description" required rows="3" placeholder="Why you need this leave" />
-                    <x-form.input type="file" name="document" label="Supporting document" hint="PDF or image, up to 2 MB. Optional." />
+                    <x-form.textarea id="request-reason" name="reason" label="Description" required rows="3" placeholder="Why you need this leave" />
+                    <x-form.input id="request-document" type="file" name="document" label="Supporting document" hint="PDF or image, up to 2 MB. Optional." />
                     <div class="flex justify-end gap-2">
                         <x-button type="button" variant="secondary" size="sm" @click="requestOpen = false">Cancel</x-button>
                         <x-button type="submit" size="sm">Submit request</x-button>
@@ -269,13 +418,22 @@
                         <h3 class="border-b border-edge px-4 py-2 text-sm font-medium text-fg">Note</h3>
                         <p class="px-4 py-3 text-sm text-fg" x-text="entry?.reason"></p>
                     </section>
-                    <form method="POST" :action="entry?.decideUrl" class="space-y-3" x-show="entry && entry.canDecide">
+                    <form method="POST" :action="entry?.withdrawUrl" x-show="entry && entry.canWithdraw">
                         @csrf
-                        <x-form.input name="decision_note" label="Comment" hint="Required when you reject the request." />
+                        <x-button type="submit" size="sm" variant="secondary">Withdraw request</x-button>
+                    </form>
+                    <form method="POST" :action="entry?.decideUrl" class="space-y-3" x-show="entry && entry.canDecide" x-cloak>
+                        @csrf
+                        <x-form.input id="decide-note" name="decision_note" label="Comment" hint="Required when you reject the request." />
                         <div class="flex flex-wrap gap-2">
                             <x-button type="submit" name="decision" value="approve" size="sm">Approve</x-button>
                             <x-button type="submit" name="decision" value="reject" size="sm" variant="danger-outline">Reject</x-button>
                         </div>
+                    </form>
+                    <form method="POST" :action="entry?.cancelUrl" class="space-y-3" x-show="entry && entry.canCancel" x-cloak>
+                        @csrf
+                        <x-form.input id="cancel-note" name="decision_note" label="Reason for cancellation" required />
+                        <x-button type="submit" size="sm" variant="danger-outline">Cancel approved leave</x-button>
                     </form>
                 </div>
             </div>

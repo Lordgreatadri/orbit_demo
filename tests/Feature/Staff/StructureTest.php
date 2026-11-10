@@ -49,6 +49,34 @@ class StructureTest extends TestCase
     }
 
     #[Test]
+    public function editing_a_department_name_or_head_keeps_the_existing_code(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $department = Department::factory()->forOrganization($admin->organization)->create([
+            'name' => 'Finance',
+            'code' => 'FIN',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('org.departments.edit', $department))
+            ->assertOk()
+            ->assertSee('id="department-code"', false)
+            ->assertSee('id="department-head"', false);
+
+        $this->actingAs($admin)
+            ->put(route('org.departments.update', $department), [
+                'name' => 'Finance Office',
+                'head' => '',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('org.departments.index'));
+
+        $department->refresh();
+        $this->assertSame('Finance Office', $department->name);
+        $this->assertSame('FIN', $department->code);
+    }
+
+    #[Test]
     public function departments_with_staff_cannot_be_deleted(): void
     {
         $admin = $this->createOrganizationAdmin();

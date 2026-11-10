@@ -8,9 +8,10 @@ use Database\Factories\DepartmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['organization_id', 'name', 'code', 'description', 'is_active'])]
+#[Fillable(['organization_id', 'name', 'code', 'description', 'head_staff_member_id', 'is_active'])]
 class Department extends Model
 {
     /** @use HasFactory<DepartmentFactory> */
@@ -29,5 +30,10 @@ class Department extends Model
     public function staffMembers(): HasMany
     {
         return $this->hasMany(StaffMember::class);
+    }
+
+    public function head(): BelongsTo
+    {
+        return $this->belongsTo(StaffMember::class, 'head_staff_member_id');
     }
 }

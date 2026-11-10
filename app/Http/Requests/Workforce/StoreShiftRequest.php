@@ -22,6 +22,7 @@ class StoreShiftRequest extends WorkforceRequest
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
             'department_uuid' => ['nullable', 'uuid', $this->tenantExists('departments')],
             'location_uuid' => ['nullable', 'uuid', $this->tenantExists('locations')],
+            'arrangement_uuid' => ['nullable', 'uuid', $this->tenantExists('work_arrangements')],
         ];
     }
 

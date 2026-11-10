@@ -121,6 +121,7 @@ class DashboardController extends Controller
             ->with([
                 'shift:id,name,starts_at,ends_at,status',
                 'staffMember:id,first_name,last_name',
+                'arrangement:id,name',
             ])
             ->where('work_date', '>=', $today)
             ->when(! $user->can('schedules.manage'), function ($query) use ($user): void {

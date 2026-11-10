@@ -6,6 +6,7 @@ use App\Enums\StaffStatus;
 use App\Enums\WorkType;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\StaffCategory;
 use App\Models\StaffMember;
 use App\Models\User;
 use App\Tenancy\TenantContext;
@@ -53,6 +54,8 @@ class StoreStaffMemberRequest extends FormRequest
             'email' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'phone' => ['nullable', 'string', 'regex:/^\+?[0-9]{9,15}$/'],
             'job_title' => ['nullable', 'string', 'max:120'],
+            'grade' => ['nullable', 'string', 'max:40'],
+            'employment_type' => ['nullable', 'string', 'max:40'],
             'work_type' => ['required', new Enum(WorkType::class)],
             'status' => ['required', new Enum(StaffStatus::class)],
             'started_on' => ['nullable', 'date'],
@@ -60,6 +63,8 @@ class StoreStaffMemberRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:2000'],
             // Relationships are addressed by UUID and must belong to the current organisation.
             'department' => ['nullable', 'string', Rule::exists('departments', 'uuid')->where('organization_id', $tenantId)],
+            'staff_category' => ['nullable', 'string', Rule::exists('staff_categories', 'uuid')->where('organization_id', $tenantId)],
+            'reports_to' => ['nullable', 'string', Rule::exists('staff_members', 'uuid')->where('organization_id', $tenantId)],
             'primary_location' => ['nullable', 'string', Rule::exists('locations', 'uuid')->where('organization_id', $tenantId)],
             'user' => ['nullable', 'string', Rule::exists('users', 'uuid')->where('organization_id', $tenantId)],
         ];
@@ -85,7 +90,7 @@ class StoreStaffMemberRequest extends FormRequest
      */
     public function toAttributes(): array
     {
-        $data = $this->safe()->except(['department', 'primary_location', 'user']);
+        $data = $this->safe()->except(['department', 'primary_location', 'user', 'staff_category', 'reports_to']);
 
         $data['department_id'] = $this->validated('department')
             ? Department::query()->where('uuid', $this->validated('department'))->value('id')
@@ -96,6 +101,28 @@ class StoreStaffMemberRequest extends FormRequest
         $data['user_id'] = $this->validated('user')
             ? User::query()->where('uuid', $this->validated('user'))->where('organization_id', app(TenantContext::class)->id())->value('id')
             : null;
+
+        if ($this->exists('staff_category')) {
+            $category = $this->validated('staff_category');
+            $data['staff_category_id'] = $category
+                ? StaffCategory::query()->where('uuid', $category)->value('id')
+                : null;
+        }
+
+        if ($this->exists('reports_to')) {
+            $reportsTo = $this->validated('reports_to');
+            $data['reports_to_id'] = $reportsTo
+                ? StaffMember::query()->where('uuid', $reportsTo)->value('id')
+                : null;
+        }
+
+        if ($this->exists('grade')) {
+            $data['grade'] = $this->validated('grade');
+        }
+
+        if ($this->exists('employment_type')) {
+            $data['employment_type'] = $this->validated('employment_type');
+        }
 
         return $data;
     }

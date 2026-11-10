@@ -261,3 +261,59 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 vendor/bin/pint --dirty` | Passed |
 | `php84 artisan test --compact tests/Feature/Workforce/AttendanceWorkflowTest.php` | **14 passed, 309 assertions** |
 | `php84 artisan migrate --force` | Applied `2026_11_09_070000_link_field_activities_to_attendance_records` |
+
+## Schedule and leave policy (2026-11-09)
+- [x] A person can hold more than one non-overlapping work period on a date. Each period stores a work arrangement and an expected location.
+- [x] Work patterns and a non-working calendar generate assignments. The attendance engine reads the period; it does not grow a second decision path.
+- [x] Leave entitlement is a tenant policy and ordered rules. An open balance keeps the days it was given. Adjustments are separate audited rows. Pending days are reserved at submit.
+- [x] `leave.policy` is separate from `leave.approve`. Self-approval is refused unless the policy allows it.
+- [x] Design: ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-09 schedule and leave)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/ScheduleLeaveFoundationTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php tests/Feature/Shell/WorkspaceShellTest.php` | **25 passed, 420 assertions** |
+| `php84 artisan migrate --force` | Applied `2026_11_09_120000_schedule_leave_policy_foundation` |
+| `php84 artisan db:seed --class=Database\\Seeders\\RolesAndPermissionsSeeder --force` | Granted `leave.policy` to organisation administrators |
+
+## Schedule and leave validation (2026-11-09)
+- [x] Opening Schedules does not insert work arrangements. They are created with the organisation, or by an explicit action.
+- [x] Assignment clocks are snapshotted. A past assignment, and one that already has a check-in, cannot be removed. Two non-overlapping periods can each record attendance.
+- [x] Entitlement uses priority, then id. A request cannot cross a leave year. An adjustment cannot drop the balance below reserved days. Self-approval follows the policy. Closed requests stay closed.
+- [x] Notices are queued after commit. A failed SMS send does not fail the schedule or leave action.
+- [x] Shift, pattern, calendar, leave history, and approval lists are paged. Line manager, department head, and field person pickers search instead of loading a fixed headcount.
+- [x] Demo directory covers office, remote, hybrid, field, finance, manager, junior, and school teaching, administrative, and support categories. Educational annual leave starts on 1 July when the policy was still the calendar-year default.
+- [x] Design updated in ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-09 schedule and leave validation)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact` | **256 passed, 2050 assertions** |
+| `php84 artisan test --compact tests/Feature/Staff/StructureTest.php tests/Feature/Staff/StaffRegisterTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php tests/Feature/Shell/WorkspaceShellTest.php tests/Feature/Workforce/ScheduleLeaveValidationTest.php` | **43 passed, 597 assertions** after the searchable pickers |
+| `php84 artisan migrate --force` | Applied `2026_11_09_180000_schedule_leave_integrity` |
+| `php84 artisan db:seed --class=Database\\Seeders\\WorkforceScenarioSeeder --force` | Completed in 783 ms |
+| `php84 artisan db:seed --class=Database\\Seeders\\SystemDemoUserSeeder --force` | Completed in 4.6 s. Refreshed the fictional EPA and UPSA directories |
+
+## Schedule and leave review remediation (2026-11-10)
+- [x] A leave-year anchor cannot change while that type has a balance or a submitted or approved request. The period end is the day before the next configured anchor.
+- [x] Checkout, My attendance, and missing-checkout cleanup include an open overnight period until its scheduled end. Checkout punctuality uses the record's assignment.
+- [x] A published assignment's location is authoritative. A conflicting supplied location is rejected.
+- [x] Between two periods, early check-in uses `grace_minutes` and does not select a period that has ended.
+- [x] Assignment removal and check-in lock the person row. Removal rechecks attendance inside that lock.
+- [x] A queued notice restores the tenant that was current before the job. Delivery is claimed per recipient, key, and channel.
+- [x] Legacy submitted leave is reserved. The stored entitlement is not rewritten. A shortfall is one audited adjustment. Legacy approved leave cancels against its original calendar year. Unambiguous legacy attendance is linked to its assignment.
+- [x] The approval queue follows the policy mode. An authorised approver can open and cancel another person's approved leave.
+- [x] Schedule adherence counts the matching assignment. Scheduled arrangements exclude draft shifts.
+- [x] The department form keeps the code field beside the department head.
+- [x] Design updated in ADR-0014 and `schedule-and-leave.md`.
+
+## Commands executed and observed results (2026-11-10 review remediation)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Passed |
+| `php84 artisan test --compact tests/Feature/Workforce/ScheduleLeaveReviewTest.php tests/Feature/Tenancy/HostnameRoutingTest.php tests/Feature/Staff/StructureTest.php tests/Feature/Workforce/ScheduleLeaveFoundationTest.php tests/Feature/Workforce/AttendanceWorkflowTest.php` | **62 passed, 752 assertions** |
+| `php84 artisan test --compact` | **276 passed, 2315 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate --no-interaction` | Applied `2026_11_10_090000_schedule_leave_legacy_backfill` in 710 ms. That run used the earlier class, which could raise `entitled_days`. The class now records a shortfall as an adjustment and does not rewrite entitlement. This database will not re-run the migration. Its five balances are inside the check and have no legacy adjustment rows |
+

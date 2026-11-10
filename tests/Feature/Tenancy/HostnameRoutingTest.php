@@ -186,15 +186,20 @@ class HostnameRoutingTest extends TestCase
     }
 
     #[Test]
-    public function tenant_aware_jobs_restore_and_clear_context(): void
+    public function tenant_aware_jobs_restore_the_context_they_interrupted(): void
     {
         $organization = Organization::factory()->create();
-        app(TenantContext::class)->set(Organization::factory()->create());
+        $previous = Organization::factory()->create();
+        app(TenantContext::class)->set($previous);
 
         $job = new ProcessTenantMail($organization->getKey());
         $result = (new RestoreTenantContext)->handle($job, fn () => $job->handle(app(TenantContext::class)));
 
         $this->assertSame(1, $result);
+        $this->assertSame($previous->getKey(), app(TenantContext::class)->id());
+
+        app(TenantContext::class)->clear();
+        (new RestoreTenantContext)->handle($job, fn () => $job->handle(app(TenantContext::class)));
         $this->assertFalse(app(TenantContext::class)->has());
     }
 

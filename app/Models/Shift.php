@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'organization_id',
     'department_id',
     'location_id',
+    'work_pattern_id',
+    'work_arrangement_id',
     'created_by',
     'name',
     'starts_at',
@@ -48,6 +50,16 @@ class Shift extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function arrangement(): BelongsTo
+    {
+        return $this->belongsTo(WorkArrangement::class, 'work_arrangement_id');
+    }
+
+    public function pattern(): BelongsTo
+    {
+        return $this->belongsTo(WorkPattern::class, 'work_pattern_id');
     }
 
     public function assignments(): HasMany

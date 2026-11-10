@@ -121,6 +121,9 @@
                                         {{ $assignment->staffMember?->name ?? 'Unassigned' }}
                                         · {{ $isToday ? 'Today' : $assignment->work_date->format('D j M') }}
                                         · {{ $starts }}–{{ $ends }}
+                                        @if ($assignment->arrangement)
+                                            · {{ $assignment->arrangement->name }}
+                                        @endif
                                     </p>
                                 </li>
                             @endforeach
