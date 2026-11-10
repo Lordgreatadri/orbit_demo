@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionProperty;
 use Tests\TestCase;
 
 class DataUpgradeTest extends TestCase
@@ -40,10 +41,30 @@ class DataUpgradeTest extends TestCase
         $placeholder = $this->balance($first, 2024, '2000-01-01', '2000-12-31');
         $custom = $this->balance($first, 2026, '2026-07-01', '2027-06-30');
         $other = $this->balance($second, 2025, '2025-04-01', '2026-03-31');
+        $customEnd = $this->balance($first, 2023, '2000-01-01', '2023-06-30');
+        $timed = $this->balance($first, 2022, '2022-03-01', '2022-12-31');
+        DB::table('leave_balances')->where('id', $timed->getKey())->update([
+            'period_start' => '2000-01-01 00:00:00',
+            'period_end' => '2000-12-31 00:00:00',
+        ]);
 
+        DB::flushQueryLog();
+        DB::enableQueryLog();
         $this->artisan('orbit:data:backfill-leave-periods')
-            ->expectsOutputToContain('Updated: 1')
+            ->expectsOutputToContain('Updated: 2')
             ->assertSuccessful();
+        $periodQuery = collect(DB::getQueryLog())->first(function (array $query): bool {
+            $sql = strtolower($query['query']);
+
+            return str_contains($sql, 'leave_balances')
+                && str_contains($sql, 'period_start')
+                && preg_match('/strftime|cast\(|\bdate\(/', $sql) === 1;
+        });
+        $this->assertIsArray($periodQuery);
+        $this->assertStringNotContainsString('like', strtolower($periodQuery['query']));
+        $this->assertContains('2000-01-01', array_map(strval(...), $periodQuery['bindings']));
+        $this->assertContains('2000-12-31', array_map(strval(...), $periodQuery['bindings']));
+        DB::disableQueryLog();
         $this->artisan('orbit:data:backfill-leave-periods')
             ->expectsOutputToContain('Updated: 0')
             ->assertSuccessful();
@@ -52,6 +73,10 @@ class DataUpgradeTest extends TestCase
         $this->assertSame('2024-12-31', $placeholder->period_end->toDateString());
         $this->assertSame('2026-07-01', $custom->refresh()->period_start->toDateString());
         $this->assertSame('2025-04-01', $other->refresh()->period_start->toDateString());
+        $this->assertSame('2000-01-01', $customEnd->refresh()->period_start->toDateString());
+        $this->assertSame('2023-06-30', $customEnd->period_end->toDateString());
+        $this->assertSame('2022-01-01', $timed->refresh()->period_start->toDateString());
+        $this->assertSame('2022-12-31', $timed->period_end->toDateString());
         $this->assertSame(1, Activity::query()->where('event', 'leave.periods_backfilled')->count());
         $this->assertSame($first->getKey(), Activity::query()->where('event', 'leave.periods_backfilled')->value('organization_id'));
     }
@@ -85,17 +110,115 @@ class DataUpgradeTest extends TestCase
         $request->forceFill(['leave_policy_id' => null])->save();
 
         $this->artisan('orbit:data:backfill-workforce-v1')
-            ->expectsOutputToContain('Updated: 2')
+            ->expectsOutputToContain('Updated: 3')
+            ->expectsOutputToContain('Policy links: 1')
+            ->expectsOutputToContain('Adjustments: 1')
+            ->expectsOutputToContain('Balances: 1')
             ->assertSuccessful();
         $this->artisan('orbit:data:backfill-workforce-v1')
             ->expectsOutputToContain('Updated: 0')
+            ->expectsOutputToContain('Balances: 0')
             ->assertSuccessful();
 
         $this->assertNotNull($request->refresh()->leave_policy_id);
         $this->assertSame(1, LeavePolicy::withoutTenantScope()->where('organization_id', $organization->getKey())->count());
         $this->assertSame(1, LeaveAdjustment::withoutTenantScope()->where('organization_id', $organization->getKey())->count());
+        $this->assertSame(1, (int) LeaveBalance::withoutTenantScope()->where('organization_id', $organization->getKey())->value('pending_days'));
         $this->assertSame(1, Activity::query()->where('event', 'workforce.legacy_backfilled')->count());
         $this->assertSame(1, Activity::query()->where('event', 'leave.adjusted')->count());
+        $summary = Activity::query()->where('event', 'workforce.legacy_backfilled')->firstOrFail()->properties;
+        $this->assertSame(3, (int) $summary['updated']);
+        $this->assertSame(1, (int) $summary['policy_links']);
+        $this->assertSame(1, (int) $summary['adjustments']);
+        $this->assertSame(1, (int) $summary['balances']);
+    }
+
+    #[Test]
+    public function workforce_backfill_reports_a_pending_day_change_without_a_new_link_or_adjustment(): void
+    {
+        [$first, $second] = $this->organisations();
+        $request = $this->request($first, '2026-05-04', '2026-05-04', 1, ['2026-05-04']);
+        $policy = LeavePolicy::withoutTenantScope()->create([
+            'organization_id' => $first->getKey(),
+            'leave_type_id' => $request->leave_type_id,
+            'name' => 'Calendar year',
+            'year_start_month' => 1,
+            'year_start_day' => 1,
+            'count_mode' => 'calendar',
+            'weekend_days' => [6, 7],
+            'exclude_non_working' => true,
+            'approval_mode' => 'any_approver',
+            'allow_self_approval' => false,
+            'effective_from' => '2000-01-01',
+            'is_active' => true,
+        ]);
+        $request->forceFill(['leave_policy_id' => $policy->getKey()])->save();
+        $balance = LeaveBalance::withoutTenantScope()->create([
+            'organization_id' => $first->getKey(),
+            'staff_member_id' => $request->staff_member_id,
+            'leave_type_id' => $request->leave_type_id,
+            'year' => 2026,
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-12-31',
+            'entitled_days' => 10,
+            'used_days' => 0,
+            'pending_days' => 0,
+            'adjusted_days' => 0,
+        ]);
+        $untouched = $this->balance($second, 2026, '2026-01-01', '2026-12-31');
+        $untouched->forceFill(['pending_days' => 4])->save();
+        $settled = $this->request($first, '2026-06-02', '2026-06-02', 2, ['2026-06-02']);
+        $settledPolicy = LeavePolicy::withoutTenantScope()->create([
+            'organization_id' => $first->getKey(),
+            'leave_type_id' => $settled->leave_type_id,
+            'name' => 'Calendar year settled',
+            'year_start_month' => 1,
+            'year_start_day' => 1,
+            'count_mode' => 'calendar',
+            'weekend_days' => [6, 7],
+            'exclude_non_working' => true,
+            'approval_mode' => 'any_approver',
+            'allow_self_approval' => false,
+            'effective_from' => '2000-01-01',
+            'is_active' => true,
+        ]);
+        $settled->forceFill(['leave_policy_id' => $settledPolicy->getKey()])->save();
+        $settledBalance = LeaveBalance::withoutTenantScope()->create([
+            'organization_id' => $first->getKey(),
+            'staff_member_id' => $settled->staff_member_id,
+            'leave_type_id' => $settled->leave_type_id,
+            'year' => 2026,
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-12-31',
+            'entitled_days' => 10,
+            'used_days' => 0,
+            'pending_days' => 2,
+            'adjusted_days' => 0,
+        ]);
+
+        $this->artisan('orbit:data:backfill-workforce-v1')
+            ->expectsOutputToContain('Updated: 1')
+            ->expectsOutputToContain('Policy links: 0')
+            ->expectsOutputToContain('Attendance links: 0')
+            ->expectsOutputToContain('Adjustments: 0')
+            ->expectsOutputToContain('Balances: 1')
+            ->assertSuccessful();
+        $this->artisan('orbit:data:backfill-workforce-v1')
+            ->expectsOutputToContain('Updated: 0')
+            ->assertSuccessful();
+
+        $this->assertSame(1, (int) $balance->refresh()->pending_days);
+        $this->assertSame(0, (int) $balance->adjusted_days);
+        $this->assertSame(2, (int) $settledBalance->refresh()->pending_days);
+        $this->assertSame($policy->getKey(), $request->refresh()->leave_policy_id);
+        $this->assertSame(0, LeaveAdjustment::withoutTenantScope()->count());
+        $this->assertSame(2, LeavePolicy::withoutTenantScope()->count());
+        $this->assertSame(4, (int) $untouched->refresh()->pending_days);
+        $this->assertSame(1, Activity::query()->where('event', 'workforce.legacy_backfilled')->count());
+        $summary = Activity::query()->where('event', 'workforce.legacy_backfilled')->firstOrFail();
+        $this->assertSame($first->getKey(), $summary->organization_id);
+        $this->assertSame(1, (int) $summary->properties['balances']);
+        $this->assertSame(1, (int) $summary->properties['updated']);
     }
 
     #[Test]
@@ -153,6 +276,81 @@ class DataUpgradeTest extends TestCase
         $this->assertSame(1, NotificationReadAudit::withoutTenantScope()->count());
         $this->assertSame($first->getKey(), NotificationReadAudit::withoutTenantScope()->where('notification_id', $notice)->value('organization_id'));
         $this->assertSame(1, Activity::query()->where('event', 'notifications.reads_backfilled')->count());
+    }
+
+    #[Test]
+    public function notification_read_backfill_does_not_count_an_audit_that_already_exists(): void
+    {
+        $organization = Organization::factory()->create();
+        $reader = User::factory()->create(['organization_id' => $organization->getKey()]);
+        $already = $this->notice($organization, $reader, now());
+        $missing = $this->notice($organization, $reader, now());
+        DB::table('notification_read_audits')->insert([
+            'organization_id' => $organization->getKey(),
+            'notification_id' => $already,
+            'user_id' => $reader->getKey(),
+            'read_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->artisan('orbit:data:backfill-notification-reads')
+            ->expectsOutputToContain('Updated: 1')
+            ->assertSuccessful();
+        $this->artisan('orbit:data:backfill-notification-reads')
+            ->expectsOutputToContain('Updated: 0')
+            ->assertSuccessful();
+
+        $this->assertSame(2, NotificationReadAudit::withoutTenantScope()->count());
+        $this->assertSame(1, NotificationReadAudit::withoutTenantScope()->where('notification_id', $already)->count());
+        $this->assertSame(1, NotificationReadAudit::withoutTenantScope()->where('notification_id', $missing)->count());
+        $this->assertSame(1, Activity::query()->where('event', 'notifications.reads_backfilled')->count());
+        $this->assertSame(1, (int) Activity::query()->where('event', 'notifications.reads_backfilled')->firstOrFail()->properties['updated']);
+    }
+
+    #[Test]
+    public function an_unrelated_read_audit_inserted_during_the_backfill_is_not_counted(): void
+    {
+        $organization = Organization::factory()->create();
+        $reader = User::factory()->create(['organization_id' => $organization->getKey()]);
+        $read = $this->notice($organization, $reader, now());
+        $unrelated = $this->notice($organization, $reader, null);
+        $connection = DB::connection();
+        $callbacks = new ReflectionProperty($connection, 'beforeExecutingCallbacks');
+        $previous = $callbacks->getValue($connection);
+        $injected = false;
+        $connection->beforeExecuting(function (string $query) use ($connection, $organization, $reader, $unrelated, &$injected): void {
+            $sql = strtolower($query);
+
+            if ($injected || ! str_contains($sql, 'insert') || ! str_contains($sql, 'notification_read_audits')) {
+                return;
+            }
+
+            $injected = true;
+            $connection->table('notification_read_audits')->insert([
+                'organization_id' => $organization->getKey(),
+                'notification_id' => $unrelated,
+                'user_id' => $reader->getKey(),
+                'read_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            $this->artisan('orbit:data:backfill-notification-reads')
+                ->expectsOutputToContain('Updated: 1')
+                ->assertSuccessful();
+        } finally {
+            $callbacks->setValue($connection, $previous);
+        }
+
+        $this->assertTrue($injected);
+        $this->assertSame(2, NotificationReadAudit::withoutTenantScope()->count());
+        $this->assertSame(1, NotificationReadAudit::withoutTenantScope()->where('notification_id', $read)->count());
+        $this->assertSame(1, NotificationReadAudit::withoutTenantScope()->where('notification_id', $unrelated)->count());
+        $this->assertSame(1, (int) Activity::query()->where('event', 'notifications.reads_backfilled')->firstOrFail()->properties['updated']);
+        $this->assertSame($organization->getKey(), Activity::query()->where('event', 'notifications.reads_backfilled')->value('organization_id'));
     }
 
     #[Test]

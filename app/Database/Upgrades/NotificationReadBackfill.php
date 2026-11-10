@@ -44,11 +44,11 @@ final class NotificationReadBackfill
             ->select(['id', 'organization_id', 'notifiable_id', 'read_at'])
             ->chunkById(200, function ($rows) use ($report, &$updatedByOrganization): void {
                 $now = now();
-                $insert = [];
-                $chunkCounts = [];
+                $byOrganization = [];
 
                 foreach ($rows as $row) {
-                    $insert[] = [
+                    $organizationId = (int) $row->organization_id;
+                    $byOrganization[$organizationId][] = [
                         'organization_id' => $row->organization_id,
                         'notification_id' => $row->id,
                         'user_id' => $row->notifiable_id,
@@ -56,21 +56,17 @@ final class NotificationReadBackfill
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
-                    $organizationId = (int) $row->organization_id;
-                    $chunkCounts[$organizationId] = ($chunkCounts[$organizationId] ?? 0) + 1;
                 }
 
-                $before = (int) DB::table('notification_read_audits')->count();
-                DB::table('notification_read_audits')->insertOrIgnore($insert);
-                $inserted = (int) DB::table('notification_read_audits')->count() - $before;
-                $report->updated += $inserted;
+                foreach ($byOrganization as $organizationId => $insert) {
+                    $inserted = (int) DB::table('notification_read_audits')->insertOrIgnore($insert);
+                    $report->updated += $inserted;
 
-                if ($inserted !== count($insert)) {
-                    return;
-                }
+                    if ($inserted < 1) {
+                        continue;
+                    }
 
-                foreach ($chunkCounts as $organizationId => $count) {
-                    $updatedByOrganization[$organizationId] = ($updatedByOrganization[$organizationId] ?? 0) + $count;
+                    $updatedByOrganization[$organizationId] = ($updatedByOrganization[$organizationId] ?? 0) + $inserted;
                 }
             });
 

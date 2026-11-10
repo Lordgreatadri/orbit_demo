@@ -152,7 +152,7 @@
                     <label for="template-event" class="text-sm font-medium text-fg">Notice</label>
                     <select id="template-event" name="event" class="mt-1 w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm focus-visible:outline-2">
                         @foreach ($events as $event => $label)
-                            <option value="{{ $event }}">{{ $label }}</option>
+                            <option value="{{ $event }}" @selected(old('event', array_key_first($events)) === $event)>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>

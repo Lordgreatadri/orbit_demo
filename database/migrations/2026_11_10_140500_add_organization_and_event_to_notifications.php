@@ -76,8 +76,17 @@ return new class extends Migration
         }
 
         if (Schema::hasColumn('notifications', 'organization_id')) {
-            Schema::table('notifications', function (Blueprint $table): void {
-                $table->dropConstrainedForeignId('organization_id');
+            // The UUID-inbox rebuild stores this column without a foreign key.
+            // Dropping a constraint that was never created fails on PostgreSQL and MySQL.
+            $hasForeignKey = collect(Schema::getForeignKeys('notifications'))
+                ->contains(fn (array $foreign): bool => in_array('organization_id', $foreign['columns'], true));
+
+            Schema::table('notifications', function (Blueprint $table) use ($hasForeignKey): void {
+                if ($hasForeignKey) {
+                    $table->dropConstrainedForeignId('organization_id');
+                } else {
+                    $table->dropColumn('organization_id');
+                }
             });
         }
     }

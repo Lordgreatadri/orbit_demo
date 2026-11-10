@@ -428,6 +428,49 @@ class WorkforceCommunicationTest extends TestCase
         $this->assertStringNotContainsString('{{', $filled);
     }
 
+    #[Test]
+    public function a_template_keeps_the_submitted_event_and_rejects_an_array_body(): void
+    {
+        [$admin] = $this->people();
+
+        $this->actingAs($admin)->from(route('org.notifications.index'))->put(route('org.notifications.template'), [
+            'event' => 'leave.decided',
+            'subject' => ['not', 'text'],
+            'body' => ['also', 'an array'],
+        ])->assertRedirect(route('org.notifications.index'))->assertSessionHasErrors(['subject', 'body']);
+
+        $this->actingAs($admin)->from(route('org.notifications.index'))->put(route('org.notifications.template'), [
+            'event' => 'leave.decided',
+            'subject' => 'Kept title',
+            'body' => '<?php echo 1;',
+        ])->assertRedirect(route('org.notifications.index'))->assertSessionHasErrors('body');
+
+        $this->actingAs($admin)->get(route('org.notifications.index'))
+            ->assertOk()
+            ->assertSee('value="leave.decided" selected', false)
+            ->assertDontSee('value="attendance.confirmed" selected', false)
+            ->assertSee('Kept title')
+            ->assertSee('<?php echo 1;');
+
+        $this->actingAs($admin)->put(route('org.notifications.template'), [
+            'event' => 'leave.decided',
+            'subject' => 'Kept title',
+            'body' => 'Hello {{person_name}}',
+        ])->assertSessionHas('status');
+
+        $this->assertSame(1, NotificationTemplate::query()->count());
+        $this->assertSame('leave.decided', NotificationTemplate::query()->value('event'));
+        $this->assertSame('Kept title', NotificationTemplate::query()->value('subject'));
+        $this->assertSame('Hello {{person_name}}', NotificationTemplate::query()->value('body'));
+
+        $this->actingAs($admin)->put(route('org.notifications.template'), [
+            'event' => 'leave.amended',
+            'body' => '<?php',
+        ])->assertSessionHasErrors('body');
+        $this->assertSame('leave.decided', NotificationTemplate::query()->value('event'));
+        $this->assertSame('Hello {{person_name}}', NotificationTemplate::query()->value('body'));
+    }
+
     /**
      * @return array{0: User, 1: User, 2: StaffMember}
      */

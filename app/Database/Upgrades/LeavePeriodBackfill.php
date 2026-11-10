@@ -2,11 +2,14 @@
 
 namespace App\Database\Upgrades;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fills leave-balance periods that are still empty or still on the column
- * default. A period an administrator has already set is left alone.
+ * Fills leave-balance periods that are still empty or still the sentinel
+ * dates 2000-01-01 and 2000-12-31. Those dates are compared as dates, so a
+ * DATE column does not use a string pattern. A period an administrator has
+ * already set is left alone.
  * Each row uses its own year. Another organisation's calendar is never read.
  */
 final class LeavePeriodBackfill
@@ -18,17 +21,7 @@ final class LeavePeriodBackfill
         );
         $updatedByOrganization = [];
 
-        DB::table('leave_balances')
-            ->where(function ($query): void {
-                $query->whereNull('period_start')
-                    ->orWhere(function ($query): void {
-                        $query->where('period_start', 'like', '2000-01-01%')
-                            ->where(function ($query): void {
-                                $query->whereNull('period_end')
-                                    ->orWhere('period_end', 'like', '2000-12-31%');
-                            });
-                    });
-            })
+        self::legacyPeriods(DB::table('leave_balances'))
             ->orderBy('id')
             ->chunkById(200, function ($rows) use ($report, &$updatedByOrganization): void {
                 $staffIds = $rows->pluck('staff_member_id')->unique()->all();
@@ -79,5 +72,22 @@ final class LeavePeriodBackfill
         UpgradeAudit::summarize('leave.periods_backfilled', $updatedByOrganization);
 
         return $report;
+    }
+
+    /**
+     * Rows with no period, or still on the sentinel dates. Compared as dates.
+     */
+    public static function legacyPeriods(Builder $query): Builder
+    {
+        return $query->where(function ($query): void {
+            $query->whereNull('period_start')
+                ->orWhere(function ($query): void {
+                    $query->whereDate('period_start', '2000-01-01')
+                        ->where(function ($query): void {
+                            $query->whereNull('period_end')
+                                ->orWhereDate('period_end', '2000-12-31');
+                        });
+                });
+        });
     }
 }

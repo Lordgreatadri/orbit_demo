@@ -25,15 +25,20 @@ class BackfillWorkforceV1 extends Command
         $linksBefore = $this->counts($this->unlinked());
         $adjustmentsBefore = $this->counts(LeaveAdjustment::withoutTenantScope()->getQuery());
 
-        LegacyWorkforceBackfill::leaveAccounts();
+        $balanceChanges = LegacyWorkforceBackfill::leaveAccounts();
         LegacyWorkforceBackfill::attendanceLinks();
 
         $policiesAfter = $this->counts($this->policies());
         $linksAfter = $this->counts($this->unlinked());
         $adjustmentsAfter = $this->counts(LeaveAdjustment::withoutTenantScope()->getQuery());
         $updatedByOrganization = [];
+        $detailsByOrganization = [];
         $processed = 0;
         $linked = 0;
+        $policyTotal = 0;
+        $linkTotal = 0;
+        $adjustmentTotal = 0;
+        $balanceTotal = 0;
 
         foreach (array_unique([
             ...array_keys($policiesBefore),
@@ -42,21 +47,37 @@ class BackfillWorkforceV1 extends Command
             ...array_keys($policiesAfter),
             ...array_keys($linksAfter),
             ...array_keys($adjustmentsAfter),
+            ...array_keys($balanceChanges),
         ]) as $organizationId) {
             $organizationId = (int) $organizationId;
             $policies = ($policiesBefore[$organizationId] ?? 0) - ($policiesAfter[$organizationId] ?? 0);
             $links = ($linksBefore[$organizationId] ?? 0) - ($linksAfter[$organizationId] ?? 0);
             $adjustments = ($adjustmentsAfter[$organizationId] ?? 0) - ($adjustmentsBefore[$organizationId] ?? 0);
-            $processed += ($policiesBefore[$organizationId] ?? 0) + ($linksBefore[$organizationId] ?? 0);
-            $linked += $policies + $links;
-            $delta = $policies + $links + $adjustments;
+            $balances = $balanceChanges[$organizationId] ?? 0;
+            $processed += ($policiesBefore[$organizationId] ?? 0) + ($linksBefore[$organizationId] ?? 0) + $balances;
+            $linked += $policies + $links + $balances;
+            $delta = $policies + $links + $adjustments + $balances;
+            $policyTotal += $policies;
+            $linkTotal += $links;
+            $adjustmentTotal += $adjustments;
+            $balanceTotal += $balances;
 
             if ($delta > 0) {
                 $updatedByOrganization[$organizationId] = $delta;
+                $detailsByOrganization[$organizationId] = [
+                    'policy_links' => $policies,
+                    'attendance_links' => $links,
+                    'adjustments' => $adjustments,
+                    'balances' => $balances,
+                ];
             }
         }
 
-        UpgradeAudit::summarize('workforce.legacy_backfilled', $updatedByOrganization);
+        UpgradeAudit::summarize('workforce.legacy_backfilled', $updatedByOrganization, $detailsByOrganization);
+        $this->line('Policy links: '.number_format($policyTotal));
+        $this->line('Attendance links: '.number_format($linkTotal));
+        $this->line('Adjustments: '.number_format($adjustmentTotal));
+        $this->line('Balances: '.number_format($balanceTotal));
 
         return $this->finish(new UpgradeReport(
             processed: $processed,
