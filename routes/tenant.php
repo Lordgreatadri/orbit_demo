@@ -148,6 +148,12 @@ Route::prefix('org')
 
         Route::get('/notifications', [WorkforceNotificationController::class, 'index'])->name('notifications.index');
         Route::put('/notifications', [WorkforceNotificationController::class, 'update'])->name('notifications.update');
+        Route::put('/notifications/preferences', [WorkforceNotificationController::class, 'preferences'])->middleware('throttle:60,1')->name('notifications.preferences');
+        Route::put('/notifications/policy', [WorkforceNotificationController::class, 'policy'])->middleware('throttle:60,1')->name('notifications.policy');
+        Route::put('/notifications/template', [WorkforceNotificationController::class, 'template'])->middleware('throttle:60,1')->name('notifications.template');
+        Route::post('/notifications/read', [WorkforceNotificationController::class, 'readAll'])->middleware('throttle:60,1')->name('notifications.read-all');
+        Route::post('/notifications/{notification}/open', [WorkforceNotificationController::class, 'open'])->middleware('throttle:60,1')->name('notifications.open');
+        Route::post('/notifications/{notification}/read', [WorkforceNotificationController::class, 'read'])->middleware('throttle:60,1')->name('notifications.read');
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->middleware('throttle:attendance')->name('analytics.export');

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\FieldAssignmentStatus;
+use App\Enums\LeaveCountMode;
 use App\Enums\LeaveStatus;
 use App\Enums\LocationType;
 use App\Enums\ShiftStatus;
@@ -39,7 +40,7 @@ use Illuminate\Support\Str;
  * migrations leave empty: notification channels, a beacon and a fictional
  * Wi-Fi address per site, a day and night (or lesson) pattern, one field
  * assignment, and one pending leave request. It does not insert attendance
- * counts or change organisation settings. Coordinates and BSSIDs are plot
+ * counts, notification wording, or organisation settings. Coordinates and BSSIDs are plot
  * values for tests, not surveyed sites.
  */
 class WorkforceScenarioSeeder extends Seeder
@@ -423,7 +424,11 @@ class WorkforceScenarioSeeder extends Seeder
         if ($annual !== null && $office !== null) {
             $policy = app(LeavePlanner::class)->ensurePolicy($annual);
 
-            if ($organization->isEducational() && (int) $policy->year_start_month === 1 && str_ends_with((string) $policy->name, ' policy')) {
+            if ($organization->isEducational()
+                && (int) $policy->year_start_month === 1
+                && (int) $policy->year_start_day === 1
+                && $policy->count_mode === LeaveCountMode::Calendar
+                && str_ends_with((string) $policy->name, ' policy')) {
                 $policy->update([
                     'year_start_month' => 7,
                     'year_start_day' => 1,

@@ -19,9 +19,13 @@ Artisan::command('attendance:close-open', function () {
 Schedule::command('attendance:close-open')->dailyAt('00:30');
 
 Artisan::command('workforce:remind', function () {
-    $sent = app(WorkforceNotifier::class)->remindDueShifts();
-    $this->info('Sent '.$sent.' schedule reminders.');
-})->purpose('Remind people about a published shift or lesson tomorrow');
+    $notifier = app(WorkforceNotifier::class);
+    $shifts = $notifier->remindDueShifts();
+    $missed = $notifier->remindMissedAttendance();
+    $pending = $notifier->remindPendingLeave();
+    $expiring = $notifier->remindExpiringBalances();
+    $this->info('Queued '.$shifts.' shift reminders, '.$missed.' missed-attendance notices, '.$pending.' pending-leave reminders, and '.$expiring.' balance reminders.');
+})->purpose('Queue shift, missed attendance, pending leave, and expiring balance reminders');
 
 Artisan::command('workforce:field-status', function () {
     $flagged = app(WorkforceNotifier::class)->flagDelayedField();

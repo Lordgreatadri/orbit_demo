@@ -29,10 +29,13 @@ final class LegacyWorkforceBackfill
      */
     public const LEGACY_EXCESS_REASON = 'Legacy submitted and used days already exceeded the stored entitlement. The entitlement was not changed. This adjustment records that excess so those days stay on record.';
 
-    public static function leaveAccounts(): void
+    /**
+     * @return array<int, int> Organisation id => balances created or whose pending or adjusted days changed.
+     */
+    public static function leaveAccounts(): array
     {
         if (! Schema::hasColumn('leave_requests', 'leave_policy_id') || ! Schema::hasColumn('leave_balances', 'pending_days')) {
-            return;
+            return [];
         }
 
         LeaveRequest::withoutTenantScope()
@@ -49,6 +52,7 @@ final class LegacyWorkforceBackfill
             });
 
         $touched = [];
+        $balances = [];
 
         LeaveRequest::withoutTenantScope()
             ->where('status', 'submitted')
@@ -72,6 +76,7 @@ final class LegacyWorkforceBackfill
                 'period_start',
                 $start,
             )->first();
+            $createdNow = false;
 
             if ($balance === null) {
                 try {
@@ -87,6 +92,7 @@ final class LegacyWorkforceBackfill
                         'pending_days' => 0,
                         'adjusted_days' => 0,
                     ]);
+                    $createdNow = true;
                 } catch (UniqueConstraintViolationException) {
                     $balance = LeaveBalance::withoutTenantScope()
                         ->where('staff_member_id', $staffId)
@@ -108,7 +114,7 @@ final class LegacyWorkforceBackfill
                 ->where('starts_on', '<', CalendarDay::following($end))
                 ->sum('day_count');
 
-            DB::transaction(function () use ($balance, $pending): void {
+            DB::transaction(function () use ($balance, $pending, $createdNow, &$balances): void {
                 $locked = LeaveBalance::withoutTenantScope()->whereKey($balance->getKey())->lockForUpdate()->first();
 
                 if ($locked === null) {
@@ -137,12 +143,26 @@ final class LegacyWorkforceBackfill
                     ], null, (int) $locked->organization_id);
                 }
 
-                $locked->forceFill([
-                    'pending_days' => $pending,
-                    'adjusted_days' => $adjusted,
-                ])->save();
+                $pendingChanged = (int) $locked->pending_days !== $pending;
+                $adjustedChanged = (int) $locked->adjusted_days !== $adjusted;
+
+                if ($pendingChanged || $adjustedChanged) {
+                    $locked->forceFill([
+                        'pending_days' => $pending,
+                        'adjusted_days' => $adjusted,
+                    ])->save();
+                }
+
+                if (! $createdNow && ! $pendingChanged && ! $adjustedChanged) {
+                    return;
+                }
+
+                $organizationId = (int) $locked->organization_id;
+                $balances[$organizationId] = ($balances[$organizationId] ?? 0) + 1;
             });
         }
+
+        return $balances;
     }
 
     public static function attendanceLinks(): void

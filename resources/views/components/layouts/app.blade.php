@@ -6,6 +6,8 @@
     $isPlatform = $user?->isPlatformUser() ?? false;
     $sections = $user ? \App\Support\Navigation::for($user) : [];
     $homeRoute = $isPlatform ? route('admin.dashboard') : route('org.dashboard');
+    $unreadNotifications = ($user && $organization) ? \App\Workforce\Communication\Inbox::unreadCount($user) : 0;
+    $recentNotifications = ($user && $organization) ? \App\Workforce\Communication\Inbox::recent($user) : collect();
 @endphp
 
 <!DOCTYPE html>
@@ -92,6 +94,9 @@
                                     <a href="{{ route($item['route'], $item['params'] ?? []) }}" @if ($active) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {{ $active ? 'bg-accent-soft text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg' }}">
                                         <x-icon :name="$item['icon'] ?? 'layers'" class="size-5 shrink-0 {{ $active ? 'text-primary' : 'text-fg-subtle' }}" />
                                         <span class="flex-1 truncate">{{ $item['label'] }}</span>
+                                        @if (($item['route'] ?? null) === 'org.notifications.index' && $unreadNotifications > 0)
+                                            <span class="rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold text-primary-fg tabular-nums" aria-label="{{ $unreadNotifications }} unread">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                                        @endif
                                         @if ($item['soon'] ?? false)
                                             <span class="rounded-full border border-edge px-1.5 text-[0.6rem] font-semibold tracking-wide text-fg-subtle uppercase" title="Planned module">Soon</span>
                                         @endif
@@ -134,6 +139,64 @@
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
+                @if ($organization)
+                    <div class="relative" x-data="{ notices: false }" @keydown.escape.window="notices = false">
+                        <button
+                            type="button"
+                            @click="notices = !notices"
+                            :aria-expanded="notices.toString()"
+                            aria-haspopup="dialog"
+                            aria-controls="notification-bell"
+                            class="relative inline-flex size-9 items-center justify-center rounded-lg border border-edge text-fg-muted hover:bg-surface-muted focus-visible:outline-2"
+                            aria-label="{{ $unreadNotifications > 0 ? $unreadNotifications.' unread notifications' : 'Notifications, none unread' }}"
+                        >
+                            <x-icon name="bell" class="size-5" />
+                            @if ($unreadNotifications > 0)
+                                <span class="absolute -top-1 -right-1 min-w-5 rounded-full bg-primary px-1 text-center text-[0.65rem] font-semibold text-primary-fg tabular-nums">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                            @endif
+                        </button>
+                        <div
+                            id="notification-bell"
+                            x-show="notices"
+                            x-cloak
+                            x-transition.origin.top.right
+                            @click.outside="notices = false"
+                            role="dialog"
+                            aria-label="Recent notifications"
+                            class="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-edge bg-surface shadow-lift"
+                        >
+                            <div class="flex items-center justify-between gap-3 border-b border-edge px-3 py-2">
+                                <p class="text-sm font-semibold text-fg">Notifications</p>
+                                <p class="text-xs text-fg-muted">{{ $unreadNotifications === 1 ? '1 unread' : $unreadNotifications.' unread' }}</p>
+                            </div>
+                            @if ($recentNotifications->isEmpty())
+                                <p class="px-3 py-4 text-sm text-fg-muted">No notifications yet.</p>
+                            @else
+                                <ul class="max-h-96 divide-y divide-edge overflow-y-auto">
+                                    @foreach ($recentNotifications as $notification)
+                                        @php $unreadRow = $notification->read_at === null; @endphp
+                                        <li>
+                                            <form method="POST" action="{{ route('org.notifications.open', $notification->uuid) }}">
+                                                @csrf
+                                                <button type="submit" class="flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-surface-muted focus-visible:outline-2 {{ $unreadRow ? 'bg-accent-soft/40' : '' }}">
+                                                    <span class="flex items-center gap-2">
+                                                        <span class="min-w-0 flex-1 truncate text-sm {{ $unreadRow ? 'font-semibold text-fg' : 'font-medium text-fg-muted' }}">{{ $notification->data['title'] ?? 'Notice' }}</span>
+                                                        <span class="shrink-0 text-[0.65rem] font-semibold tracking-wide uppercase {{ $unreadRow ? 'text-fg' : 'text-fg-subtle' }}">{{ $unreadRow ? 'Unread' : 'Read' }}</span>
+                                                    </span>
+                                                    <span class="line-clamp-2 text-xs text-fg-muted">{{ $notification->data['body'] ?? '' }}</span>
+                                                    <time class="text-[0.65rem] text-fg-subtle" datetime="{{ $notification->created_at->toIso8601String() }}">{{ $notification->created_at->timezone($organization->timezone ?: 'UTC')->format('D j M Y, H:i') }}</time>
+                                                </button>
+                                            </form>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <div class="border-t border-edge px-3 py-2">
+                                <a href="{{ route('org.notifications.index') }}" class="text-sm font-medium text-primary hover:underline focus-visible:outline-2">View all</a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 <x-theme-toggle label-class="hidden xl:inline" />
                 <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
                     <button type="button" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" class="flex h-9 items-center gap-2 rounded-lg border border-edge bg-surface px-2 text-sm shadow-sm hover:border-edge-strong">

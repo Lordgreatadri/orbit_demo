@@ -6,6 +6,8 @@
 ## Decision
 Prefer PostgreSQL for production because the source architecture identifies its transactional, analytics, and geospatial capabilities. Retain existing database configuration if the repository has a deliberate working choice; report it before proposing a migration.
 
+Never hide a material transformation of existing business data inside a migration when the transformation can be independently executed, observed, audited, retried, and verified as an explicit data-upgrade operation.
+
 Use foreign keys, unique constraints, targeted indexes, pagination, eager loading, aggregate queries, and transaction boundaries. Use Redis for queues/cache/rate limiting when configured and appropriate.
 
 ## Consequences

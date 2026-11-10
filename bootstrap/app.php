@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             require __DIR__.'/../routes/webhook.php';
         },
     )
+    ->withCommands()
     ->withMiddleware(function (Middleware $middleware): void {
         // Hostname → tenant (ADR-0011). Must run before route-model binding so
         // OrganizationScope is active when `{organization:uuid}` resolves.

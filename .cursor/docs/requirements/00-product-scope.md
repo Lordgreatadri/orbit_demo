@@ -33,7 +33,7 @@ P0:
 P1:
 - Shift schedules and assignments.
 - Leave requests and authorised approve/reject workflow.
-- Notifications.
+- Notifications. Specified in `10-workforce-notifications.md` and ADR-0015. In-app, email, and the existing SMS transmitter. No public API, push delivery, or WhatsApp in this milestone.
 - Basic workforce analytics.
 
 ## Explicitly out of initial demo scope
