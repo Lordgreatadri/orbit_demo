@@ -364,6 +364,54 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan test --compact` | **292 passed, 2519 assertions**. No failures. No skipped tests |
 | `php84 artisan migrate --force` | Recorded `120100` through `121300`. Existing tables were left in place |
 
+## Analytics, dashboards, and insights (2026-11-11)
+
+- [x] `AnalyticsScope` limits organisation, department-head, and personal aggregates. A filter can narrow that scope and cannot widen it. ADR-0016 and `implementation/analytics-and-dashboards.md`.
+- [x] `WorkforceReport` remains the attendance and schedule-adherence source. `OperationalDigest` adds leave-year utilisation and separates notification delivery from read state.
+- [x] Organisation, department, and personal dashboards share `DashboardComposer`. The platform dashboard charts registration weeks and does not open tenant attendance.
+- [x] Insights are deterministic and cite the metric. No external model is bound. `OperationalInsightProvider` is the later adapter.
+- [x] Charts stay server-rendered with `ChartPalette`. Authenticated pages do not plot the labelled sample metrics block.
+- [x] A department head who is not an organisation administrator is limited to headed departments on the dashboard, analytics, CSV, attendance, staff register (including view and update), schedule lists and mutations, and the leave approval queue. An organisation manager who heads no department stays organisation-wide. `organization.update` stays organisation-wide.
+- [x] The attendance CSV uses the same scope. PDF, Excel, and scheduled delivery stay on the next milestone.
+- [x] The organisation/read index is created by `2026_11_11_080000_index_notifications_by_organization_read` and also by the up path of `140500`, so a fresh database and an already-migrated database both get it. Rolling back `140500` drops that index before `organization_id`.
+
+## Commands executed and observed results (2026-11-11)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact` | First full run **failed**: 311 passed, 1 error. `DatabaseNotificationSchemaTest::inbox_column_rollback_drops_organization_id_with_or_without_its_foreign_key` could not drop `organization_id` while `notifications_organization_read` still existed |
+| `php84 artisan test --compact tests/Feature/Notifications/DatabaseNotificationSchemaTest.php --filter=inbox_column_rollback_drops_organization_id_with_or_without_its_foreign_key` | **1 passed, 12 assertions**, after the rollback drops the index first |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+| `php84 artisan test --compact` | **312 passed, 2689 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate --force` | Applied `2026_11_11_080000_index_notifications_by_organization_read` to the development PostgreSQL database. `notifications_organization_read` is present. No rollback was run |
+
+## Dashboard and UI hardening (2026-11-11)
+
+- [x] The organisation dashboard no longer shows the calculated-note list. Attention is the uncovered, schedule, and leave figures, with drill-down links. Calculated notes stay on analytics, grouped as action required now and planning attention.
+- [x] Present today is labelled as a stored status. Uncovered today is labelled as derived when no location filter is set.
+- [x] Personal leave figures on the dashboard use the same available-day figure as the leave page.
+- [x] Chart date labels use day/month and scroll inside the card. Screen-reader tables no longer widen the page.
+
+## Commands executed and observed results (2026-11-11 hardening)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Fixed `DashboardComposer.php`, then a second run was clean |
+| `php84 artisan test --compact` | **314 passed, 2708 assertions**. No failures. No skipped tests |
+
+## Visual system (2026-11-11)
+
+- [x] Authenticated pages no longer use a floating card as the default container. Inset strips, open sections, and hairline panels are the grammar in `.cursor/docs/design/visual-system.md`.
+- [x] The organisation dashboard reads: attention, one position strip, a conclusion then the chart, one secondary column, then an administration link row.
+- [x] The sidebar shows the ORBIT mark and the workspace name once. The top bar shows the date on desktop and the workspace name on small screens.
+
+## Commands executed and observed results (2026-11-11 visual system)
+| Command | Result |
+| --- | --- |
+| `php84 artisan view:cache` | Blade templates cached successfully |
+| `npm run build` | Built. `public/build/assets/app-D-3X6tRj.css` |
+| `php84 artisan test --compact` | **314 passed, 2708 assertions**. This run was before the final sidebar wordmark |
+| `php84 artisan test --compact tests/Feature/Shell/WorkspaceShellTest.php tests/Feature/Analytics/DashboardAnalyticsTest.php tests/Feature/Staff/StaffRegisterTest.php` | **26 passed, 199 assertions**, after the sidebar wordmark |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+
 ## Final database-operation review (2026-11-10)
 - [x] `140400` no longer marks claims sent. Null status is not resent. `orbit:data:backfill-notice-claims` records it as sent.
 - [x] `140500` no longer copies inbox rows. `orbit:data:backfill-notification-inbox` fills a missing organisation and event. The columns stay nullable.

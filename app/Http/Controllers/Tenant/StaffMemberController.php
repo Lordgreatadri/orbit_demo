@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Analytics\AnalyticsScope;
 use App\Enums\StaffStatus;
 use App\Enums\WorkType;
 use App\Http\Controllers\Controller;
@@ -26,6 +27,7 @@ class StaffMemberController extends Controller
         $this->authorize('viewAny', StaffMember::class);
 
         $filters = $request->only(['q', 'department', 'work_type', 'status']);
+        $departmentIds = AnalyticsScope::restrictingDepartmentIds($request->user());
 
         $allowed = ['name' => 'last_name', 'number' => 'staff_number', 'status' => 'status', 'type' => 'work_type'];
         $sort = TableSort::from($request, $allowed, 'name');
@@ -33,6 +35,7 @@ class StaffMemberController extends Controller
         $staff = StaffMember::query()
             ->with(['department:id,name', 'primaryLocation:id,name', 'user:id,uuid,status,last_login_at'])
             ->search($filters['q'] ?? null)
+            ->when($departmentIds !== null, fn ($q) => $q->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
             ->when($filters['department'] ?? null, fn ($q, $uuid) => $q->whereHas('department', fn ($d) => $d->where('uuid', $uuid)))
             ->when($filters['work_type'] ?? null, fn ($q, $type) => $q->where('work_type', $type))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
@@ -45,7 +48,10 @@ class StaffMemberController extends Controller
         return view('tenant.staff.index', [
             'staff' => $staff,
             'filters' => $filters,
-            'departments' => Department::query()->orderBy('name')->pluck('name', 'uuid'),
+            'departments' => Department::query()
+                ->when($departmentIds !== null, fn ($query) => $query->whereIn('id', $departmentIds === [] ? [-1] : $departmentIds))
+                ->orderBy('name')
+                ->pluck('name', 'uuid'),
             'workTypes' => WorkType::options(),
             'statuses' => StaffStatus::options(),
             'canCreate' => $request->user()->can('create', StaffMember::class),

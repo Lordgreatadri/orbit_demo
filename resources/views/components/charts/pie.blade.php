@@ -84,7 +84,8 @@
     </div>
 @endif
 
-<table class="sr-only">
+<div class="sr-only">
+<table>
     <caption>{{ $caption }}</caption>
     <thead><tr><th>Category</th><th>Count</th></tr></thead>
     <tbody>
@@ -93,3 +94,4 @@
         @endforeach
     </tbody>
 </table>
+</div>

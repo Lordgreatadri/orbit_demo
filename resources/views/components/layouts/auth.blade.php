@@ -55,7 +55,7 @@
             <header class="flex items-center justify-between">
                 <a href="{{ route('home') }}" class="rounded-lg focus-visible:outline-2" aria-label="{{ config('orbit.product_name') }} home"><x-logo /></a>
                 <div class="flex items-center gap-2">
-                    <x-button :href="route('home')" variant="ghost" size="sm" class="hidden sm:inline-flex">Back to site</x-button>
+                    <span class="hidden sm:inline-flex"><x-button :href="route('home')" variant="ghost" size="sm">Back to site</x-button></span>
                     <x-theme-toggle />
                 </div>
             </header>

@@ -12,7 +12,7 @@
             :aria-pressed="isPlum.toString()"
             :aria-label="label"
             :title="label"
-            class="inline-flex h-9 items-center gap-2 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg-muted transition-colors hover:border-edge-strong hover:text-fg focus-visible:outline-2"
+            class="inline-flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline-2"
         >
             <svg x-show="!isPlum" aria-hidden="true" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="4" />

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Analytics\AnalyticsScope;
 use App\Enums\SessionStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workforce\CheckInAttendanceRequest;
@@ -30,13 +31,17 @@ class AttendanceController extends Controller
     public function index(FilterAttendanceRequest $request): View
     {
         $filters = $request->validated();
-
-        $organization = $request->user()->organization;
+        $user = $request->user();
+        $organization = $user->organization;
         $date = $filters['date'] ?? now($organization->timezone)->toDateString();
+        $departmentIds = AnalyticsScope::restrictingDepartmentIds($user);
+        $scope = AnalyticsScope::forUser($user, $date, $date, $filters['department'] ?? null);
 
         $records = AttendanceRecord::query()
             ->with(['staffMember:id,uuid,first_name,last_name,staff_number', 'department:id,name', 'location:id,name', 'session:id,name'])
+            ->where('organization_id', $organization->getKey())
             ->where(fn ($query) => CalendarDay::constrain($query, 'work_date', $date))
+            ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['department'] ?? null, function ($query, $uuid): void {
                 $query->whereIn('department_id', Department::query()->where('uuid', $uuid)->select('id'));
@@ -49,11 +54,18 @@ class AttendanceController extends Controller
             'records' => $records,
             'date' => $date,
             'timezone' => $organization->timezone,
-            'departments' => Department::query()->orderBy('name')->get(['id', 'uuid', 'name']),
+            'departments' => Department::query()
+                ->when($departmentIds !== null, fn ($query) => $query->whereIn('id', $departmentIds === [] ? [-1] : $departmentIds))
+                ->orderBy('name')
+                ->get(['id', 'uuid', 'name']),
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name']),
-            'staff' => StaffMember::query()->orderBy('last_name')->limit(200)->get(['id', 'uuid', 'first_name', 'last_name', 'staff_number']),
-            'canManage' => $request->user()->can('attendance.manage'),
-            'summary' => app(WorkforceReport::class)->day($organization, $date),
+            'staff' => StaffMember::query()
+                ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
+                ->orderBy('last_name')
+                ->limit(200)
+                ->get(['id', 'uuid', 'first_name', 'last_name', 'staff_number']),
+            'canManage' => $user->can('attendance.manage'),
+            'summary' => app(WorkforceReport::class)->day($organization, $date, $scope),
         ]);
     }
 

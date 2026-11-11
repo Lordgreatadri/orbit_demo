@@ -9,30 +9,35 @@
     </x-page-header>
 
     @if ($sms)
-        <section aria-labelledby="sms-glance" class="card relative overflow-hidden">
-            <div class="bg-mesh absolute inset-0 opacity-80" aria-hidden="true"></div>
-            <div class="relative flex flex-wrap items-end justify-between gap-4 p-5">
-                <div>
-                    <p class="eyebrow" id="sms-glance">SMS · last 7 days</p>
-                    <p class="mt-2 text-2xl font-semibold tracking-tight text-fg">
-                        {{ $sms['rate'] === null ? 'No delivery rate yet' : $sms['rate'].'% confirmed delivered' }}
-                    </p>
-                    <p class="mt-1 text-sm text-fg-muted">{{ number_format($sms['totals']['sent']) }} sent · {{ number_format($sms['totals']['accepted']) }} accepted and still waiting · {{ number_format($sms['totals']['failed']) }} failed</p>
-                </div>
-                <x-button :href="route('admin.sms.overview')" size="sm">SMS overview <x-icon name="arrow-right" class="size-4" /></x-button>
-            </div>
+        <section aria-labelledby="sms-glance">
+            <h2 id="sms-glance" class="text-[1.125rem] font-semibold text-fg">
+                {{ $sms['rate'] === null ? 'No delivery rate yet' : $sms['rate'].'% confirmed delivered' }}
+            </h2>
+            <p class="mt-1 text-sm text-fg-muted">Last 7 days. {{ number_format($sms['totals']['sent']) }} sent · {{ number_format($sms['totals']['accepted']) }} accepted and still waiting · {{ number_format($sms['totals']['failed']) }} failed</p>
+            <x-button :href="route('admin.sms.overview')" variant="ghost" size="sm" class="mt-2">SMS overview</x-button>
         </section>
     @endif
 
     <section aria-labelledby="platform-kpis">
         <h2 id="platform-kpis" class="sr-only">Key figures</h2>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="inset">
+        <div class="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <x-stat label="Organisations" :value="number_format($counts['organizations'])" :hint="$counts['organizations_active'].' active · '.$counts['organizations_pending'].' pending'" icon="building" :href="$user->can('platform.organizations.view') ? route('admin.organizations.index') : null" />
             <x-stat label="New in 30 days" :value="number_format($counts['new_organizations_30d'])" hint="Organisations registered" icon="sparkles" tone="accent" />
             <x-stat label="Tenant accounts" :value="number_format($counts['users_tenant'])" :hint="$counts['users_platform'].' platform accounts'" icon="users" tone="success" :href="$user->can('platform.users.view') ? route('admin.users.index') : null" />
             <x-stat label="Staff records" :value="number_format($counts['staff_records'])" hint="Across all organisations" icon="id-card" tone="neutral" />
         </div>
+        </div>
     </section>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+        <x-card title="Organisation registrations" description="New organisations per week for the last eight weeks. This chart does not include attendance or other tenant operations.">
+            <x-charts.columns :rows="$registrations" caption="Organisations registered in each of the last eight weeks" />
+        </x-card>
+        <x-card title="Organisation status" description="Each organisation is counted once, by its current status.">
+            <x-charts.columns :rows="$organisationStatuses" caption="Organisations by status" />
+        </x-card>
+    </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">

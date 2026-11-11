@@ -76,7 +76,7 @@
                 <p>Use the theme button in the header to switch between the default light theme and the deep teal theme. Your choice is remembered on this device.</p>
 
                 <h2 id="planned">Planned modules</h2>
-                <p>The staff register, user accounts, roles, locations, and departments are available now. Attendance sessions and QR check-in, field monitoring, schedules, leave, notifications, and analytics are delivered in later stages. This guide is updated as each module becomes available.</p>
+                <p>The workspace includes the staff register, user accounts, roles, locations, departments, attendance, schedules, leave, notifications, and analytics. Each screen shows only what your role is allowed to see. This guide describes the product as it works today.</p>
             </div>
         </div>
     </div>

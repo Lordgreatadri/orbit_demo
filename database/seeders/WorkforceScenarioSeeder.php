@@ -263,7 +263,7 @@ class WorkforceScenarioSeeder extends Seeder
                 'grade' => $row['grade'] ?? null,
                 'employment_type' => $row['employment_type'] ?? null,
                 'staff_category_id' => ($categories[$row['category'] ?? ''] ?? null)?->getKey(),
-                'status' => StaffStatus::Active,
+                'status' => StaffStatus::tryFrom((string) ($row['status'] ?? '')) ?? StaffStatus::Active,
                 'started_on' => $row['started_on'] ?? '2026-01-06',
                 'notes' => 'Fictional demo register row. Not a live personnel record.',
             ],

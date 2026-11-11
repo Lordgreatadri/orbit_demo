@@ -1,5 +1,5 @@
 <x-layouts.app title="Departments">
-    <x-page-header title="Departments" description="Group staff records the way your organisation is structured. Departments are referenced by staff records and, later, by schedules and reports.">
+    <x-page-header title="Departments" description="The structure used by staff records, schedules, and workforce reports." eyebrow="People">
         @if ($canManage)
             <x-button :href="route('org.departments.create')" size="sm"><x-icon name="plus" class="size-4" /> New department</x-button>
         @endif

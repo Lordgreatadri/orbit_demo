@@ -1,6 +1,6 @@
 <x-layouts.app title="Leave">
     <div class="space-y-6" x-data="leavePage(@js($openRequest), @js($typeMeta), @js($details))" @open-leave.window="openDetail($event.detail.uuid)">
-        <x-page-header title="Leave" description="Request time away when you still have days left. An approver accepts or rejects each request.">
+        <x-page-header title="Leave" description="Request time away when you still have days left. An approver accepts or rejects each request. Balances follow the open leave year." eyebrow="Workforce">
             @if ($canRequest)
                 <x-button type="button" size="sm" @click="requestOpen = true">
                     <x-icon name="plus" class="size-4" /> Request leave
@@ -20,10 +20,11 @@
         @if ($staff && $types->isNotEmpty())
             <section aria-labelledby="leave-balance-heading">
                 <h2 id="leave-balance-heading" class="sr-only">Leave balances</h2>
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div class="inset">
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($types as $type)
                         @php $meta = $typeMeta[$type->uuid] ?? null; @endphp
-                        <div class="rounded-xl border border-edge bg-surface px-4 py-3">
+                        <div>
                             <p class="text-sm font-medium text-fg">{{ $type->name }}</p>
                             <p class="mt-1 text-sm text-fg-muted">
                                 @if ($meta && $meta['limited'])
@@ -37,6 +38,7 @@
                             </p>
                         </div>
                     @endforeach
+                    </div>
                 </div>
             </section>
         @endif
@@ -53,14 +55,11 @@
                         <p class="text-sm text-fg-muted">{{ $hint }}</p>
                     </div>
                     @if ($rows->isEmpty())
-                        <div class="rounded-xl border border-edge bg-surface px-5 py-8 text-center">
-                            <x-icon name="clock" class="mx-auto size-6 text-fg-subtle" />
-                            <p class="mt-2 text-sm text-fg-muted">No {{ strtolower($heading) }} leave yet.</p>
-                        </div>
+                        <p class="text-sm text-fg-muted">No {{ strtolower($heading) }} leave yet.</p>
                     @else
-                        <ul class="space-y-3">
+                        <ul class="divide-y divide-edge">
                             @foreach ($rows as $leaveRequest)
-                                <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge border-l-4 border-l-primary bg-surface px-4 py-3">
+                                <li class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-3">
                                     <div class="min-w-0">
                                         <p class="font-medium text-fg">{{ $leaveRequest->leaveType?->name }}</p>
                                         <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
@@ -82,9 +81,9 @@
             @if ($closed->isNotEmpty())
                 <section aria-labelledby="leave-closed-heading">
                     <h2 id="leave-closed-heading" class="mb-3 text-base font-semibold text-fg">Not approved</h2>
-                    <ul class="space-y-3">
+                    <ul class="divide-y divide-edge">
                         @foreach ($closed as $leaveRequest)
-                            <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge bg-surface px-4 py-3">
+                            <li class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-3">
                                 <div>
                                     <p class="font-medium text-fg">{{ $leaveRequest->leaveType?->name }}</p>
                                     <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
@@ -109,7 +108,7 @@
             <section aria-labelledby="leave-queue-heading">
                 <div class="mb-3">
                     <h2 id="leave-queue-heading" class="text-base font-semibold text-fg">Requests for my approval</h2>
-                    <p class="text-sm text-fg-muted">Submitted by other people in this organisation.</p>
+                    <p class="text-sm text-fg-muted">Submitted by other people in your scope.</p>
                 </div>
                 @if ($queue->isEmpty())
                     <div class="rounded-xl border border-edge bg-surface px-5 py-10 text-center">

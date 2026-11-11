@@ -1,5 +1,5 @@
 <x-layouts.app title="Staff register" wide>
-    <x-page-header title="Staff register" description="People records for your organisation: staff number, department, work type, and status. A staff record is separate from a login account and may be linked to one.">
+    <x-page-header title="Staff register" description="People records in your scope: staff number, department, work type, and status. A staff record is separate from a login account and may be linked to one." eyebrow="People">
         @if ($canCreate)
             <x-button :href="route('org.staff.create')" size="sm"><x-icon name="user-plus" class="size-4" /> Add staff member</x-button>
         @endif

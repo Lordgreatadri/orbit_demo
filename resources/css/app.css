@@ -263,29 +263,31 @@
     }
 
     /*
-     * Standard surface card. Every card in the product sits slightly above the
-     * page (shadow-float) so grouped content reads as discrete, "floating" panels.
+     * A panel is a deliberate container: a chart, a form, a dialog, or a table.
+     * Ordinary sections stay on the page background.
      */
     .card {
-        @apply border-edge bg-surface shadow-float rounded-xl border;
+        @apply border-edge bg-surface rounded-lg border;
     }
 
-    /* Card that lifts on hover; respects reduced-motion via the base layer. */
     .card-hover {
-        @apply shadow-float transition-[transform,box-shadow,border-color] duration-300 ease-out;
+        @apply transition-colors duration-200;
     }
 
     .card-hover:hover {
-        @apply border-primary/40 shadow-lift -translate-y-0.5;
+        @apply border-edge-strong;
     }
 
-    /* Links that behave like cards (whole surface is the target). */
     .card-link {
-        @apply border-edge bg-surface shadow-float block rounded-xl border transition-[transform,box-shadow,border-color] duration-300 ease-out focus-visible:outline-2;
+        @apply border-edge bg-surface block rounded-lg border transition-colors duration-200 focus-visible:outline-2;
     }
 
     .card-link:hover {
-        @apply border-primary/40 shadow-lift -translate-y-0.5;
+        @apply border-edge-strong bg-surface-muted;
+    }
+
+    .inset {
+        @apply bg-surface-muted rounded-lg px-4 py-4 sm:px-5;
     }
 
     /* Dense table used across the authenticated workspace. */
@@ -294,11 +296,11 @@
     }
 
     .data-table thead {
-        @apply bg-surface-muted text-fg-muted text-xs tracking-wide uppercase;
+        @apply bg-surface-muted text-fg-muted text-xs font-medium;
     }
 
     .data-table th {
-        @apply px-4 py-3 font-medium;
+        @apply sticky top-0 bg-surface-muted px-4 py-3 font-medium;
     }
 
     .data-table td {
@@ -314,7 +316,7 @@
     }
 
     .eyebrow {
-        @apply inline-flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase;
+        @apply inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-primary;
     }
 
     .eyebrow::before {

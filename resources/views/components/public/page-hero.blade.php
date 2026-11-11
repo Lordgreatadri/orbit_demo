@@ -2,8 +2,7 @@
 
 {{-- Shared hero band for inner public pages (how it works, guide, contact, legal). --}}
 <section class="relative isolate overflow-hidden border-b border-edge bg-surface">
-    <div class="bg-mesh absolute inset-0 -z-10" aria-hidden="true"></div>
-    <div class="bg-grid absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="bg-mesh absolute inset-0 -z-10 opacity-70" aria-hidden="true"></div>
     <div @class(['mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20', 'text-center' => $align === 'center'])>
         @if ($eyebrow)
             <p @class(['eyebrow', 'justify-center' => $align === 'center'])>{{ $eyebrow }}</p>

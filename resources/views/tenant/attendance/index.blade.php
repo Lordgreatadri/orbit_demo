@@ -1,14 +1,19 @@
 <x-layouts.app title="Attendance records" wide>
-    <x-page-header title="Attendance records" description="Calculated from stored check-ins. A person with no record is counted as absent for the day.">
+    <x-page-header title="Attendance records" description="Stored check-ins for the selected date. The absent tile is derived: active people in scope with no covering record, unless a location filter is in use." eyebrow="Attendance">
         <x-button :href="route('org.attendance.mine')" variant="secondary" size="sm">My attendance</x-button>
     </x-page-header>
 
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <x-stat label="Present" :value="number_format($summary['present'])" icon="check" tone="success" />
-        <x-stat label="Late" :value="number_format($summary['late'])" icon="clock" tone="warning" />
-        <x-stat label="On leave" :value="number_format($summary['on_leave'])" icon="calendar" />
-        <x-stat label="Absent" :value="number_format($summary['absent'])" hint="Active staff without a covering record" icon="users" tone="danger" />
-    </div>
+    <section aria-labelledby="attendance-summary-heading">
+        <h2 id="attendance-summary-heading" class="mb-3 text-base font-semibold text-fg">{{ \Illuminate\Support\Carbon::parse($date)->format('l j F Y') }}</h2>
+        <div class="inset">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+                <x-stat label="Present" :value="number_format($summary['present'])" hint="Stored status" />
+                <x-stat label="Late" :value="number_format($summary['late'])" hint="Stored status" />
+                <x-stat label="On leave" :value="number_format($summary['on_leave'])" hint="Stored status" />
+                <x-stat label="{{ ($summary['absent_basis'] ?? 'derived') === 'derived' ? 'Uncovered' : 'Absent' }}" :value="number_format($summary['absent'])" :hint="($summary['absent_basis'] ?? 'derived') === 'derived' ? 'Active people with no covering record' : 'Stored absent status'" :emphasis="($summary['absent'] ?? 0) > 0 ? 'danger' : null" />
+            </div>
+        </div>
+    </section>
 
     <form method="GET" class="flex flex-wrap items-end gap-3">
         <x-form.input type="date" name="date" label="Date" :value="$date" />

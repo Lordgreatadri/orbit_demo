@@ -1,6 +1,6 @@
 @props(['title' => null, 'description' => null, 'padding' => true, 'actions' => null])
 
-<section {{ $attributes->merge(['class' => 'card']) }}>
+<section {{ $attributes->merge(['class' => 'card min-w-0 max-w-full']) }}>
     @if ($title || $description || $actions)
         <header class="flex flex-wrap items-start justify-between gap-3 border-b border-edge px-5 py-4">
             <div class="min-w-0">

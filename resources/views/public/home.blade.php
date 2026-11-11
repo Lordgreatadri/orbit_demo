@@ -1,15 +1,13 @@
 <x-layouts.public description="ORBIT is a centralised attendance, workforce scheduling, and operational visibility platform for schools, businesses, public institutions, NGOs, and field-based teams.">
     {{-- Hero --}}
     <section class="relative isolate overflow-hidden border-b border-edge bg-surface">
-        <div class="bg-mesh absolute inset-0 -z-10" aria-hidden="true"></div>
-        <div class="bg-grid absolute inset-0 -z-10" aria-hidden="true"></div>
-        <div aria-hidden="true" class="absolute -top-40 right-[-10rem] -z-10 size-[34rem] rounded-full bg-primary/10 blur-3xl"></div>
+        <div class="bg-mesh absolute inset-0 -z-10 opacity-70" aria-hidden="true"></div>
 
         <div class="mx-auto grid max-w-7xl items-center gap-14 px-4 pt-16 pb-20 sm:px-6 lg:grid-cols-12 lg:px-8 lg:pt-24 lg:pb-28">
             <div class="lg:col-span-7">
                 <p class="eyebrow">{{ config('orbit.product_tagline') }}</p>
                 <h1 class="mt-5 text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fg sm:text-6xl lg:text-[4.25rem]">
-                    One clear view of attendance, schedules, and <span class="text-gradient-brand">where work happens.</span>
+                    One clear view of attendance, schedules, and <span class="text-primary">where work happens.</span>
                 </h1>
                 <p class="mt-7 max-w-xl text-lg leading-relaxed text-pretty text-fg-muted sm:text-xl">ORBIT replaces paper registers and scattered spreadsheets with QR and location-aware check-in, shift schedules, leave workflows, and reports your administrators can act on.</p>
 
@@ -33,9 +31,7 @@
 
             {{-- Illustrative product preview --}}
             <div class="relative lg:col-span-5" aria-label="Illustrative example of an attendance summary">
-                <div aria-hidden="true" class="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-primary/15 via-transparent to-accent/15 blur-2xl"></div>
-
-                <div class="overflow-hidden rounded-2xl border border-edge bg-surface shadow-lift">
+                <div class="overflow-hidden rounded-lg border border-edge bg-surface">
                     <div class="flex items-center justify-between border-b border-edge bg-surface-muted/60 px-4 py-2.5">
                         <div class="flex items-center gap-1.5" aria-hidden="true">
                             <span class="size-2.5 rounded-full bg-danger/60"></span>
@@ -49,7 +45,7 @@
                     <div class="p-5">
                         <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             @foreach ([['Present', 'success', 'bg-success w-4/5'], ['Late', 'warning', 'bg-warning w-2/5'], ['Absent', 'danger', 'bg-danger w-1/5'], ['On leave', 'accent', 'bg-accent w-1/4']] as [$label, $tone, $bar])
-                                <div class="rounded-xl border border-edge bg-page p-3 shadow-float">
+                                <div>
                                     <dt class="text-xs font-medium text-fg-muted">{{ $label }}</dt>
                                     <dd class="mt-2"><x-badge :tone="$tone">{{ $label }}</x-badge></dd>
                                     <dd class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted" aria-hidden="true">
@@ -59,14 +55,14 @@
                             @endforeach
                         </dl>
 
-                        <ul class="mt-4 divide-y divide-edge rounded-xl border border-edge shadow-float">
+                        <ul class="mt-4 divide-y divide-edge border-t border-edge">
                             @foreach ([
                                 ['Head office', 'QR session · location verified', 'qr', 'bg-success'],
                                 ['Field team', 'GPS check-in · geofence', 'map-pin', 'bg-success'],
                                 ['Remote staff', 'Scheduled shift', 'calendar', 'bg-info'],
                             ] as [$place, $meta, $icon, $dot])
                                 <li class="flex items-center gap-3 px-3.5 py-3">
-                                    <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary"><x-icon :name="$icon" class="size-4.5" /></span>
+                                    <x-icon :name="$icon" class="size-4 shrink-0 text-primary" />
                                     <div class="min-w-0 flex-1">
                                         <p class="text-sm font-medium text-fg">{{ $place }}</p>
                                         <p class="truncate text-xs text-fg-subtle">{{ $meta }}</p>
@@ -80,6 +76,29 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <section class="border-b border-edge bg-surface">
+        <div class="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-12 lg:px-8">
+            <div class="lg:col-span-4">
+                <p class="eyebrow">Decision support</p>
+                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-fg">A dashboard should answer an operational question</h2>
+                <p class="mt-3 text-fg-muted">Figures are counted from the organisation's own records. The public site does not show a live register.</p>
+            </div>
+            <ol class="grid gap-4 sm:grid-cols-2 lg:col-span-8">
+                @foreach ([
+                    ['Now', 'Who is present, late, on leave, or without a covering record today.'],
+                    ['Change', 'Whether present and late records moved against the previous period.'],
+                    ['Attention', 'Incomplete records, uncovered published shifts, and concentrated approved leave.'],
+                    ['Next', 'Upcoming assignments and leave that is still waiting for a decision.'],
+                ] as [$title, $text])
+                    <li class="border-t border-edge pt-4">
+                        <p class="text-sm font-semibold text-fg">{{ $title }}</p>
+                        <p class="mt-2 text-sm leading-relaxed text-fg-muted">{{ $text }}</p>
+                    </li>
+                @endforeach
+            </ol>
         </div>
     </section>
 
@@ -98,9 +117,9 @@
                 ['heart-hand', 'NGOs', 'Programme teams split between offices and project sites.'],
                 ['map-pin', 'Field-based teams', 'Inspectors, surveyors, and mobile staff who check in on site.'],
             ] as [$icon, $title, $text])
-                <li class="card-hover group rounded-2xl border border-edge bg-surface p-6">
-                    <span class="grid size-11 place-items-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-primary-fg"><x-icon :name="$icon" class="size-5.5" /></span>
-                    <h3 class="mt-5 text-lg font-semibold text-fg">{{ $title }}</h3>
+                <li class="border-t border-edge pt-5">
+                    <x-icon :name="$icon" class="size-5 text-primary" />
+                    <h3 class="mt-3 text-lg font-semibold text-fg">{{ $title }}</h3>
                     <p class="mt-2 text-[0.9375rem] leading-relaxed text-fg-muted">{{ $text }}</p>
                 </li>
             @endforeach
@@ -109,7 +128,6 @@
 
     {{-- Capabilities --}}
     <section class="relative isolate overflow-hidden border-y border-edge bg-surface">
-        <div class="bg-mesh absolute inset-0 -z-10 opacity-70" aria-hidden="true"></div>
         <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
             <x-public.section-heading
                 eyebrow="Core capabilities"
@@ -123,11 +141,11 @@
                     ['calendar', 'Schedules', 'Define shifts by department or location and assign members, so lateness and absence are measured against the right expectation.'],
                     ['document-check', 'Leave requests', 'Members submit leave with dates and reason; authorised approvers decide, with the decision recorded.'],
                     ['bell', 'Notifications', 'Attendance confirmations, shift reminders, and leave outcomes delivered by e-mail, with SMS available once a provider is configured.'],
-                    ['chart', 'Reporting', 'Daily and monthly attendance, late and absentee views, filtered by location, department, and member.'],
+                    ['chart', 'Reporting', 'Attendance, schedule coverage, and leave figures from stored records, filtered by department and location, with the same date range on every chart.'],
                 ] as [$icon, $title, $text])
-                    <li class="card-hover relative rounded-2xl border border-edge bg-surface/90 p-6 backdrop-blur-sm">
-                        <div class="flex items-center gap-4">
-                            <span class="grid size-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint text-white shadow-sm"><x-icon :name="$icon" class="size-6" /></span>
+                    <li class="border-t border-edge pt-5">
+                        <div class="flex items-center gap-3">
+                            <x-icon :name="$icon" class="size-5 shrink-0 text-primary" />
                             <h3 class="text-lg font-semibold text-fg">{{ $title }}</h3>
                         </div>
                         <p class="mt-4 text-[0.9375rem] leading-relaxed text-fg-muted">{{ $text }}</p>
@@ -136,7 +154,7 @@
             </ul>
             <p class="mt-10 flex items-start gap-2.5 text-sm text-fg-subtle">
                 <x-icon name="layers" class="mt-0.5 size-4 shrink-0 text-primary" />
-                <span>Attendance, scheduling, leave, notifications, and reporting modules are delivered in stages. Your administrator dashboard shows which modules are enabled for your organisation.</span>
+                <span>Attendance, scheduling, leave, notifications, and reporting share one organisation record. Your administrator chooses which of those modules are enabled.</span>
             </p>
         </div>
     </section>
@@ -153,8 +171,8 @@
                         ['globe', 'Centralised visibility', 'Head office, branches, remote staff, and field teams in one dashboard.'],
                         ['device-phone', 'Lower hardware dependence', 'Works in the browser on the phones your team already carry; no biometric terminals required.'],
                     ] as [$icon, $title, $text])
-                        <li class="flex gap-5 rounded-2xl border border-edge bg-surface p-5 card-hover">
-                            <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent"><x-icon :name="$icon" class="size-5.5" /></span>
+                        <li class="flex gap-4 border-t border-edge pt-4">
+                            <x-icon :name="$icon" class="mt-1 size-5 shrink-0 text-primary" />
                             <div>
                                 <h3 class="text-lg font-semibold text-fg">{{ $title }}</h3>
                                 <p class="mt-1 text-[0.9375rem] leading-relaxed text-fg-muted">{{ $text }}</p>
@@ -165,7 +183,7 @@
             </div>
 
             <div class="lg:col-span-6">
-                <div class="rounded-3xl border border-edge bg-surface p-7 shadow-float sm:p-9">
+                <div class="border border-edge bg-surface p-7 sm:p-9">
                     <p class="eyebrow">Onboarding</p>
                     <h2 class="mt-3 text-2xl font-semibold tracking-tight text-fg sm:text-3xl">How onboarding works</h2>
                     <ol class="relative mt-8 space-y-7 before:absolute before:top-3 before:bottom-3 before:left-[1.1rem] before:w-px before:bg-edge">
@@ -196,7 +214,7 @@
                         ['eye-off', 'No background tracking', 'Location is captured only on explicit check-in.'],
                         ['document-check', 'Audited actions', 'Administrative changes are recorded.'],
                     ] as [$icon, $title, $text])
-                        <li class="card-hover rounded-2xl border border-edge bg-surface-muted/50 p-4">
+                        <li class="border-t border-edge pt-4">
                             <x-icon :name="$icon" class="size-5 text-primary" />
                             <p class="mt-3 text-sm font-semibold text-fg">{{ $title }}</p>
                             <p class="mt-1 text-sm text-fg-muted">{{ $text }}</p>
@@ -209,7 +227,7 @@
 
     {{-- Closing call to action on the brand panel --}}
     <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8 lg:pb-24">
-        <div class="bg-brand-panel relative isolate overflow-hidden rounded-3xl px-6 py-14 text-white shadow-lift sm:px-12 lg:px-16">
+        <div class="bg-brand-panel relative isolate overflow-hidden px-6 py-14 text-white sm:px-12 lg:px-16">
             <div aria-hidden="true" class="absolute -right-24 -bottom-32 -z-10 size-[28rem] rounded-full border border-white/10"></div>
             <div aria-hidden="true" class="absolute -right-10 -bottom-20 -z-10 size-[20rem] rounded-full border border-white/10"></div>
             <div class="grid items-center gap-10 lg:grid-cols-12">

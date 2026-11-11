@@ -27,6 +27,6 @@
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($describedBy) aria-describedby="{{ $describedBy }}" @endif
         @if ($hasError) aria-invalid="true" @endif
-        {{ $attributes->merge(['class' => 'block h-10 w-full rounded-lg border bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus-visible:outline-2 '.($hasError ? 'border-danger' : 'border-edge hover:border-edge-strong')]) }}
+        {{ $attributes->merge(['class' => 'block min-h-11 w-full rounded-lg border bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus-visible:outline-2 '.($hasError ? 'border-danger' : 'border-edge hover:border-edge-strong')]) }}
     >
 </x-form.field>

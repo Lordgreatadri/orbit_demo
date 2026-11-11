@@ -1,5 +1,5 @@
 <x-layouts.app title="{{ $lesson ? 'Lessons' : 'Schedules' }}" wide>
-    <x-page-header :title="$lesson ? 'Lessons and schedules' : 'Schedules'" description="A person can have more than one work period on a date. Times use the organisation time zone. A shift may cross midnight." />
+    <x-page-header :title="$lesson ? 'Lessons and schedules' : 'Schedules'" description="A person can have more than one work period on a date. Times use the organisation time zone. A shift may cross midnight. Draft shifts stay out of coverage figures until they are published." eyebrow="Workforce" />
     @error('schedule')<x-alert type="danger">{{ $message }}</x-alert>@enderror
 
     @if ($canManage)
@@ -78,6 +78,7 @@
         </x-card>
 
         <x-card title="Non-working days" description="Holidays, closures, and term breaks. Pattern apply skips them. Working-day leave skips them when the leave policy says so.">
+            @if (\App\Analytics\AnalyticsScope::restrictingDepartmentIds(auth()->user()) === null)
             <form method="POST" action="{{ route('org.schedules.calendar.store') }}" class="grid gap-4 sm:grid-cols-4">
                 @csrf
                 <x-form.input id="calendar-date" type="date" name="observed_on" label="Date" required />
@@ -85,6 +86,9 @@
                 <x-form.select id="calendar-kind" name="kind" label="Kind" :options="['holiday' => 'Holiday', 'closure' => 'Closure', 'non_working' => 'Non-working day']" />
                 <div class="flex items-end"><x-button type="submit" size="sm" variant="secondary">Save day</x-button></div>
             </form>
+            @else
+                <p class="text-sm text-fg-muted">This calendar belongs to the whole organisation. A department head can read it and cannot add a day.</p>
+            @endif
             @if ($calendar->isNotEmpty())
                 <ul class="mt-4 divide-y divide-edge text-sm">
                     @foreach ($calendar as $day)
@@ -125,10 +129,11 @@
         @endif
     @endif
 
-    <x-card title="Upcoming assignments" :padding="false">
-        <ul class="divide-y divide-edge">
+    <section aria-labelledby="schedule-assignments-heading">
+        <h2 id="schedule-assignments-heading" class="text-base font-semibold text-fg">Upcoming assignments</h2>
+        <ul class="mt-3 divide-y divide-edge">
             @forelse ($assignments as $assignment)
-                <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                <li class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-3 text-sm">
                     <span>
                         <span class="font-medium text-fg">{{ $assignment->shift->name }}</span>
                         · {{ $assignment->work_date->toFormattedDateString() }}
@@ -152,14 +157,14 @@
                     </span>
                 </li>
             @empty
-                <li class="px-5 py-4 text-sm text-fg-muted">Nothing scheduled.</li>
+                <li class="py-3 text-sm text-fg-muted">Nothing scheduled.</li>
             @endforelse
         </ul>
         @if ($assignments->hasPages())
-            <div class="flex flex-col gap-3 border-t border-edge px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-3 border-t border-edge py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-xs text-fg-subtle">Showing {{ $assignments->firstItem() }}–{{ $assignments->lastItem() }} of {{ $assignments->total() }}</p>
                 <div>{{ $assignments->links() }}</div>
             </div>
         @endif
-    </x-card>
+    </section>
 </x-layouts.app>

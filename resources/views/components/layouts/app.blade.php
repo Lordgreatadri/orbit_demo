@@ -33,15 +33,19 @@
         aria-label="Sidebar"
     >
         <div class="flex h-16 shrink-0 items-center justify-between border-b border-edge px-4">
-            <a href="{{ $homeRoute }}" class="rounded-lg focus-visible:outline-2" aria-label="{{ config('orbit.product_name') }} home"><x-logo /></a>
-            <button type="button" class="rounded-lg p-2 text-fg-muted hover:bg-surface-muted hover:text-fg lg:hidden" @click="sidebar = false" aria-label="Close navigation">
+            <a href="{{ $homeRoute }}" class="inline-flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-2" aria-label="{{ config('orbit.product_name') }} home">
+                <img src="{{ asset('images/brand/orbit-icon.png') }}" alt="" width="36" height="36" class="size-9 shrink-0 rounded-lg object-contain">
+                <span class="truncate text-lg font-semibold tracking-wide text-fg">{{ config('orbit.product_name') }}</span>
+            </a>
+            <button type="button" class="inline-flex size-11 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-muted hover:text-fg lg:hidden" @click="sidebar = false" aria-label="Close navigation">
                 <x-icon name="x" class="size-5" />
             </button>
         </div>
 
         @if ($organization)
             <div class="shrink-0 border-b border-edge px-4 py-3">
-                <p class="truncate text-sm font-semibold text-fg" title="{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}">{{ ($workspaceBranding ?? null)?->displayName ?? $organization->name }}</p>
+                <p class="text-xs font-medium text-fg-subtle">Workspace</p>
+                <p class="mt-0.5 truncate text-sm font-semibold text-fg" title="{{ $organization->name }}">{{ $organization->name }}</p>
                 <p class="mt-0.5 flex items-center gap-1.5 text-xs text-fg-subtle">
                     <span>{{ $organization->type->label() }}</span>
                     @if ($organization->isDemo())
@@ -59,7 +63,7 @@
         <nav class="flex-1 overflow-y-auto overscroll-contain px-3 py-4" aria-label="Application">
             @foreach ($sections as $section)
                 <div @class(['mt-5' => ! $loop->first])>
-                    <p class="px-3 pb-1.5 text-[0.68rem] font-semibold tracking-[0.12em] text-fg-subtle uppercase">{{ $section['heading'] }}</p>
+                    <p class="px-3 pb-1.5 text-xs font-medium text-fg-subtle">{{ $section['heading'] }}</p>
                     <ul class="space-y-0.5">
                         @foreach ($section['items'] as $item)
                             @php $active = \App\Support\Navigation::isActive($item); @endphp
@@ -69,7 +73,7 @@
                                         type="button"
                                         @click="open = !open"
                                         :aria-expanded="open.toString()"
-                                        class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors {{ $active ? 'text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg' }}"
+                                        class="flex min-h-11 w-full items-center gap-3 border-l-2 px-3 py-2 text-left text-sm font-medium transition-colors {{ $active ? 'border-primary bg-primary-soft text-fg' : 'border-transparent text-fg-muted hover:bg-surface-muted hover:text-fg' }}"
                                     >
                                         <x-icon :name="$item['icon'] ?? 'layers'" class="size-5 shrink-0 {{ $active ? 'text-primary' : 'text-fg-subtle' }}" />
                                         <span class="flex-1 truncate">{{ $item['label'] }}</span>
@@ -79,7 +83,7 @@
                                         @foreach ($item['children'] as $child)
                                             @php $childActive = \App\Support\Navigation::isActive($child); @endphp
                                             <li>
-                                                <a href="{{ route($child['route'], $child['params'] ?? []) }}" @if ($childActive) aria-current="page" @endif class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {{ $childActive ? 'bg-accent-soft font-medium text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg' }}">
+                                                <a href="{{ route($child['route'], $child['params'] ?? []) }}" @if ($childActive) aria-current="page" @endif class="flex min-h-11 items-center gap-2 rounded-md px-2.5 text-sm transition-colors {{ $childActive ? 'bg-primary-soft font-medium text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg' }}">
                                                     <span class="flex-1 truncate">{{ $child['label'] }}</span>
                                                     @if ($child['soon'] ?? false)
                                                         <span class="rounded-full border border-edge px-1.5 text-[0.6rem] font-semibold tracking-wide text-fg-subtle uppercase">Soon</span>
@@ -91,7 +95,7 @@
                                 </li>
                             @else
                                 <li>
-                                    <a href="{{ route($item['route'], $item['params'] ?? []) }}" @if ($active) aria-current="page" @endif class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {{ $active ? 'bg-accent-soft text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg' }}">
+                                    <a href="{{ route($item['route'], $item['params'] ?? []) }}" @if ($active) aria-current="page" @endif class="flex min-h-11 items-center gap-3 border-l-2 px-3 text-sm font-medium transition-colors {{ $active ? 'border-primary bg-primary-soft text-fg' : 'border-transparent text-fg-muted hover:bg-surface-muted hover:text-fg' }}">
                                         <x-icon :name="$item['icon'] ?? 'layers'" class="size-5 shrink-0 {{ $active ? 'text-primary' : 'text-fg-subtle' }}" />
                                         <span class="flex-1 truncate">{{ $item['label'] }}</span>
                                         @if (($item['route'] ?? null) === 'org.notifications.index' && $unreadNotifications > 0)
@@ -110,7 +114,7 @@
         </nav>
 
         <div class="shrink-0 border-t border-edge p-3">
-            <a href="{{ route('app.profile') }}" class="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-muted {{ request()->routeIs('app.profile') ? 'bg-accent-soft' : '' }}">
+            <a href="{{ route('app.profile') }}" class="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-muted {{ request()->routeIs('app.profile') ? 'bg-primary-soft' : '' }}">
                 <span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{{ $user->initials }}</span>
                 <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-medium text-fg">{{ $user->name }}</span>
@@ -122,18 +126,18 @@
     </aside>
 
     {{-- Main column (offset by the sidebar width on large screens) --}}
-    <div class="flex min-h-svh flex-col lg:pl-[18rem]">
+    <div class="flex min-h-svh min-w-0 flex-col lg:pl-[18rem]">
         <header class="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-edge bg-surface/90 px-4 backdrop-blur sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
-                <button type="button" class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-edge text-fg-muted hover:bg-surface-muted lg:hidden" @click="sidebar = true" aria-controls="sidebar" :aria-expanded="sidebar.toString()" aria-label="Open navigation">
+                <button type="button" class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-muted lg:hidden" @click="sidebar = true" aria-controls="sidebar" :aria-expanded="sidebar.toString()" aria-label="Open navigation">
                     <x-icon name="menu" class="size-5" />
                 </button>
                 <div class="min-w-0">
-                    <p class="truncate text-base font-semibold text-fg">{{ $title }}</p>
                     @if ($organization)
-                        <p class="hidden truncate text-xs text-fg-subtle sm:block">{{ $organization->name }}</p>
+                        <p class="truncate text-sm font-semibold text-fg lg:hidden">{{ $organization->name }}</p>
+                        <p class="hidden truncate text-sm text-fg-muted lg:block">{{ now($organization->timezone ?: 'UTC')->format('l j F Y') }}</p>
                     @elseif ($isPlatform)
-                        <p class="hidden truncate text-xs text-fg-subtle sm:block">Platform console</p>
+                        <p class="truncate text-sm font-semibold text-fg">Platform console</p>
                     @endif
                 </div>
             </div>
@@ -147,7 +151,7 @@
                             :aria-expanded="notices.toString()"
                             aria-haspopup="dialog"
                             aria-controls="notification-bell"
-                            class="relative inline-flex size-9 items-center justify-center rounded-lg border border-edge text-fg-muted hover:bg-surface-muted focus-visible:outline-2"
+                            class="relative inline-flex size-11 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-muted focus-visible:outline-2"
                             aria-label="{{ $unreadNotifications > 0 ? $unreadNotifications.' unread notifications' : 'Notifications, none unread' }}"
                         >
                             <x-icon name="bell" class="size-5" />
@@ -199,7 +203,7 @@
                 @endif
                 <x-theme-toggle label-class="hidden xl:inline" />
                 <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
-                    <button type="button" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" class="flex h-9 items-center gap-2 rounded-lg border border-edge bg-surface px-2 text-sm shadow-sm hover:border-edge-strong">
+                    <button type="button" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm hover:bg-surface-muted">
                         <span aria-hidden="true" class="grid size-6 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{{ $user->initials }}</span>
                         <span class="hidden max-w-32 truncate sm:inline">{{ $user->first_name }}</span>
                         <x-icon name="chevron-down" class="size-4 text-fg-subtle" />
@@ -222,8 +226,8 @@
             </div>
         </header>
 
-        <main id="main" class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-            <div class="mx-auto space-y-6 {{ $wide ? 'max-w-[90rem]' : 'max-w-7xl' }}">
+        <main id="main" class="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8">
+            <div class="mx-auto space-y-10 {{ $wide ? 'max-w-[90rem]' : 'max-w-6xl' }}">
                 @if ($organization && ! $organization->isActive())
                     <x-alert type="warning" title="{{ $organization->status->label() }}">
                         @if ($organization->status === \App\Enums\OrganizationStatus::PendingVerification)
@@ -233,6 +237,7 @@
                         @endif
                     </x-alert>
                 @endif
+                <x-breadcrumbs :items="\App\Support\Breadcrumbs::trail()" />
                 <x-flash />
                 {{ $slot }}
             </div>

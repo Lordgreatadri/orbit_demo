@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Workforce;
 
+use App\Analytics\AnalyticsScope;
 use Illuminate\Support\Carbon;
 
 class AnalyticsRangeRequest extends WorkforceRequest
@@ -9,6 +10,14 @@ class AnalyticsRangeRequest extends WorkforceRequest
     public function authorize(): bool
     {
         return $this->user()?->can('analytics.view') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'department' => $this->input('department') ?: null,
+            'location' => $this->input('location') ?: null,
+        ]);
     }
 
     /**
@@ -19,6 +28,8 @@ class AnalyticsRangeRequest extends WorkforceRequest
         return [
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
+            'department' => ['nullable', 'uuid'],
+            'location' => ['nullable', 'uuid'],
         ];
     }
 
@@ -27,14 +38,10 @@ class AnalyticsRangeRequest extends WorkforceRequest
      */
     public function range(): array
     {
-        $timezone = $this->user()->organization->timezone ?: 'UTC';
-        $from = Carbon::parse($this->validated('from') ?? now($timezone)->startOfMonth()->toDateString(), $timezone)->startOfDay();
-        $to = Carbon::parse($this->validated('to') ?? now($timezone)->toDateString(), $timezone)->startOfDay();
-
-        if ($from->gt($to) || $from->diffInDays($to) > 61) {
-            $from = $to->copy()->subDays(30);
-        }
-
-        return [$from, $to];
+        return AnalyticsScope::window(
+            $this->user()->organization,
+            $this->validated('from'),
+            $this->validated('to'),
+        );
     }
 }

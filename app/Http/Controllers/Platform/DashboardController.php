@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Analytics\PlatformPulse;
 use App\Enums\OrganizationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
@@ -65,11 +66,15 @@ class DashboardController extends Controller
             ? Activity::query()->with(['causer:id,first_name,last_name', 'organization:id,name'])->latest('id')->limit(8)->get()
             : collect();
 
+        $pulse = app(PlatformPulse::class);
+
         return view('platform.dashboard', [
             'user' => $user,
             'counts' => $counts,
             'recentOrganizations' => $recentOrganizations,
             'recentActivity' => $recentActivity,
+            'registrations' => $pulse->registrations(),
+            'organisationStatuses' => $pulse->statusMix($orgsByStatus),
             'sms' => $user->can('viewAny', SmsProvider::class) ? app(SmsTransmissionOverview::class)() : null,
         ]);
     }

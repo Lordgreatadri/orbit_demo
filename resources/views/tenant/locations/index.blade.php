@@ -1,5 +1,5 @@
 <x-layouts.app title="Locations" wide>
-    <x-page-header title="Locations" description="Offices, field areas, and remote sites where staff are placed. A geofence (centre point and radius) is optional and will be used by the attendance module to validate check-ins.">
+    <x-page-header title="Locations" description="Offices, field areas, and remote sites where people are placed. An optional geofence is used when a check-in verifies position." eyebrow="Attendance">
         @if ($canManage)
             <x-button :href="route('org.locations.create')" size="sm"><x-icon name="plus" class="size-4" /> New location</x-button>
         @endif

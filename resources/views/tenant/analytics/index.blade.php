@@ -4,50 +4,67 @@
         $rangeLate = (int) collect($trend)->sum('late');
         $rangeLeave = (int) collect($trend)->sum('on_leave');
         $rangeOther = (int) collect($trend)->sum('other');
-        $rangeMax = max(1, (int) collect($trend)->max(fn ($row) => $row['present'] + $row['late'] + $row['on_leave'] + $row['other']));
         $dayCount = count($trend);
-        $labelEvery = max(1, (int) ceil($dayCount / 8));
         $hasTrend = ($rangePresent + $rangeLate + $rangeLeave + $rangeOther) > 0;
+        $recordPhrase = function (int $count, string $one, string $many): string {
+            if ($count === 0) {
+                return 'No '.$many;
+            }
+
+            return $count === 1 ? 'One '.$one : number_format($count).' '.$many;
+        };
+        if (! $hasTrend) {
+            $trendConclusion = 'No attendance records in this range.';
+        } elseif ($rangeLate > 0 && $rangePresent === 0) {
+            $trendConclusion = $recordPhrase($rangeLate, 'late record', 'late records').' in this range. No present records.';
+        } elseif ($rangePresent > 0 && $rangeLate === 0) {
+            $trendConclusion = $recordPhrase($rangePresent, 'present record', 'present records').' in this range. No late records.';
+        } elseif ($rangePresent === 0 && $rangeLate === 0) {
+            $trendConclusion = 'No present or late records in this range.';
+        } else {
+            $trendConclusion = $recordPhrase($rangePresent, 'present record', 'present records').' and '.lcfirst($recordPhrase($rangeLate, 'late record', 'late records')).' in this range.';
+        }
         $workMax = max(1, (int) $workTypes->max('value'));
         $workTotal = max(1, (int) $workTypes->sum('value'));
-        $departmentMax = max(1, (int) $departments->max('total'));
-        $presentShare = $today['active_staff'] > 0 ? (int) round($today['present'] / $today['active_staff'] * 100) : null;
-        $swatches = [
-            'present' => ['swatch' => 'bg-primary', 'ink' => 'var(--primary)'],
-            'late' => ['swatch' => 'bg-warning', 'ink' => 'var(--warning)'],
-            'absent' => ['swatch' => 'bg-danger', 'ink' => 'var(--danger)'],
-            'on_leave' => ['swatch' => 'bg-accent', 'ink' => 'var(--accent)'],
-            'pending_verification' => ['swatch' => 'bg-info', 'ink' => 'var(--info)'],
-            'rejected' => ['swatch' => 'bg-brand-deep', 'ink' => 'var(--brand-deep)'],
-            'incomplete' => ['swatch' => 'bg-fg-subtle', 'ink' => 'var(--fg-subtle)'],
-            'excused' => ['swatch' => 'bg-success', 'ink' => 'var(--success)'],
-            'manual' => ['swatch' => 'bg-fg-muted', 'ink' => 'var(--fg-muted)'],
-            'qr' => ['swatch' => 'bg-primary', 'ink' => 'var(--primary)'],
-            'gps' => ['swatch' => 'bg-success', 'ink' => 'var(--success)'],
-            'ble' => ['swatch' => 'bg-accent', 'ink' => 'var(--accent)'],
-            'wifi' => ['swatch' => 'bg-info', 'ink' => 'var(--info)'],
-            'otp' => ['swatch' => 'bg-warning', 'ink' => 'var(--warning)'],
-            'device' => ['swatch' => 'bg-brand-deep', 'ink' => 'var(--brand-deep)'],
+        $departmentMax = max(1, (int) collect($departmentRows)->max('total'));
+        $presentShare = $today['active_staff'] > 0 && ($today['absent_basis'] ?? 'derived') === 'derived'
+            ? (int) round($today['present'] / $today['active_staff'] * 100)
+            : null;
+        $statusRows = $statuses;
+        $methodRows = $methods;
+        $trendSeries = [
+            ['key' => 'present', 'label' => 'Present', 'ink' => \App\Analytics\ChartPalette::color('present')],
+            ['key' => 'late', 'label' => 'Late', 'ink' => \App\Analytics\ChartPalette::color('late')],
+            ['key' => 'on_leave', 'label' => 'On leave', 'ink' => \App\Analytics\ChartPalette::color('on_leave')],
+            ['key' => 'other', 'label' => 'Other', 'ink' => \App\Analytics\ChartPalette::color('other')],
         ];
-        $paint = function (array $rows) use ($swatches): array {
-            return array_map(function (array $row) use ($swatches): array {
-                $tone = $swatches[$row['key']] ?? ['swatch' => 'bg-fg-subtle', 'ink' => 'var(--fg-subtle)'];
-
-                return $row + $tone;
-            }, $rows);
-        };
-        $statusRows = $paint($statuses);
-        $methodRows = $paint($methods);
-        $stackOrder = array_reverse($statusRows);
     @endphp
 
-    <x-page-header title="Workforce analytics" description="Every figure is a count of stored attendance records for the dates below. Nothing on this page is estimated.">
-        <x-button :href="route('org.analytics.export', ['from' => $from, 'to' => $to])" variant="secondary" size="sm"><x-icon name="document-check" class="size-4" /> Export CSV</x-button>
+    <x-page-header title="Workforce analytics" :description="'Every chart on this page uses '.$from.' to '.$to.' · '.$scopeLabel.'. Counts come from stored records. A zero is a stored zero, not an estimate.'" eyebrow="Insights">
+        <x-button :href="route('org.analytics.export', request()->query())" variant="secondary" size="sm"><x-icon name="document-check" class="size-4" /> Export CSV</x-button>
     </x-page-header>
 
     <x-filter-bar :action="route('org.analytics.index')" :reset="route('org.analytics.index')">
-        <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>From</span><input type="date" name="from" value="{{ $from }}" class="h-9 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg"></label>
-        <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>To</span><input type="date" name="to" value="{{ $to }}" class="h-9 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg"></label>
+        <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>From</span><input type="date" name="from" value="{{ $from }}" class="min-h-11 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg focus-visible:outline-2"></label>
+        <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>To</span><input type="date" name="to" value="{{ $to }}" class="min-h-11 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg focus-visible:outline-2"></label>
+        @if (count($departments) > 0)
+            <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>Department</span>
+                <select name="department" class="min-h-11 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg focus-visible:outline-2">
+                    <option value="">All in scope</option>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department['uuid'] }}" @selected($selectedDepartment === $department['uuid'])>{{ $department['name'] }}</option>
+                    @endforeach
+                </select>
+            </label>
+        @endif
+        <label class="flex flex-col gap-1 text-xs font-medium text-fg-muted"><span>Location</span>
+            <select name="location" class="min-h-11 rounded-lg border border-edge bg-surface px-2.5 text-sm text-fg focus-visible:outline-2">
+                <option value="">All locations</option>
+                @foreach ($locations as $location)
+                    <option value="{{ $location->uuid }}" @selected($selectedLocation === $location->uuid)>{{ $location->name }}</option>
+                @endforeach
+            </select>
+        </label>
     </x-filter-bar>
 
     @if ($rangeAdjusted)
@@ -57,16 +74,20 @@
     @endif
 
     <section aria-labelledby="today-heading">
-        <h2 id="today-heading" class="mb-3 text-sm font-semibold text-fg">Today</h2>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <h2 id="today-heading" class="mb-3 text-base font-semibold text-fg">Today</h2>
+        <div class="inset">
+        <div class="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <x-stat label="Present today" :value="number_format($today['present'])" :hint="$presentShare !== null ? $presentShare.'% of '.number_format($today['active_staff']).' active staff' : 'No active staff'" icon="check" tone="success" />
             <x-stat label="Late today" :value="number_format($today['late'])" hint="Checked in after the cutoff" icon="clock" tone="warning" />
-            <x-stat label="Absent today" :value="number_format($today['absent'])" hint="Active staff without a covering record" icon="users" tone="danger" />
+            <x-stat label="Absent today" :value="number_format($today['absent'])" :hint="($today['absent_basis'] ?? 'derived') === 'derived' ? 'Active people without a covering record' : 'Stored absent status at this location'" icon="users" tone="danger" />
             <x-stat label="On leave today" :value="number_format($today['on_leave'])" :hint="number_format($leavePending).' awaiting a decision'" icon="calendar" tone="accent" />
+        </div>
         </div>
     </section>
 
-    <div class="grid gap-8 lg:grid-cols-2">
+    <x-insight-list :insights="$insights" />
+
+    <div class="grid min-w-0 gap-8 lg:grid-cols-2">
         <x-card title="Status share" description="Pie of stored attendance records from {{ $from }} to {{ $to }}. Every status is listed. A zero is a status with no row in this range, not an estimate. Absent here is a stored status. The Today tile above also counts active staff with no covering record.">
             <x-charts.pie :segments="$statusRows" caption="Attendance records by status from {{ $from }} to {{ $to }}" />
         </x-card>
@@ -79,92 +100,12 @@
         <x-charts.columns :rows="$methodRows" caption="Accepted check-in checks by method from {{ $from }} to {{ $to }}" />
     </x-card>
 
-    <x-card title="Attendance trend" :description="$dayCount.' '.($dayCount === 1 ? 'day' : 'days').' from '.$from.' to '.$to.'. Each bar is one day, counted in the database, so a long history stays this size.'">
-        <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded-xl border border-edge bg-surface-muted/40 px-3 py-2">
-                <p class="text-xs text-fg-muted">Present</p>
-                <p class="text-lg font-semibold tabular-nums text-fg">{{ number_format($rangePresent) }}</p>
-            </div>
-            <div class="rounded-xl border border-edge bg-surface-muted/40 px-3 py-2">
-                <p class="text-xs text-fg-muted">Late</p>
-                <p class="text-lg font-semibold tabular-nums text-fg">{{ number_format($rangeLate) }}</p>
-            </div>
-            <div class="rounded-xl border border-edge bg-surface-muted/40 px-3 py-2">
-                <p class="text-xs text-fg-muted">On leave</p>
-                <p class="text-lg font-semibold tabular-nums text-fg">{{ number_format($rangeLeave) }}</p>
-            </div>
-            <div class="rounded-xl border border-edge bg-surface-muted/40 px-3 py-2">
-                <p class="text-xs text-fg-muted">Other</p>
-                <p class="text-lg font-semibold tabular-nums text-fg">{{ number_format($rangeOther) }}</p>
-            </div>
-        </div>
-
-        <div class="mb-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-fg-muted">
-            @foreach ($statusRows as $status)
-                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background: {{ $status['ink'] }}" aria-hidden="true"></span> {{ $status['label'] }}</span>
-            @endforeach
-        </div>
+    <x-card :title="$trendConclusion" :description="$dayCount.' '.($dayCount === 1 ? 'day' : 'days').' from '.$from.' to '.$to.'. Each column is one day of stored records. A flat mark is a day with no record.'">
 
         @if (! $hasTrend)
             <x-empty-state title="No attendance in this range" description="Check-ins, leave, and corrections for these dates will stack on the chart." />
         @else
-            <div class="flex gap-3">
-                <div class="flex shrink-0 flex-col justify-between pb-6 text-right text-[0.65rem] tabular-nums text-fg-subtle" style="height: 13rem" aria-hidden="true">
-                    <span>{{ number_format($rangeMax) }}</span>
-                    <span>{{ $rangeMax > 2 ? number_format((int) round($rangeMax / 2)) : '' }}</span>
-                    <span>0</span>
-                </div>
-                <div class="min-w-0 flex-1 overflow-x-auto">
-                    @php $chartMin = $dayCount > 14 ? max(28, $dayCount * 1.35) : null; @endphp
-                    <div class="flex items-end gap-1 border-b border-edge" style="height: 13rem; @if ($chartMin) min-width: {{ $chartMin }}rem; @endif" role="img" aria-label="Daily attendance from {{ $from }} to {{ $to }}">
-                        @foreach ($trend as $row)
-                            @php
-                                $segments = [];
-                                foreach ($stackOrder as $status) {
-                                    $count = (int) ($row['counts'][$status['key']] ?? 0);
-                                    if ($count > 0) {
-                                        $segments[] = ['height' => ($count / $rangeMax) * 100, 'ink' => $status['ink'], 'label' => $status['label'], 'count' => $count];
-                                    }
-                                }
-                                $title = $row['date'].': '.collect($segments)->map(fn ($segment) => $segment['count'].' '.$segment['label'])->join(', ');
-                            @endphp
-                            <div class="flex min-w-3 flex-1 items-end justify-center" style="height: 100%" title="{{ $title !== $row['date'].': ' ? $title : $row['date'].': none' }}">
-                                <div class="flex w-3 flex-col justify-end sm:w-4" style="height: 100%">
-                                    @foreach ($segments as $segment)
-                                        <div @class(['rounded-t-sm' => $loop->first]) style="height: {{ $segment['height'] }}%; background: {{ $segment['ink'] }}"></div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                    <div class="mt-2 flex gap-1 text-[0.65rem] text-fg-subtle" @if ($chartMin) style="min-width: {{ $chartMin }}rem" @endif aria-hidden="true">
-                        @foreach ($trend as $row)
-                            <span class="min-w-3 flex-1 truncate text-center">{{ $loop->first || $loop->last || $loop->iteration % $labelEvery === 0 ? \Illuminate\Support\Carbon::parse($row['date'])->format('j M') : '' }}</span>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-            <table class="sr-only">
-                <caption>Daily attendance counts</caption>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        @foreach ($statusRows as $status)
-                            <th>{{ $status['label'] }}</th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($trend as $row)
-                        <tr>
-                            <td>{{ $row['date'] }}</td>
-                            @foreach ($statusRows as $status)
-                                <td>{{ $row['counts'][$status['key']] ?? 0 }}</td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <x-charts.stacked :rows="$trend" :series="$trendSeries" caption="Daily attendance records from {{ $from }} to {{ $to }}" />
         @endif
     </x-card>
 
@@ -186,11 +127,11 @@
         </x-card>
 
         <x-card title="By department" description="Top departments in this range. Segments match the trend: present, late, on leave, then other.">
-            @if ($departments->isEmpty())
+            @if ($departmentRows === [])
                 <p class="text-sm text-fg-muted">No department totals in this range.</p>
             @else
                 <ul class="space-y-4">
-                    @foreach ($departments as $row)
+                    @foreach ($departmentRows as $row)
                         <li>
                             <div class="flex items-center justify-between gap-3 text-sm">
                                 <span class="min-w-0 truncate font-medium text-fg">{{ $row['name'] }}</span>
@@ -220,7 +161,15 @@
                     </div>
                 @endforeach
             </dl>
-            <p class="mt-3 text-xs text-fg-subtle">{{ number_format($leavePending) }} waiting in the organisation, including requests that start outside this range.</p>
+            <p class="mt-3 text-xs text-fg-subtle">{{ number_format($leavePending) }} waiting in this scope, including requests that start outside this range.</p>
+            <p class="mt-2 text-sm text-fg">
+                @if ($leaveSummary['utilisation'] === null)
+                    No open leave-year entitlement to compare.
+                @else
+                    {{ $leaveSummary['utilisation'] }}% of open entitlement used ({{ number_format($leaveSummary['used_days']) }} of {{ number_format($leaveSummary['entitled_days']) }} days).
+                @endif
+            </p>
+            <p class="mt-1 text-xs text-fg-subtle">{{ number_format($leaveSummary['upcoming_approved']) }} approved requests overlap the next 14 days.</p>
         </x-card>
         <x-card title="Schedule adherence" description="Published assignments in this range compared with a present or late attendance record on the same person and date.">
             @php
@@ -229,7 +178,7 @@
                 $share = $scheduled > 0 ? (int) round($attended / $scheduled * 100) : null;
             @endphp
             <p class="text-3xl font-semibold tabular-nums text-fg">{{ $share === null ? '—' : $share.'%' }}</p>
-            <p class="mt-1 text-sm text-fg-muted">{{ number_format($attended) }} attended of {{ number_format($scheduled) }} scheduled periods.</p>
+            <p class="mt-1 text-sm text-fg-muted">{{ number_format($attended) }} attended of {{ number_format($scheduled) }} scheduled periods. {{ number_format($schedule['unassigned_shifts']) }} published shifts have no assignment in the next 7 days.</p>
         </x-card>
         <x-card title="Scheduled arrangements" description="How published assignments in this range are arranged. A person with no arrangement on the assignment is not in this count.">
             @if ($arrangements === [])
@@ -243,4 +192,21 @@
             @endif
         </x-card>
     </div>
+
+    <x-card title="Notifications" description="Delivery is whether a channel accepted the notice. Read is whether a person opened it. The two are not the same.">
+        @if ($notifications['deliveries'] === null)
+            <p class="text-sm text-fg-muted">Organisation-wide delivery totals are shown to organisation administrators. You have {{ number_format($notifications['unread']) }} unread {{ $notifications['unread'] === 1 ? 'notice' : 'notices' }}.</p>
+        @else
+            <dl class="grid gap-4 sm:grid-cols-4">
+                <div><dt class="text-xs text-fg-muted">Unread</dt><dd class="text-lg font-semibold tabular-nums">{{ number_format($notifications['unread']) }}</dd></div>
+                <div><dt class="text-xs text-fg-muted">Read</dt><dd class="text-lg font-semibold tabular-nums">{{ number_format((int) $notifications['read']) }}</dd></div>
+                @foreach ($notifications['deliveries'] as $status => $total)
+                    <div><dt class="text-xs text-fg-muted">Delivery · {{ str_replace('_', ' ', (string) $status) }}</dt><dd class="text-lg font-semibold tabular-nums">{{ number_format($total) }}</dd></div>
+                @endforeach
+            </dl>
+            @if ($notifications['deliveries'] === [])
+                <p class="mt-3 text-sm text-fg-muted">No delivery claims are stored for this organisation.</p>
+            @endif
+        @endif
+    </x-card>
 </x-layouts.app>

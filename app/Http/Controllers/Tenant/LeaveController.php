@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Analytics\AnalyticsScope;
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workforce\AdjustLeaveBalanceRequest;
@@ -111,14 +112,15 @@ class LeaveController extends Controller
             ? collect()
             : (clone $ownBase)->whereIn('status', [LeaveStatus::Rejected->value, LeaveStatus::Cancelled->value, LeaveStatus::Withdrawn->value])->orderByDesc('starts_on')->paginate(15, ['*'], 'closed')->withQueryString();
 
+        $departmentIds = AnalyticsScope::restrictingDepartmentIds($user);
         $queue = $approve
-            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Submitted->value)
+            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Submitted->value, $departmentIds)
                 ->orderBy('starts_on')
                 ->paginate(20, ['*'], 'queue')
                 ->withQueryString()
             : collect();
         $cancellable = $approve
-            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Approved->value)
+            ? $this->requestsForApprover($staff, $policyAdmin, LeaveStatus::Approved->value, $departmentIds)
                 ->orderByDesc('starts_on')
                 ->paginate(15, ['*'], 'cancellable')
                 ->withQueryString()
@@ -278,6 +280,8 @@ class LeaveController extends Controller
 
     public function decide(DecideLeaveRequest $request, LeaveRequest $leaveRequest, LeaveService $leave): RedirectResponse
     {
+        $this->abortUnlessLeaveInScope($request, $leaveRequest);
+
         try {
             $leave->decide($request->user(), $leaveRequest, $request->approved(), $request->validated('decision_note'));
         } catch (AttendanceException $exception) {
@@ -292,6 +296,9 @@ class LeaveController extends Controller
         $user = $request->user();
         $owns = (int) $user->staffMember?->getKey() === (int) $leaveRequest->staff_member_id;
         abort_unless($owns || $user->can('leave.approve'), 403);
+        if (! $owns) {
+            $this->abortUnlessLeaveInScope($request, $leaveRequest);
+        }
         abort_if($leaveRequest->document_path === null || ! Storage::disk('local')->exists($leaveRequest->document_path), 404);
 
         return Storage::disk('local')->download($leaveRequest->document_path);
@@ -329,6 +336,8 @@ class LeaveController extends Controller
 
     public function cancel(CancelLeaveRequest $request, LeaveRequest $leaveRequest, LeaveService $leave): RedirectResponse
     {
+        $this->abortUnlessLeaveInScope($request, $leaveRequest);
+
         try {
             $leave->cancel($request->user(), $leaveRequest, $request->validated('decision_note'));
         } catch (AttendanceException $exception) {
@@ -435,11 +444,27 @@ class LeaveController extends Controller
         return back()->with('status', 'Staff category saved. People and entitlement rules can use it.');
     }
 
-    private function requestsForApprover(?StaffMember $staff, bool $policyAdmin, string $status)
+    private function abortUnlessLeaveInScope(Request $request, LeaveRequest $leaveRequest): void
+    {
+        $departmentId = $leaveRequest->staffMember?->department_id;
+
+        abort_unless(
+            AnalyticsScope::departmentAllowed($request->user(), $departmentId === null ? null : (int) $departmentId),
+            403,
+        );
+    }
+
+    /**
+     * @param  list<int>|null  $departmentIds
+     */
+    private function requestsForApprover(?StaffMember $staff, bool $policyAdmin, string $status, ?array $departmentIds = null)
     {
         return LeaveRequest::query()
             ->with(['staffMember:id,first_name,last_name,reports_to_id,department_id', 'leaveType:id,name,requires_balance', 'decider:id,first_name,last_name', 'policy:id,approval_mode,allow_self_approval'])
             ->where('status', $status)
+            ->when($departmentIds !== null, function ($query) use ($departmentIds): void {
+                $query->whereHas('staffMember', fn ($person) => $person->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds));
+            })
             ->when($staff !== null, fn ($query) => $query->where('staff_member_id', '!=', $staff->getKey()))
             ->when(! $policyAdmin, function ($query) use ($staff): void {
                 $mine = $staff?->getKey() ?? 0;
