@@ -49,6 +49,12 @@ return new class extends Migration
                 $table->index(['notifiable_type', 'notifiable_id', 'event'], 'notifications_owner_event');
             });
         }
+
+        if (! Schema::hasIndex('notifications', 'notifications_organization_read')) {
+            Schema::table('notifications', function (Blueprint $table): void {
+                $table->index(['organization_id', 'read_at'], 'notifications_organization_read');
+            });
+        }
     }
 
     public function down(): void
@@ -75,9 +81,18 @@ return new class extends Migration
             });
         }
 
+        if (Schema::hasIndex('notifications', 'notifications_organization_read')) {
+            Schema::table('notifications', function (Blueprint $table): void {
+                $table->dropIndex('notifications_organization_read');
+            });
+        }
+
         if (Schema::hasColumn('notifications', 'organization_id')) {
             // The UUID-inbox rebuild stores this column without a foreign key.
             // Dropping a constraint that was never created fails on PostgreSQL and MySQL.
+            // The organisation/read index is created here and again by a later
+            // migration on databases that already applied this file, so either
+            // rollback must drop it before the column.
             $hasForeignKey = collect(Schema::getForeignKeys('notifications'))
                 ->contains(fn (array $foreign): bool => in_array('organization_id', $foreign['columns'], true));
 

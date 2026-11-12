@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Staff;
 
+use App\Analytics\AnalyticsScope;
 use App\Enums\StaffStatus;
 use App\Enums\WorkType;
 use App\Models\Department;
@@ -92,9 +93,16 @@ class StoreStaffMemberRequest extends FormRequest
     {
         $data = $this->safe()->except(['department', 'primary_location', 'user', 'staff_category', 'reports_to']);
 
-        $data['department_id'] = $this->validated('department')
+        $departmentId = $this->validated('department')
             ? Department::query()->where('uuid', $this->validated('department'))->value('id')
             : null;
+        $data['department_id'] = $departmentId;
+        $actor = $this->user();
+        abort_unless(
+            $actor instanceof User
+            && AnalyticsScope::departmentAllowed($actor, $departmentId === null ? null : (int) $departmentId),
+            403,
+        );
         $data['primary_location_id'] = $this->validated('primary_location')
             ? Location::query()->where('uuid', $this->validated('primary_location'))->value('id')
             : null;

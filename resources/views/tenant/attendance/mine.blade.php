@@ -1,5 +1,5 @@
 <x-layouts.app title="My attendance">
-    <x-page-header title="My attendance" description="The server decides the result. A button press alone does not mark you present." />
+    <x-page-header title="My attendance" description="The server decides the result. A button press alone does not mark you present." eyebrow="Attendance" />
 
     @error('attendance')
         <x-alert type="danger" title="Attendance was not recorded">{{ $message }}</x-alert>

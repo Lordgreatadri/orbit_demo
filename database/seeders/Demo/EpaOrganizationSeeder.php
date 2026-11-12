@@ -46,76 +46,7 @@ class EpaOrganizationSeeder extends Seeder
                     'IT',
                     'Legal',
                 ],
-                'sample_directory' => [
-                    'ama.mensah@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1001',
-                        'department' => 'Administration',
-                        'location' => 'EPA Head Office — Accra',
-                        'work_type' => 'office',
-                    ],
-                    'esi.quaye@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1002',
-                        'department' => 'Operations',
-                        'location' => 'EPA Head Office — Accra',
-                        'work_type' => 'office',
-                    ],
-                    'kojo.appiah@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1003',
-                        'department' => 'Field Services',
-                        'location' => 'Field Operations',
-                        'work_type' => 'field',
-                    ],
-                    'abena.darko@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1004',
-                        'department' => 'Finance',
-                        'location' => 'EPA Kumasi Office',
-                        'work_type' => 'office',
-                        'category' => 'FINANCE',
-                        'grade' => 'Officer',
-                        'employment_type' => 'permanent',
-                        'started_on' => '2022-03-01',
-                    ],
-                    'yaw.boateng@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1005',
-                        'department' => 'Human Resources',
-                        'location' => 'EPA Head Office — Accra',
-                        'work_type' => 'office',
-                        'category' => 'MANAGER',
-                        'grade' => 'Manager',
-                        'employment_type' => 'permanent',
-                        'started_on' => '2014-02-01',
-                    ],
-                    'akosua.baah@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1006',
-                        'department' => 'Finance',
-                        'location' => 'EPA Head Office — Accra',
-                        'work_type' => 'hybrid',
-                        'category' => 'FINANCE',
-                        'grade' => 'Manager',
-                        'employment_type' => 'permanent',
-                        'started_on' => '2015-06-01',
-                    ],
-                    'efua.asante@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1007',
-                        'department' => 'Operations',
-                        'location' => 'EPA Tema Office',
-                        'work_type' => 'remote',
-                        'category' => 'JUNIOR',
-                        'grade' => 'Officer',
-                        'employment_type' => 'contract',
-                        'started_on' => '2025-01-15',
-                    ],
-                    'kwesi.owusu@epa.orbit-demo.test' => [
-                        'member_id' => 'EPA-DEMO-1008',
-                        'department' => 'Field Services',
-                        'location' => 'Field Operations',
-                        'work_type' => 'field',
-                        'category' => 'FIELD',
-                        'grade' => 'Officer',
-                        'employment_type' => 'permanent',
-                        'started_on' => '2020-09-01',
-                    ],
-                ],
+                'sample_directory' => self::directory(),
                 'sample_metrics' => [
                     'label' => 'Illustrative only. Not live EPA figures.',
                     'members' => 24,
@@ -136,5 +67,103 @@ class EpaOrganizationSeeder extends Seeder
     public static function organization(): Organization
     {
         return Organization::query()->where('slug', self::SLUG)->firstOrFail();
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private static function directory(): array
+    {
+        return DirectoryExpansion::pad([
+            'ama.mensah@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1001',
+                'department' => 'Administration',
+                'location' => 'EPA Head Office — Accra',
+                'work_type' => 'office',
+            ],
+            'esi.quaye@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1002',
+                'department' => 'Operations',
+                'location' => 'EPA Head Office — Accra',
+                'work_type' => 'office',
+            ],
+            'kojo.appiah@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1003',
+                'department' => 'Field Services',
+                'location' => 'Field Operations',
+                'work_type' => 'field',
+            ],
+            'abena.darko@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1004',
+                'department' => 'Finance',
+                'location' => 'EPA Kumasi Office',
+                'work_type' => 'office',
+                'category' => 'FINANCE',
+                'grade' => 'Officer',
+                'employment_type' => 'permanent',
+                'started_on' => '2022-03-01',
+            ],
+            'yaw.boateng@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1005',
+                'department' => 'Human Resources',
+                'location' => 'EPA Head Office — Accra',
+                'work_type' => 'office',
+                'category' => 'MANAGER',
+                'grade' => 'Manager',
+                'employment_type' => 'permanent',
+                'started_on' => '2014-02-01',
+            ],
+            'akosua.baah@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1006',
+                'department' => 'Finance',
+                'location' => 'EPA Head Office — Accra',
+                'work_type' => 'hybrid',
+                'category' => 'FINANCE',
+                'grade' => 'Manager',
+                'employment_type' => 'permanent',
+                'started_on' => '2015-06-01',
+            ],
+            'efua.asante@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1007',
+                'department' => 'Operations',
+                'location' => 'EPA Tema Office',
+                'work_type' => 'remote',
+                'category' => 'JUNIOR',
+                'grade' => 'Officer',
+                'employment_type' => 'contract',
+                'started_on' => '2025-01-15',
+            ],
+            'kwesi.owusu@epa.orbit-demo.test' => [
+                'member_id' => 'EPA-DEMO-1008',
+                'department' => 'Field Services',
+                'location' => 'Field Operations',
+                'work_type' => 'field',
+                'category' => 'FIELD',
+                'grade' => 'Officer',
+                'employment_type' => 'permanent',
+                'started_on' => '2020-09-01',
+            ],
+        ], 'epa.orbit-demo.test', 'EPA-DEMO', [
+            'Administration',
+            'Finance',
+            'Human Resources',
+            'Operations',
+            'Environmental Monitoring',
+            'Field Services',
+            'IT',
+            'Legal',
+        ], [
+            'EPA Head Office — Accra',
+            'EPA Tema Office',
+            'EPA Kumasi Office',
+            'EPA Takoradi Office',
+            'Field Operations',
+        ], [
+            ['work_type' => 'office', 'category' => 'MANAGER', 'grade' => 'Manager', 'employment_type' => 'permanent', 'started_on' => '2016-01-04', 'status' => 'active'],
+            ['work_type' => 'field', 'category' => 'FIELD', 'grade' => 'Officer', 'employment_type' => 'permanent', 'started_on' => '2019-04-01', 'status' => 'active'],
+            ['work_type' => 'remote', 'category' => 'JUNIOR', 'grade' => 'Officer', 'employment_type' => 'contract', 'started_on' => '2024-02-01', 'status' => 'active'],
+            ['work_type' => 'hybrid', 'category' => 'FINANCE', 'grade' => 'Officer', 'employment_type' => 'permanent', 'started_on' => '2018-07-01', 'status' => 'on_leave'],
+            ['work_type' => 'office', 'category' => 'JUNIOR', 'grade' => 'Officer', 'employment_type' => 'contract', 'started_on' => '2023-09-01', 'status' => 'inactive'],
+        ]);
     }
 }

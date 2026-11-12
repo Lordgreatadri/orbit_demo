@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Analytics\AnalyticsScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workforce\ApplyWorkPatternRequest;
 use App\Http\Requests\Workforce\AssignShiftRequest;
@@ -34,6 +35,7 @@ class ScheduleController extends Controller
 
         $user = $request->user();
         $manage = $user->can('schedules.manage');
+        $departmentIds = AnalyticsScope::restrictingDepartmentIds($user);
         $timezone = $user->organization->timezone ?: 'UTC';
         $from = now($timezone)->startOfDay();
         $find = trim((string) $request->query('find', ''));
@@ -52,6 +54,11 @@ class ScheduleController extends Controller
                 $query->where('staff_member_id', $user->staffMember?->getKey() ?? 0)
                     ->whereHas('shift', fn ($shift) => $shift->where('status', 'published'));
             })
+            ->when($manage && $departmentIds !== null, function ($query) use ($departmentIds): void {
+                $query->whereIn('staff_member_id', StaffMember::query()
+                    ->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds)
+                    ->select('id'));
+            })
             ->orderBy('work_date')
             ->orderBy('id')
             ->paginate(30)
@@ -59,21 +66,42 @@ class ScheduleController extends Controller
 
         $people = collect();
         if ($manage && strlen($find) >= 2) {
-            $people = StaffMember::query()->search($find)->orderBy('last_name')->limit(30)->get(['uuid', 'first_name', 'last_name']);
+            $people = StaffMember::query()
+                ->search($find)
+                ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
+                ->orderBy('last_name')
+                ->limit(30)
+                ->get(['uuid', 'first_name', 'last_name']);
         }
 
         return view('tenant.schedules.index', [
             'assignments' => $assignments,
             'shifts' => $manage
-                ? Shift::query()->with(['department:id,name', 'location:id,name', 'arrangement:id,name,kind'])->latest('id')->paginate(15, ['*'], 'shifts')->withQueryString()
+                ? Shift::query()
+                    ->with(['department:id,name', 'location:id,name', 'arrangement:id,name,kind'])
+                    ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
+                    ->latest('id')
+                    ->paginate(15, ['*'], 'shifts')
+                    ->withQueryString()
                 : collect(),
-            'patterns' => $manage ? WorkPattern::query()->with(['arrangement:id,name', 'department:id,name'])->latest('id')->paginate(10, ['*'], 'patterns')->withQueryString() : collect(),
+            'patterns' => $manage
+                ? WorkPattern::query()
+                    ->with(['arrangement:id,name', 'department:id,name'])
+                    ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds === [] ? [-1] : $departmentIds))
+                    ->latest('id')
+                    ->paginate(10, ['*'], 'patterns')
+                    ->withQueryString()
+                : collect(),
             'calendar' => $manage
                 ? NonWorkingDay::query()->where('observed_on', '>=', $from->toDateString())->orderBy('observed_on')->paginate(15, ['*'], 'days')->withQueryString()
                 : collect(),
             'canManage' => $manage,
             'lesson' => $user->organization->isEducational(),
-            'departments' => $this->choices(Department::query(), 'name', $unit),
+            'departments' => $this->choices(
+                Department::query()->when($departmentIds !== null, fn ($query) => $query->whereIn('id', $departmentIds === [] ? [-1] : $departmentIds)),
+                'name',
+                $unit,
+            ),
             'locations' => $this->choices(Location::query()->where('is_active', true), 'name', $place),
             'arrangements' => WorkArrangement::query()->where('is_active', true)->orderBy('name')->get(['uuid', 'name', 'kind']),
             'people' => $people,
@@ -95,6 +123,8 @@ class ScheduleController extends Controller
     public function store(StoreShiftRequest $request, ScheduleService $schedules): RedirectResponse
     {
         $input = $request->validated();
+        $department = isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null;
+        abort_unless(AnalyticsScope::departmentAllowed($request->user(), $department?->getKey()), 403);
 
         $schedules->create(
             $request->user(),
@@ -103,7 +133,7 @@ class ScheduleController extends Controller
             $request->endsAt(),
             now()->parse($input['effective_from']),
             isset($input['effective_until']) ? now()->parse($input['effective_until']) : null,
-            isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null,
+            $department,
             isset($input['location_uuid']) ? Location::query()->where('uuid', $input['location_uuid'])->first() : null,
             isset($input['arrangement_uuid']) ? WorkArrangement::query()->where('uuid', $input['arrangement_uuid'])->first() : null,
         );
@@ -114,6 +144,7 @@ class ScheduleController extends Controller
     public function publish(Request $request, Shift $shift, ScheduleService $schedules): RedirectResponse
     {
         abort_unless($request->user()->can('schedules.manage'), 403);
+        $this->abortUnlessDepartment($request, $shift->department_id);
         $schedules->publish($request->user(), $shift);
 
         return back()->with('status', 'Schedule published.');
@@ -122,12 +153,15 @@ class ScheduleController extends Controller
     public function assign(AssignShiftRequest $request, Shift $shift, ScheduleService $schedules): RedirectResponse
     {
         $input = $request->validated();
+        $person = StaffMember::query()->where('uuid', $input['staff_uuid'])->firstOrFail();
+        $this->abortUnlessDepartment($request, $shift->department_id);
+        $this->abortUnlessDepartment($request, $person->department_id);
 
         try {
             $schedules->assign(
                 $request->user(),
                 $shift,
-                StaffMember::query()->where('uuid', $input['staff_uuid'])->firstOrFail(),
+                $person,
                 now()->parse($input['work_date']),
                 isset($input['arrangement_uuid']) ? WorkArrangement::query()->where('uuid', $input['arrangement_uuid'])->first() : null,
                 isset($input['location_uuid']) ? Location::query()->where('uuid', $input['location_uuid'])->first() : null,
@@ -142,6 +176,9 @@ class ScheduleController extends Controller
     public function destroyAssignment(Request $request, ShiftAssignment $assignment, ScheduleService $schedules): RedirectResponse
     {
         abort_unless($request->user()->can('schedules.manage'), 403);
+        $assignment->loadMissing(['shift', 'staffMember']);
+        $this->abortUnlessDepartment($request, $assignment->shift?->department_id);
+        $this->abortUnlessDepartment($request, $assignment->staffMember?->department_id);
 
         try {
             $schedules->remove($request->user(), $assignment);
@@ -155,6 +192,8 @@ class ScheduleController extends Controller
     public function pattern(StoreWorkPatternRequest $request, ScheduleService $schedules): RedirectResponse
     {
         $input = $request->validated();
+        $department = isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null;
+        abort_unless(AnalyticsScope::departmentAllowed($request->user(), $department?->getKey()), 403);
 
         $schedules->savePattern(
             $request->user(),
@@ -164,7 +203,7 @@ class ScheduleController extends Controller
             $input['weekdays'],
             now()->parse($input['effective_from']),
             isset($input['effective_until']) ? now()->parse($input['effective_until']) : null,
-            isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null,
+            $department,
             isset($input['location_uuid']) ? Location::query()->where('uuid', $input['location_uuid'])->first() : null,
             isset($input['arrangement_uuid']) ? WorkArrangement::query()->where('uuid', $input['arrangement_uuid'])->first() : null,
         );
@@ -175,6 +214,9 @@ class ScheduleController extends Controller
     public function applyPattern(ApplyWorkPatternRequest $request, WorkPattern $pattern, ScheduleService $schedules): RedirectResponse
     {
         $input = $request->validated();
+        $department = isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null;
+        $this->abortUnlessDepartment($request, $pattern->department_id);
+        $this->abortUnlessDepartment($request, $department?->getKey() ?? $pattern->department_id);
 
         try {
             $count = $schedules->applyPattern(
@@ -182,7 +224,7 @@ class ScheduleController extends Controller
                 $pattern,
                 now()->parse($input['from']),
                 now()->parse($input['until']),
-                isset($input['department_uuid']) ? Department::query()->where('uuid', $input['department_uuid'])->first() : null,
+                $department,
             );
         } catch (AttendanceException $exception) {
             return back()->withErrors(['schedule' => $exception->getMessage()]);
@@ -193,6 +235,7 @@ class ScheduleController extends Controller
 
     public function nonWorking(StoreNonWorkingDayRequest $request, ScheduleService $schedules): RedirectResponse
     {
+        abort_if(AnalyticsScope::restrictingDepartmentIds($request->user()) !== null, 403);
         $input = $request->validated();
         $schedules->markNonWorking($request->user(), now()->parse($input['observed_on']), $input['name'], $input['kind']);
 
@@ -203,6 +246,14 @@ class ScheduleController extends Controller
      * @param  Builder<Model>  $query
      * @return Collection<int, Model>
      */
+    private function abortUnlessDepartment(Request $request, mixed $departmentId): void
+    {
+        abort_unless(
+            AnalyticsScope::departmentAllowed($request->user(), $departmentId === null ? null : (int) $departmentId),
+            403,
+        );
+    }
+
     private function choices($query, string $column, string $term)
     {
         return $query

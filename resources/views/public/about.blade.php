@@ -95,7 +95,7 @@
                     <p>Shifts are defined per department or location and assigned to members. Leave requests carry a type, date range, and reason, and are approved or rejected by authorised approvers with the decision recorded. Notifications confirm attendance, remind members of shifts, and communicate leave outcomes.</p>
 
                     <h2 id="reporting">5. Reporting</h2>
-                    <p>Administrators filter attendance by date, location, department, member, status, and work type, and review daily and monthly summaries. Exports are planned as part of the reporting module.</p>
+                    <p>Administrators filter attendance by date, location, department, member, status, and work type, and review the same range on every chart. The current range can be downloaded as CSV. Scheduled delivery and spreadsheet or PDF packs are not part of this release.</p>
 
                     <h2 id="security">6. Data separation and security</h2>
                 </div>
@@ -115,7 +115,7 @@
 
                 <div class="prose-orbit">
                     <h2 id="stages">Delivery stages</h2>
-                    <p>ORBIT is delivered in stages: public pages and organisation onboarding first, then locations, attendance, field monitoring, schedules, leave, notifications, and analytics. Your dashboard shows which modules are currently enabled; nothing is presented as live before it is.</p>
+                    <p>The current workspace covers organisation onboarding, people and structure, attendance, field check-in, schedules, leave, notifications, and analytics. Your dashboard shows the view your role is allowed to use. Later work such as exports, a mobile application, and external integrations is not presented as available.</p>
                 </div>
 
                 <div class="mt-12 flex flex-wrap gap-3 border-t border-edge pt-10">

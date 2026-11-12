@@ -8,8 +8,8 @@
 @php
     $base = 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-60';
     $sizes = [
-        'sm' => 'h-9 px-3.5 text-sm',
-        'md' => 'h-10 px-4 text-[0.9375rem]',
+        'sm' => 'min-h-11 px-3.5 text-sm',
+        'md' => 'min-h-11 px-4 text-[0.9375rem]',
         'lg' => 'h-12 px-6 text-base',
     ];
     $variants = [

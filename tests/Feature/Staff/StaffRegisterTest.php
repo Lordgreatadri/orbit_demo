@@ -209,4 +209,53 @@ class StaffRegisterTest extends TestCase
 
         $this->assertInstanceOf(User::class, User::factory()->create());
     }
+
+    #[Test]
+    public function a_department_head_cannot_create_or_move_staff_outside_their_department(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $operations = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Operations']);
+        $finance = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Finance']);
+        $manager = $this->createMember($admin->organization, role: 'organization_manager');
+        $head = StaffMember::factory()->forOrganization($admin->organization)->linkedTo($manager)->create([
+            'department_id' => $operations->getKey(),
+        ]);
+        $operations->update(['head_staff_member_id' => $head->getKey()]);
+        $visible = StaffMember::factory()->forOrganization($admin->organization)->create([
+            'department_id' => $operations->getKey(),
+            'staff_number' => 'OPS-100',
+        ]);
+        $manager->unsetRelation('staffMember');
+        $before = StaffMember::withoutTenantScope()->count();
+
+        $this->actingAs($manager)->post(route('org.staff.store'), $this->payload([
+            'staff_number' => 'FIN-200',
+            'department' => $finance->uuid,
+        ]))->assertForbidden();
+        $this->actingAs($manager)->post(route('org.staff.store'), $this->payload([
+            'staff_number' => 'OPS-201',
+        ]))->assertForbidden();
+        $this->assertSame($before, StaffMember::withoutTenantScope()->count());
+
+        $this->actingAs($manager)->post(route('org.staff.store'), $this->payload([
+            'staff_number' => 'OPS-202',
+            'department' => $operations->uuid,
+        ]))->assertRedirect();
+        $created = StaffMember::query()->where('staff_number', 'OPS-202')->firstOrFail();
+        $this->assertSame($operations->getKey(), $created->department_id);
+
+        $this->actingAs($manager)->put(route('org.staff.update', $visible), $this->payload([
+            'staff_number' => $visible->staff_number,
+            'department' => $finance->uuid,
+        ]))->assertForbidden();
+        $this->assertSame($operations->getKey(), $visible->fresh()->department_id);
+
+        $this->actingAs($manager)->put(route('org.staff.update', $visible), $this->payload([
+            'staff_number' => $visible->staff_number,
+            'department' => $operations->uuid,
+            'job_title' => 'Desk lead',
+        ]))->assertRedirect();
+        $this->assertSame('Desk lead', $visible->fresh()->job_title);
+        $this->assertSame($operations->getKey(), $visible->fresh()->department_id);
+    }
 }

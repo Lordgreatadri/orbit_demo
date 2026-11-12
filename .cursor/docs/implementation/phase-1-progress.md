@@ -1,19 +1,19 @@
-# Phase 1 — Progress Tracker
+# Phase 1 â€” Progress Tracker
 
-- Scope: `phase-1-plan.md` Stages 0–2 (assessment, public site, organisation registration & auth foundations).
+- Scope: `phase-1-plan.md` Stages 0â€“2 (assessment, public site, organisation registration & auth foundations).
 - Toolchain: Herd PHP 8.4.27 (`C:\Users\rexme\.config\herd\bin\php84\php.exe`), Composer 2.10, Node 24 / npm 11.
 - Tests: PHPUnit 12 on in-memory SQLite. Dev DB: PostgreSQL `orbit_gh` (from `.env`, owner-managed).
 - Git: repository not initialised by Cursor; the owner initialises/commits.
 
-Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
+Legend: `[x]` done and verified Â· `[~]` partial Â· `[ ]` not started
 
-## Stage 0 — Assessment
-- [x] Toolchain and skeleton assessment → `stage-0-repository-assessment.md`
-- [x] Package-by-package dependency decision (§6 of the assessment)
+## Stage 0 â€” Assessment
+- [x] Toolchain and skeleton assessment â†’ `stage-0-repository-assessment.md`
+- [x] Package-by-package dependency decision (Â§6 of the assessment)
 - [x] ADR-0009 account model / auth / roles written
 - [x] `.gitignore` no longer ignores `/.cursor/`; `AGENTS.md`/`CLAUDE.md` point to the governance pack
 
-## Stage 1 — Design system and public site
+## Stage 1 â€” Design system and public site
 - [x] Tokens + light (default) and deep-teal/midnight-plum (`data-theme="plum"`) themes in `resources/css/app.css`
 - [x] Pre-paint theme script, `localStorage` persistence, `prefers-color-scheme` fallback (`resources/js/theme.js`)
 - [x] Blade components: button, form/*, alert, badge, card, empty-state, page-header, flash, logo, theme-toggle
@@ -24,9 +24,9 @@ Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
 - [x] Public visual refinement (2026-10-24 evening): mesh/grid backgrounds, larger laptop type scale (`html` 106.25% at 1024 px), official ORBIT icon + lockup, favicons on every layout, split-panel auth, hero/TOC treatment on inner public pages. Message copy unchanged.
 - [ ] Replace text logo with owner-supplied `public/images/orbit-*.png` variant
 
-## Stage 2 — Registration, authentication, tenant foundation
+## Stage 2 â€” Registration, authentication, tenant foundation
 - [x] Schema: `organizations`, `users` (uuid + `organization_id`), `contact_messages`, `invitations`, spatie tables, `activity_log.organization_id`
-- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `IdentifyTenant` (hostname → tenant, runs **before** `SubstituteBindings`)
+- [x] `HasPublicUuid`, `BelongsToOrganization` + `OrganizationScope`, `TenantContext`, `IdentifyTenant` (hostname â†’ tenant, runs **before** `SubstituteBindings`)
 - [x] Organisation registration (`RegisterOrganization` action, transactional, creates org + admin + role + audit)
 - [x] Login/logout (rate-limited, generic errors, inactive user / non-operational org blocked), `EnsureAccountIsOperational`
 - [x] Password reset (broker, generic response, `throttle:password-reset`)
@@ -38,30 +38,30 @@ Legend: `[x]` done and verified · `[~]` partial · `[ ]` not started
 - [x] Tests: registration, login, password reset, verification, organisation settings isolation, invitations, tenant isolation, seeding
 - [x] Local demo seed (not part of `DatabaseSeeder`): `php artisan db:seed --class=SystemDemoUserSeeder`. Fictional EPA Ghana and UPSA tenants, plus one account for every platform and tenant role. Password comes from `ORBIT_DEMO_PASSWORD`. Refuses `APP_ENV=production`.
 - [x] Phone confirmation is required with e-mail before workspace access. One screen shows both checks. The code is logged by `LogSmsSender` until an SMS provider is bound to `App\Contracts\SmsSender`.
-- [ ] Logo upload — deferred (Stage 3, needs media decision)
+- [ ] Logo upload â€” deferred (Stage 3, needs media decision)
 
 ## Commands executed and observed results (latest run, 2026-10-24)
 | Command | Result |
 | --- | --- |
 | `php84 artisan test --compact` | **82 tests, 82 passed, 398 assertions** (9.8 s) |
-| `php84 vendor/bin/pint` | 8 files fixed (imports/spacing; CRLF→LF in owner-added route stubs); clean afterwards |
-| `npm run build` | ✓ built (3.7–4.5 s) — `app-*.css` 53 kB (9.9 kB gz), `app-*.js` 55 kB (19 kB gz); rebuilt after the contrast fix (`app-BbgY0VOy.css`) |
+| `php84 vendor/bin/pint` | 8 files fixed (imports/spacing; CRLFâ†’LF in owner-added route stubs); clean afterwards |
+| `npm run build` | âœ“ built (3.7â€“4.5 s) â€” `app-*.css` 53 kB (9.9 kB gz), `app-*.js` 55 kB (19 kB gz); rebuilt after the contrast fix (`app-BbgY0VOy.css`) |
 | `php84 artisan serve --port=8765` + Cursor browser | `/` and `/register` rendered; theme toggle, theme persistence across navigation, mobile nav verified visually; server stopped afterwards |
 | `php84 artisan migrate --force` (PostgreSQL `orbit_gh`) | `0001_01_00_000000_create_countries_table` DONE (all others already applied) |
 | `php84 artisan db:seed --force` (PostgreSQL) | `CountryTableSeeder` 293 ms, `RolesAndPermissionsSeeder` 97 ms; counts: countries 36, roles 6, permissions 6 |
 | `php84 artisan route:list` | 27 application routes; `app/*` carry `web, auth, account.operational, verified` |
 
-Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_gh` (destructive on that dev database — it had just been pointed at by the owner and contained no ORBIT data); subsequent runs used non-destructive `migrate` / `db:seed` only.
+Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_gh` (destructive on that dev database â€” it had just been pointed at by the owner and contained no ORBIT data); subsequent runs used non-destructive `migrate` / `db:seed` only.
 
 ## Defects found by the test suite and fixed
-1. `SubstituteBindings` ran before `SetTenantContext`, so UUID route binding was not tenant-scoped (policy still blocked access → 403 instead of 404). Fixed with `prependToPriorityList(SubstituteBindings::class, SetTenantContext::class)`; test now asserts 404 for a foreign invitation.
+1. `SubstituteBindings` ran before `SetTenantContext`, so UUID route binding was not tenant-scoped (policy still blocked access â†’ 403 instead of 404). Fixed with `prependToPriorityList(SubstituteBindings::class, SetTenantContext::class)`; test now asserts 404 for a foreign invitation.
 2. `EnsureAccountIsOperational` used the cached `organization` relation; a suspension mid-session was not detected for long-lived user instances. Now re-reads the organisation per request.
 3. `AcceptInvitation` mass-assigned `email_verified_at` (not fillable by design). Now `forceFill`ed explicitly.
 4. `App\Models\Activity` redeclared `$guarded` with a narrower visibility (fatal). Removed.
 5. Test bootstrap depended on `DatabaseSeeder`, which the owner extended with `CountryTableSeeder`; tests now seed only roles/permissions, and `SeedingTest` covers the full seeder.
 
 ## Unresolved risks / decisions for the owner
-- **Namespace layout**: owner-added code references `App\Modules\Shared\Domain\Models\…`; current code is in idiomatic `app/`. Decide before Stage 3 (see assessment §8).
+- **Namespace layout**: owner-added code references `App\Modules\Shared\Domain\Models\â€¦`; current code is in idiomatic `app/`. Decide before Stage 3 (see assessment Â§8).
 - **`dyrynda/laravel-model-uuid`** was referenced by the owner's `Country` model but is not installed; `HasPublicUuid` is used instead. If the package is wanted project-wide, record it in an ADR and swap the trait once.
 - **Spatie migration edits**: `uuid` columns on `roles`/`permissions`/`activity_log` are an owner decision; package upgrades that republish migrations will not include them.
 - **Terms / Privacy** content is a draft for legal review.
@@ -81,7 +81,7 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 | `php84 artisan test --compact` (verification and platform directory) | **92 passed, 558 assertions** |
 | `php84 artisan db:seed --class=SystemDemoUserSeeder` | Re-ran with `updateOrCreate`. Same 10 accounts, no duplicate-key error. Phone confirmation set on those accounts |
 
-## Stage 3 — Workspace shell, access control, and structure (in progress)
+## Stage 3 â€” Workspace shell, access control, and structure (in progress)
 - [x] Split routes by audience: `/org` tenant workspace, `/admin` platform console, `/app` account-neutral landing + profile
 - [x] Fixed left sidebar (does not scroll with the page), expandable Users & access / Audit & security, mobile drawer, labelled coming-soon pages
 - [x] Staff register separate from login accounts; org admins manage users, roles, and permissions; super admins see every account
@@ -89,10 +89,10 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 - [x] Audit trail and sign-in history as separate pages (tenant and platform)
 - [x] Mail header uses `public/images/brand/orbit-lockup-light.png` with `alt="ORBIT"`
 - [x] Hostname tenancy + domain registry + organisation branding (ADR-0011). Spatie/stancl not installed; native resolver on shared DB.
-- [x] Sortable table headers and visible “Showing x–y of z” counts on large lists
+- [x] Sortable table headers and visible â€œShowing xâ€“y of zâ€ counts on large lists
 - [x] `student` role limited to educational institutions; super-admin product-module placeholders restored
 - [x] Tenancy review pass (2026-10-31): idempotent workspace backfill seeder (not a migration), branding/trusted-host cache eviction, DNS label limit, draft vs published assets + authorised preview route, request-local origins for CSRF, host check before `Auth::attempt`, WCAG 4.5:1 ink, custom tenant roles in invitations, preview merge of nulls/assets, factory `updateOrCreate` reuse, colour-picker name, branding CSS after Vite, locked theme toggle, login panel image, central terms/privacy/guide links
-- [x] Attendance, QR sessions, field, schedules, leave, notifications, and analytics — live tenant screens (2026-11-04). Face, fingerprint, NFC, payroll, and fraud scoring stay out.
+- [x] Attendance, QR sessions, field, schedules, leave, notifications, and analytics â€” live tenant screens (2026-11-04). Face, fingerprint, NFC, payroll, and fraud scoring stay out.
 
 ## Commands executed and observed results (2026-10-31 review pass)
 | Command | Result |
@@ -101,7 +101,7 @@ Earlier in the session: `migrate:fresh --seed` was run **once** against `orbit_g
 | `php84 artisan test --compact` | **175 tests, 175 passed, 1,306 assertions** |
 
 ## Recommended next task
-Stage 4 — Attendance module (QR sessions and field check-in) using the seeded EPA demo locations and departments. Do not implement billing, payroll, BLE, biometrics, or live EPA integrations.
+Stage 4 â€” Attendance module (QR sessions and field check-in) using the seeded EPA demo locations and departments. Do not implement billing, payroll, BLE, biometrics, or live EPA integrations.
 
 ## Platform SMS providers (2026-11-02)
 - [x] ADR-0012. `SmsTransmitter` is the platform entry point. Phone confirmation stays on `LogSmsSender`.
@@ -126,7 +126,7 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan sms:sync-providers` | 4 providers registered; existing settings left in place |
 | `php84 artisan route:list --path=webhooks` | POST `webhooks/sms/{wigal,twilio,africastalking}/{token}`; GET and POST `webhooks/sms/arkesel/{token}` |
 | `composer update --lock --no-scripts` then `composer validate --no-check-publish --no-check-version` | Lock hash aligned with `spatie/laravel-webhook-client: ^3.7`. Composer reports valid |
-| Signed-in HTTP check against `php artisan serve` on `127.0.0.1:8000` | Super admin sees four tabs (Africa's Talking, Arkesel, Twilio, Wigal Frog). Saving a sender ID round-trips and was reverted. Secret inputs stay empty. Health on a disabled provider returns “Turn the provider on before checking it.” `platform.support` receives 403. Unauthenticated `/admin/sms-providers` redirects to login |
+| Signed-in HTTP check against `php artisan serve` on `127.0.0.1:8000` | Super admin sees four tabs (Africa's Talking, Arkesel, Twilio, Wigal Frog). Saving a sender ID round-trips and was reverted. Secret inputs stay empty. Health on a disabled provider returns â€œTurn the provider on before checking it.â€ `platform.support` receives 403. Unauthenticated `/admin/sms-providers` redirects to login |
 | `php84 artisan test --compact` on SMS, overview, provider settings, and login | **54 tests, 54 passed, 269 assertions** |
 | `php84 artisan migrate --force` | Applied `2026_11_02_140000_widen_sms_sender_and_index_messages` |
 
@@ -198,7 +198,7 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | --- | --- |
 | `php84 vendor/bin/pint --dirty` | Passed after fixing import order in `UserAccessTest` |
 | `php84 artisan test --compact` on the profile role test, the zero-balance leave test, the overlapping leave test, and the existing profile test | **3 passed, 1 failed** (the failed request had already stored a zero balance, so raising the type default did not restore days). Cleared that balance and re-ran `a_leave_type_with_no_remaining_days_cannot_be_requested`: **1 passed, 12 assertions** |
-| Browser on `https://epa.orbit.test` as the EPA organisation administrator | Leave page shows balances, Pending / Due / Approved, and an empty approval queue. View opens the details modal (Submitted, 2 days, note). Request leave calculates 10–12 Dec 2026 as 3 read-only days. Profile shows the administrator role with no lecturer or student wording. Roles lists Member as “Employee, staff member, or field officer…” |
+| Browser on `https://epa.orbit.test` as the EPA organisation administrator | Leave page shows balances, Pending / Due / Approved, and an empty approval queue. View opens the details modal (Submitted, 2 days, note). Request leave calculates 10â€“12 Dec 2026 as 3 read-only days. Profile shows the administrator role with no lecturer or student wording. Roles lists Member as â€œEmployee, staff member, or field officerâ€¦â€ |
 
 ## Leave type management and notification ids (2026-11-06)
 - [x] Approvers see every leave type on the leave page after it is saved, and can edit the name, code, pay, balance, default days, and whether staff can still request it.
@@ -211,22 +211,22 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan test --compact` on the notification schema tests and the leave-type edit test | **3 passed, 25 assertions** |
 | `php84 artisan migrate --force` | Applied `2026_11_06_090000_align_notifications_table` |
 | Live `notifications` columns on `orbit_gh` | `id` is `int8`. Existing rows kept their UUIDs in `uuid` (`id` 1 and 2). A model insert stored numeric `id` 3 with the channel UUID, then that probe row was deleted |
-| Browser on `https://epa.orbit.test/org/leave` | Annual, Maternity, and Sick are listed with edit links. Edit Maternity opens name MT, 35 default days, paid, balance, and active. Saving returns to the list with “Leave type updated.” |
+| Browser on `https://epa.orbit.test/org/leave` | Annual, Maternity, and Sick are listed with edit links. Edit Maternity opens name MT, 35 default days, paid, balance, and active. Saving returns to the list with â€œLeave type updated.â€ |
 
 ## Staff session check-in (2026-11-06)
-- [x] My attendance shows each open session’s live code in a centred square. The session email links to `/org/attendance/mine#opened-sessions` and does not contain the code. Staff can scan that square or check in on the same device. A registered beacon is a button. Wi-Fi is listed as supporting evidence only.
+- [x] My attendance shows each open sessionâ€™s live code in a centred square. The session email links to `/org/attendance/mine#opened-sessions` and does not contain the code. Staff can scan that square or check in on the same device. A registered beacon is a button. Wi-Fi is listed as supporting evidence only.
 
 ## Commands executed and observed results (2026-11-06 staff check-in)
 | Command | Result |
 | --- | --- |
 | `php84 artisan test --filter=opening_a_session_tells_people_who_can_check_in_and_the_code_stays_scannable` | **1 passed, 37 assertions** |
-| Browser on `https://epa.orbit.test/org/attendance/mine#opened-sessions` as the EPA organisation administrator | Test QR code session shows a centred white square, a countdown, and “Check in with this code”. Check-in was not submitted. |
+| Browser on `https://epa.orbit.test/org/attendance/mine#opened-sessions` as the EPA organisation administrator | Test QR code session shows a centred white square, a countdown, and â€œCheck in with this codeâ€. Check-in was not submitted. |
 
 ## Attendance alignment (2026-11-06)
 - [x] A current QR code stays valid for every eligible person until it expires or the screen that showed it rotates it. The same person cannot check in twice for that session. Expired, rotated, and unknown codes are rejected. Only the hash is stored.
 - [x] Duplicate check-in is per session or work period. A second session on the same day is a separate record. Leave and an excused day still cover the calendar day. Check-out closes the selected open record.
 - [x] GPS acceptance and rejection keep coordinates, accuracy, capture time, location, and geofence result on the attendance event. The raw code is not stored.
-- [x] An account with no linked person sees “No person record is linked to this account.” Beacon check-in is labelled beacon evidence. Submitting a registered identifier does not claim Bluetooth proximity.
+- [x] An account with no linked person sees â€œNo person record is linked to this account.â€ Beacon check-in is labelled beacon evidence. Submitting a registered identifier does not claim Bluetooth proximity.
 - [x] `2026_11_06_120000_align_attendance_periods_and_shared_qr_tokens` adds `period_key` and `attendance_session_id`, replaces the one-row-per-day unique key, and drops the single-use columns on QR tokens.
 
 ## Commands executed and observed results (2026-11-06 attendance alignment)
@@ -364,6 +364,92 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 artisan test --compact` | **292 passed, 2519 assertions**. No failures. No skipped tests |
 | `php84 artisan migrate --force` | Recorded `120100` through `121300`. Existing tables were left in place |
 
+## Analytics, dashboards, and insights (2026-11-11)
+
+- [x] `AnalyticsScope` limits organisation, department-head, and personal aggregates. A filter can narrow that scope and cannot widen it. ADR-0016 and `implementation/analytics-and-dashboards.md`.
+- [x] `WorkforceReport` remains the attendance and schedule-adherence source. `OperationalDigest` adds leave-year utilisation and separates notification delivery from read state.
+- [x] Organisation, department, and personal dashboards share `DashboardComposer`. The platform dashboard charts registration weeks and does not open tenant attendance.
+- [x] Insights are deterministic and cite the metric. No external model is bound. `OperationalInsightProvider` is the later adapter.
+- [x] Charts stay server-rendered with `ChartPalette`. Authenticated pages do not plot the labelled sample metrics block.
+- [x] A department head who is not an organisation administrator is limited to headed departments on the dashboard, analytics, CSV, attendance, staff register (including view and update), schedule lists and mutations, and the leave approval queue. An organisation manager who heads no department stays organisation-wide. `organization.update` stays organisation-wide.
+- [x] The attendance CSV uses the same scope. PDF, Excel, and scheduled delivery stay on the next milestone.
+- [x] The organisation/read index is created by `2026_11_11_080000_index_notifications_by_organization_read` and also by the up path of `140500`, so a fresh database and an already-migrated database both get it. Rolling back `140500` drops that index before `organization_id`.
+
+## Commands executed and observed results (2026-11-11)
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact` | First full run **failed**: 311 passed, 1 error. `DatabaseNotificationSchemaTest::inbox_column_rollback_drops_organization_id_with_or_without_its_foreign_key` could not drop `organization_id` while `notifications_organization_read` still existed |
+| `php84 artisan test --compact tests/Feature/Notifications/DatabaseNotificationSchemaTest.php --filter=inbox_column_rollback_drops_organization_id_with_or_without_its_foreign_key` | **1 passed, 12 assertions**, after the rollback drops the index first |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+| `php84 artisan test --compact` | **312 passed, 2689 assertions**. No failures. No skipped tests |
+| `php84 artisan migrate --force` | Applied `2026_11_11_080000_index_notifications_by_organization_read` to the development PostgreSQL database. `notifications_organization_read` is present. No rollback was run |
+
+## Dashboard and UI hardening (2026-11-11)
+
+- [x] The organisation dashboard no longer shows the calculated-note list. Attention is the uncovered, schedule, and leave figures, with drill-down links. Calculated notes stay on analytics, grouped as action required now and planning attention.
+- [x] Present today is labelled as a stored status. Uncovered today is labelled as derived when no location filter is set.
+- [x] Personal leave figures on the dashboard use the same available-day figure as the leave page.
+- [x] Chart date labels use day/month and scroll inside the card. Screen-reader tables no longer widen the page.
+
+## Commands executed and observed results (2026-11-11 hardening)
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Fixed `DashboardComposer.php`, then a second run was clean |
+| `php84 artisan test --compact` | **314 passed, 2708 assertions**. No failures. No skipped tests |
+
+## Visual system (2026-11-11)
+
+- [x] Authenticated pages no longer use a floating card as the default container. Inset strips, open sections, and hairline panels are the grammar in `.cursor/docs/design/visual-system.md`.
+- [x] The organisation dashboard reads: attention, one position strip, a conclusion then the chart, one secondary column, then an administration link row.
+- [x] The sidebar shows the ORBIT mark and the workspace name once. The top bar shows the date on desktop and the workspace name on small screens.
+
+## Commands executed and observed results (2026-11-11 visual system)
+| Command | Result |
+| --- | --- |
+| `php84 artisan view:cache` | Blade templates cached successfully |
+| `npm run build` | Built. `public/build/assets/app-D-3X6tRj.css` |
+| `php84 artisan test --compact` | **314 passed, 2708 assertions**. This run was before the final sidebar wordmark |
+| `php84 artisan test --compact tests/Feature/Shell/WorkspaceShellTest.php tests/Feature/Analytics/DashboardAnalyticsTest.php tests/Feature/Staff/StaffRegisterTest.php` | **26 passed, 199 assertions**, after the sidebar wordmark |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+
+## Visual quality recovery (Milestone 5 refinement, 2026-11-11)
+
+The earlier flat pass was treated as a regression: equal-weight grey insets, unbounded text sections, and sparse charts. The visual system was revised (see `.cursor/docs/design/visual-system.md`). No backend, formula, policy, scope, or query change.
+
+- [x] Design system: resting panel shadow, `rounded-xl` panels, `.briefing`, `.toolbar`, `.table-panel`, severity rails, icon wells, meters, plot gridlines.
+- [x] `x-stat` KPI tile with icon well, semantic emphasis edge, optional meter, hover affordance. `x-card` with title icon and an "Informs" decision footer.
+- [x] Charts: `donut` (replaces the solid pie; `pie` delegates), `bars`, `gauge`, refined `stacked` and `columns`. Every chart keeps a screen-reader table; no-data is a sentence.
+- [x] Organisation and department dashboard: operational briefing, today's position, trend + today's coverage, schedule / leave / composition, notifications + administration.
+- [x] Personal workspace: today briefing with next shift, three KPI tiles, recent attendance, balances, requests, notices.
+- [x] Analytics: operational intelligence (calculated notes, still labelled Calculated), today tiles, trend with summary, status share with counts, methods / work type / department, adherence gauge, leave decisions, arrangements, notifications.
+- [x] Platform console: platform briefing with signals or health checks, five KPI tiles, registrations, tenant-health donut, SMS delivery by day, security, recent organisations and audit.
+- [x] Shell: workspace card with monogram, rounded active navigation, 17rem sidebar.
+- [x] Public home: illustrative workspace preview, audience band, problem â†’ outcome, capabilities with the question each answers, four-step process, safeguards, CTA.
+- [x] Operational pages: attendance tiles + toolbar, leave balance meters and status panels (dates now `j M Y`), notifications inbox panel, profile panels, tables as one panel.
+
+## Commands executed and observed results (2026-11-11 visual recovery)
+| Command | Result |
+| --- | --- |
+| `npm run build` | Built |
+| `php84 artisan test --compact` | **314 passed, 2708 assertions**. No failures |
+| Browser (Edge, Playwright) | Ama, Esi, Kojo, platform admin, public pages at 390 / 768 / 1280; light and deep teal; no page-level horizontal overflow |
+
+## Platform statistics, workforce overview, school tenant, and public help (2026-11-12)
+
+- [x] `/admin/statistics` (`admin.statistics`, sidebar *Statistics*, `platform.access`): `App\Analytics\PlatformStatistics` composes organisation status and type, account health, sign-ins over 30 days, register composition, invitation outcomes, 12-month growth, 14-day sign-in outcomes, and the largest organisations by register size. Aggregates only; no tenant attendance, leave, schedules, or member names.
+- [x] `/admin/workforce` redesigned: briefing (organisations reporting today, active people covered), six KPI tiles, organisation search, and a register with active people, a covered-today bar, present Â· late, open field work, and pending leave. Today is each organisation's local date; counts are distinct people. Covered as before by `platform.access`.
+- [x] School tenant (UPSA) reviewed as administrator, manager (Student Affairs scope), and student at 390 and 1280. Dashboard tile reads *Active people* with "staff and students" for educational organisations. Monograms skip filler words (`App\Support\Monogram`): "UP", not "UO".
+- [x] Password fields (`x-form.input type="password"`) have a show/hide eye button: stays `type="password"` until pressed, `aria-pressed`, `aria-controls`, and a "Show â€¦" / "Hide â€¦" label.
+- [x] Public user guide rewritten against the current product: roles, departments and locations, staff register, invitations and suspension, check-in methods and lateness, QR sessions and corrections, schedules, leave, notifications, dashboards, analytics and CSV, audit, schools and universities, account and theme, and what is not in this release.
+- [x] Contact page FAQ (`#faq`): four topic groups of native `<details>` disclosures below the form and demo block.
+
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact tests/Feature/Public tests/Feature/Platform tests/Feature/Analytics tests/Feature/Shell` | **70 passed, 493 assertions** |
+| `php84 artisan test --compact` | **321 passed, 2751 assertions**. No failures |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+| Browser | Password toggle switches `password` â†’ `text` â†’ `password`; FAQ item opens and closes; `/admin/statistics`, `/admin/workforce`, `/user-guide`, `/contact`, UPSA dashboard at 390 and 1280 with no page overflow |
+
 ## Final database-operation review (2026-11-10)
 - [x] `140400` no longer marks claims sent. Null status is not resent. `orbit:data:backfill-notice-claims` records it as sent.
 - [x] `140500` no longer copies inbox rows. `orbit:data:backfill-notification-inbox` fills a missing organisation and event. The columns stay nullable.
@@ -376,4 +462,19 @@ Stage 4 — Attendance module (QR sessions and field check-in) using the seeded 
 | `php84 vendor/bin/pint --dirty` | **Passed** |
 | `php84 artisan test --compact tests/Feature/Database/DataUpgradeTest.php` | **8 passed, 75 assertions** |
 | `php84 artisan test --compact` | **294 passed, 2547 assertions**. No failures. No skipped tests |
+
+## Review fixes (2026-11-12)
+
+- [x] Attendance correction, assignment removal, and staff create/update reject a department outside the acting manager's scope before the write. Assignment removal checks the shift department and the assigned person's department.
+- [x] Leave and schedule windows include the final day with a half-open calendar bound. An open leave balance includes its first day.
+- [x] Platform coverage counts each active person once across covering statuses. Bar segments use that same non-overlapping split.
+- [x] The sidebar workspace name keeps a published branding display name.
+- [x] The personal dashboard counts submitted leave separately from the five recent requests, and shows "No day limit" for unlimited types.
+
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | **Passed** (import order in two tests) |
+| `php84 artisan test --compact` on the new regression methods | **8 passed, 41 assertions** |
+| `php84 artisan test --compact` on `DashboardAnalyticsTest`, `PlatformStatisticsTest`, `StaffRegisterTest`, `WorkspaceShellTest`, `ScheduleLeaveReviewTest`, and `AttendanceWorkflowTest` | **71 passed, 826 assertions** |
+| `php84 vendor/bin/pint --dirty` then `php84 artisan test --compact` (full suite, 2026-11-12 validation) | Pint **passed**. **329 passed, 2792 assertions**. No failures |
 

@@ -11,6 +11,7 @@ use App\Models\AttendanceSession;
 use App\Models\AttendanceToken;
 use App\Models\Beacon;
 use App\Models\BoundDevice;
+use App\Models\Department;
 use App\Models\FieldActivity;
 use App\Models\FieldAssignment;
 use App\Models\LeaveBalance;
@@ -1087,6 +1088,42 @@ class AttendanceWorkflowTest extends TestCase
         $this->actingAs($admin)->get(route('org.field.index'))
             ->assertOk()
             ->assertSee('page=2', false);
+    }
+
+    #[Test]
+    public function a_department_head_cannot_correct_attendance_outside_their_department(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $operations = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Operations']);
+        $finance = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Finance']);
+        $manager = $this->createMember($admin->organization, role: 'organization_manager');
+        $head = StaffMember::factory()->forOrganization($admin->organization)->linkedTo($manager)->create([
+            'department_id' => $operations->getKey(),
+        ]);
+        $operations->update(['head_staff_member_id' => $head->getKey()]);
+        $visible = StaffMember::factory()->forOrganization($admin->organization)->create([
+            'department_id' => $operations->getKey(),
+        ]);
+        $hidden = StaffMember::factory()->forOrganization($admin->organization)->create([
+            'department_id' => $finance->getKey(),
+        ]);
+        $manager->unsetRelation('staffMember');
+
+        $this->actingAs($manager)->post(route('org.attendance.corrections'), [
+            'staff_uuid' => $hidden->uuid,
+            'work_date' => '2026-11-03',
+            'status' => 'excused',
+            'note' => 'Out of scope',
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('attendance_records', ['staff_member_id' => $hidden->getKey()]);
+
+        $this->actingAs($manager)->post(route('org.attendance.corrections'), [
+            'staff_uuid' => $visible->uuid,
+            'work_date' => '2026-11-03',
+            'status' => 'excused',
+            'note' => 'In scope',
+        ])->assertSessionHas('status');
+        $this->assertSame('excused', AttendanceRecord::query()->where('staff_member_id', $visible->getKey())->firstOrFail()->status->value);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace Tests\Feature\Shell;
 
 use App\Models\User;
 use App\Support\Navigation;
+use App\Tenancy\BrandingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -110,5 +111,21 @@ class WorkspaceShellTest extends TestCase
 
         $this->actingAs($manager)->get(route('org.audit.index'))->assertForbidden();
         $this->actingAs($manager)->get(route('org.audit.logins'))->assertForbidden();
+    }
+
+    #[Test]
+    public function the_sidebar_keeps_a_published_workspace_display_name(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $legal = $admin->organization->name;
+        $admin->organization->branding->update(['display_name' => 'Field Workspace']);
+        app(BrandingService::class)->forget($admin->organization);
+
+        $this->actingAs($admin)
+            ->get(route('org.dashboard'))
+            ->assertOk()
+            ->assertSee('title="Field Workspace"', false)
+            ->assertSee('>Field Workspace</p>', false)
+            ->assertDontSee('title="'.$legal.'"', false);
     }
 }

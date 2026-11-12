@@ -1,5 +1,5 @@
 <x-layouts.app title="Notifications">
-    <x-page-header title="Notifications" :description="$unread === 1 ? '1 unread notice' : $unread.' unread notices'">
+    <x-page-header title="Notifications" :description="($unread === 1 ? '1 unread notice' : $unread.' unread notices').' · read state follows when a notice was opened'" eyebrow="Inbox">
         @if ($unread > 0)
             <form method="POST" action="{{ route('org.notifications.read-all') }}">
                 @csrf
@@ -9,17 +9,19 @@
     </x-page-header>
 
     <nav aria-label="Notification categories" class="flex flex-wrap gap-2">
-        <a href="{{ route('org.notifications.index') }}" @if ($category === null) aria-current="page" @endif class="rounded-full border px-3 py-1.5 text-sm focus-visible:outline-2 {{ $category === null ? 'border-primary bg-primary-soft font-medium text-fg' : 'border-edge text-fg-muted hover:bg-surface-muted' }}">All</a>
+        <a href="{{ route('org.notifications.index') }}" @if ($category === null) aria-current="page" @endif class="inline-flex min-h-11 items-center rounded-full border px-3 text-sm focus-visible:outline-2 {{ $category === null ? 'border-primary bg-primary-soft font-medium text-fg' : 'border-edge text-fg-muted hover:bg-surface-muted' }}">All</a>
         @foreach ($categories as $key => $label)
-            <a href="{{ route('org.notifications.index', ['category' => $key]) }}" @if ($category === $key) aria-current="page" @endif class="rounded-full border px-3 py-1.5 text-sm focus-visible:outline-2 {{ $category === $key ? 'border-primary bg-primary-soft font-medium text-fg' : 'border-edge text-fg-muted hover:bg-surface-muted' }}">{{ $label }}</a>
+            <a href="{{ route('org.notifications.index', ['category' => $key]) }}" @if ($category === $key) aria-current="page" @endif class="inline-flex min-h-11 items-center rounded-full border px-3 text-sm focus-visible:outline-2 {{ $category === $key ? 'border-primary bg-primary-soft font-medium text-fg' : 'border-edge text-fg-muted hover:bg-surface-muted' }}">{{ $label }}</a>
         @endforeach
     </nav>
 
-    <x-card title="Inbox" description="Newest first. Fifteen notices on each page." :padding="false">
+    <section aria-labelledby="inbox-heading" class="card overflow-hidden">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-edge px-5 py-4">
+            <h2 id="inbox-heading" class="flex items-center gap-2 text-base font-semibold text-fg"><x-icon name="bell" class="size-4 text-fg-subtle" /> Inbox</h2>
+            <p class="text-sm text-fg-muted">Newest first. Fifteen notices on each page.</p>
+        </div>
         @if ($inbox->isEmpty())
-            <div class="p-5">
-                <x-empty-state title="No notifications" description="Leave, schedule, and attendance notices for you will appear here." />
-            </div>
+            <p class="px-5 py-6 text-sm text-fg-muted">No notifications. Leave, schedule, and attendance notices for you will appear here.</p>
         @else
             <ul class="divide-y divide-edge">
                 @foreach ($inbox as $notification)
@@ -27,9 +29,12 @@
                         $target = \App\Workforce\Communication\Inbox::safeUrl($notification->data['url'] ?? null, auth()->user());
                         $unreadRow = $notification->read_at === null;
                     @endphp
-                    <li class="px-5 py-4 {{ $unreadRow ? 'bg-accent-soft/40' : '' }}">
+                    <li class="relative px-5 py-4 {{ $unreadRow ? 'bg-primary-soft/40' : '' }}">
+                        @if ($unreadRow)
+                            <span class="absolute top-4 bottom-4 left-0 w-[3px] rounded-r-full bg-primary" aria-hidden="true"></span>
+                        @endif
                         <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                                 @if ($target)
                                     <form method="POST" action="{{ route('org.notifications.open', $notification->uuid) }}">
                                         @csrf
@@ -63,7 +68,7 @@
                 <div class="border-t border-edge px-5 py-3">{{ $inbox->links() }}</div>
             @endif
         @endif
-    </x-card>
+    </section>
 
     <x-card title="Your choices" description="These apply to optional notices. Approval results, schedule assignments, and attendance problems stay on while the organisation allows that channel.">
         <form method="POST" action="{{ route('org.notifications.preferences') }}" class="space-y-4">

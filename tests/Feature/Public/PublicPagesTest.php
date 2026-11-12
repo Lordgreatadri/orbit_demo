@@ -90,6 +90,48 @@ class PublicPagesTest extends TestCase
     }
 
     #[Test]
+    public function contact_page_has_an_expandable_question_and_answer_section(): void
+    {
+        $this->get(route('contact'))
+            ->assertOk()
+            ->assertSee('id="faq"', escape: false)
+            ->assertSee('Frequently asked questions')
+            ->assertSee('<details', escape: false)
+            ->assertSee('<summary', escape: false)
+            ->assertSee('Does ORBIT track where people are all day?')
+            ->assertSeeInOrder(['Send a message', 'Frequently asked questions']);
+    }
+
+    #[Test]
+    public function user_guide_covers_daily_workflows_and_release_scope(): void
+    {
+        $this->get(route('guide'))
+            ->assertOk()
+            ->assertSee('id="attendance"', escape: false)
+            ->assertSee('id="schedules"', escape: false)
+            ->assertSee('id="leave"', escape: false)
+            ->assertSee('id="notifications"', escape: false)
+            ->assertSee('id="analytics"', escape: false)
+            ->assertSee('id="education"', escape: false)
+            ->assertSee('Not in this release')
+            ->assertSee('not written by an AI model');
+    }
+
+    #[Test]
+    public function password_fields_offer_an_accessible_show_toggle(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('type="password"', escape: false)
+            ->assertSee('aria-label="Show password"', escape: false)
+            ->assertSee('aria-controls="password"', escape: false);
+
+        $this->get(route('register'))
+            ->assertOk()
+            ->assertSee('aria-label="Show confirm password"', escape: false);
+    }
+
+    #[Test]
     public function unknown_pages_render_custom_not_found_page(): void
     {
         $this->get('/this-page-does-not-exist')
