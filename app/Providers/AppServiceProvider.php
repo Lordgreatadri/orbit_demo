@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Analytics\Insights\DeterministicInsightProvider;
 use App\Contracts\DnsLookup;
+use App\Contracts\OperationalInsightProvider;
 use App\Contracts\PushNotifier;
 use App\Contracts\SmsSender;
 use App\Integrations\Dns\ArrayDnsLookup;
@@ -68,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         // and must not be bound here until that channel is explicitly switched on.
         $this->app->bind(SmsSender::class, LogSmsSender::class);
         $this->app->bind(PushNotifier::class, NullPushNotifier::class);
+        $this->app->bind(OperationalInsightProvider::class, DeterministicInsightProvider::class);
     }
 
     /**

@@ -98,6 +98,7 @@ class Navigation
         return [
             ['heading' => 'Overview', 'items' => [
                 ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'home', 'active' => 'admin.dashboard'],
+                ['label' => 'Statistics', 'route' => 'admin.statistics', 'icon' => 'chart', 'active' => 'admin.statistics', 'can' => $user->can('platform.access')],
             ]],
             ['heading' => 'Tenants', 'items' => [
                 ['label' => 'Organisations', 'route' => 'admin.organizations.index', 'icon' => 'building', 'active' => 'admin.organizations.*', 'can' => $user->can('viewAnyAsPlatform', Organization::class)],

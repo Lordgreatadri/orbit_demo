@@ -1,20 +1,26 @@
 <x-layouts.app title="Attendance records" wide>
-    <x-page-header title="Attendance records" description="Calculated from stored check-ins. A person with no record is counted as absent for the day.">
+    <x-page-header title="Attendance records" description="Stored check-ins for the selected date. The absent tile is derived: active people in scope with no covering record, unless a location filter is in use." eyebrow="Attendance">
         <x-button :href="route('org.attendance.mine')" variant="secondary" size="sm">My attendance</x-button>
     </x-page-header>
 
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <x-stat label="Present" :value="number_format($summary['present'])" icon="check" tone="success" />
-        <x-stat label="Late" :value="number_format($summary['late'])" icon="clock" tone="warning" />
-        <x-stat label="On leave" :value="number_format($summary['on_leave'])" icon="calendar" />
-        <x-stat label="Absent" :value="number_format($summary['absent'])" hint="Active staff without a covering record" icon="users" tone="danger" />
-    </div>
+    <section aria-labelledby="attendance-summary-heading">
+        <div class="mb-3 flex items-baseline justify-between gap-4">
+            <h2 id="attendance-summary-heading" class="section-title">{{ \Illuminate\Support\Carbon::parse($date)->format('l j F Y') }}</h2>
+            <p class="section-meta">Present, late, and on leave are stored statuses</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <x-stat label="Present" :value="number_format($summary['present'])" hint="Stored status" icon="check-circle" tone="success" />
+            <x-stat label="Late" :value="number_format($summary['late'])" hint="Stored status" icon="clock" tone="warning" :emphasis="($summary['late'] ?? 0) > 0 ? 'warning' : null" />
+            <x-stat label="On leave" :value="number_format($summary['on_leave'])" hint="Stored status" icon="calendar" tone="accent" />
+            <x-stat label="{{ ($summary['absent_basis'] ?? 'derived') === 'derived' ? 'Uncovered' : 'Absent' }}" :value="number_format($summary['absent'])" :hint="($summary['absent_basis'] ?? 'derived') === 'derived' ? 'Active people with no covering record' : 'Stored absent status'" icon="alert" tone="danger" :emphasis="($summary['absent'] ?? 0) > 0 ? 'danger' : null" />
+        </div>
+    </section>
 
-    <form method="GET" class="flex flex-wrap items-end gap-3">
+    <form method="GET" role="search" class="toolbar flex flex-wrap items-end gap-3 [&>div:not(:last-child)]:min-w-[10rem] [&>div:not(:last-child)]:flex-1">
         <x-form.input type="date" name="date" label="Date" :value="$date" />
         <x-form.select name="status" label="Status" :options="collect(\App\Enums\AttendanceStatus::cases())->mapWithKeys(fn ($status) => [$status->value => $status->label()])->prepend('Any status', '')->all()" :value="request('status')" />
         <x-form.select name="department" label="Department" :options="$departments->mapWithKeys(fn ($department) => [$department->uuid => $department->name])->prepend('Any department', '')->all()" :value="request('department')" />
-        <x-button type="submit" size="sm">Filter</x-button>
+        <div><x-button type="submit" variant="secondary" size="sm"><x-icon name="filter" class="size-4" /> Filter</x-button></div>
     </form>
 
     @if ($records->isEmpty())

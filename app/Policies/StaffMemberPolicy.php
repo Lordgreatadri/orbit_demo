@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Analytics\AnalyticsScope;
 use App\Models\StaffMember;
 use App\Models\User;
 
@@ -14,7 +15,9 @@ class StaffMemberPolicy
 
     public function view(User $user, StaffMember $staff): bool
     {
-        return $user->belongsToOrganization($staff->organization_id) && $user->can('staff.view');
+        return $user->belongsToOrganization($staff->organization_id)
+            && $user->can('staff.view')
+            && AnalyticsScope::departmentAllowed($user, $staff->department_id === null ? null : (int) $staff->department_id);
     }
 
     public function create(User $user): bool
@@ -26,7 +29,9 @@ class StaffMemberPolicy
 
     public function update(User $user, StaffMember $staff): bool
     {
-        return $user->belongsToOrganization($staff->organization_id) && $user->can('staff.manage');
+        return $user->belongsToOrganization($staff->organization_id)
+            && $user->can('staff.manage')
+            && AnalyticsScope::departmentAllowed($user, $staff->department_id === null ? null : (int) $staff->department_id);
     }
 
     public function delete(User $user, StaffMember $staff): bool

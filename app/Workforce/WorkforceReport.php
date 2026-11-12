@@ -2,16 +2,21 @@
 
 namespace App\Workforce;
 
+use App\Analytics\AnalyticsScope;
 use App\Enums\AttendanceStatus;
 use App\Enums\StaffStatus;
 use App\Enums\VerificationMethod;
+use App\Enums\WorkType;
 use App\Models\AttendanceEvent;
 use App\Models\AttendanceRecord;
+use App\Models\Department;
 use App\Models\LeaveRequest;
 use App\Models\Organization;
 use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
 use App\Support\CalendarDay;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -21,19 +26,24 @@ use Illuminate\Support\Facades\DB;
 final class WorkforceReport
 {
     /**
-     * @return array{present: int, late: int, absent: int, on_leave: int, incomplete: int, excused: int, active_staff: int}
+     * Absent is derived from active people with no covering record, unless a
+     * location filter is set. A location filter counts the stored absent status
+     * at that location, because people without a row there are not the same
+     * thing as people who were marked absent.
+     *
+     * @return array{present: int, late: int, absent: int, on_leave: int, incomplete: int, excused: int, active_staff: int, absent_basis: string}
      */
-    public function day(Organization $organization, ?string $date = null): array
+    public function day(Organization $organization, ?string $date = null, ?AnalyticsScope $scope = null): array
     {
         $date ??= now($organization->timezone ?: 'UTC')->toDateString();
 
-        $counts = CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date)
+        $counts = $this->constrainAttendance(CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date), $scope)
             ->select('status', DB::raw('count(distinct staff_member_id) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $active = StaffMember::query()->where('status', StaffStatus::Active->value)->count();
-        $covered = (int) CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date)
+        $active = $this->activePeople($organization, $scope);
+        $covered = (int) $this->constrainAttendance(CalendarDay::constrain(AttendanceRecord::query(), 'work_date', $date), $scope)
             ->whereIn('status', [
                 AttendanceStatus::Present->value,
                 AttendanceStatus::Late->value,
@@ -44,23 +54,27 @@ final class WorkforceReport
             ->distinct()
             ->count('staff_member_id');
 
+        $storedAbsent = (int) ($counts[AttendanceStatus::Absent->value] ?? 0);
+        $derived = $scope?->locationId === null;
+
         return [
             'present' => (int) ($counts[AttendanceStatus::Present->value] ?? 0),
             'late' => (int) ($counts[AttendanceStatus::Late->value] ?? 0),
             'on_leave' => (int) ($counts[AttendanceStatus::OnLeave->value] ?? 0),
             'incomplete' => (int) ($counts[AttendanceStatus::Incomplete->value] ?? 0),
             'excused' => (int) ($counts[AttendanceStatus::Excused->value] ?? 0),
-            'absent' => max(0, $active - $covered),
+            'absent' => $derived ? max(0, $active - $covered) : $storedAbsent,
             'active_staff' => $active,
+            'absent_basis' => $derived ? 'derived' : 'stored',
         ];
     }
 
     /**
      * @return list<array{date: string, counts: array<string, int>, present: int, late: int, on_leave: int, other: int}>
      */
-    public function trend(Organization $organization, Carbon $from, Carbon $to): array
+    public function trend(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
-        $rows = AttendanceRecord::query()
+        $rows = $this->constrainAttendance(AttendanceRecord::query(), $scope)
             ->where('work_date', '>=', $from->toDateString())
             ->where('work_date', '<', CalendarDay::following($to->toDateString()))
             ->select('work_date', 'status', DB::raw('count(*) as total'))
@@ -101,9 +115,9 @@ final class WorkforceReport
      *
      * @return list<array{key: string, label: string, total: int}>
      */
-    public function statusMix(Organization $organization, Carbon $from, Carbon $to): array
+    public function statusMix(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
-        $rows = AttendanceRecord::query()
+        $rows = $this->constrainAttendance(AttendanceRecord::query(), $scope)
             ->where('organization_id', $organization->getKey())
             ->where('work_date', '>=', $from->toDateString())
             ->where('work_date', '<', CalendarDay::following($to->toDateString()))
@@ -130,11 +144,14 @@ final class WorkforceReport
      *
      * @return list<array{key: string, label: string, total: int}>
      */
-    public function methodMix(Organization $organization, Carbon $from, Carbon $to): array
+    public function methodMix(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
-        $rows = AttendanceEvent::query()
+        $query = AttendanceEvent::query()
             ->join('attendance_records', 'attendance_records.id', '=', 'attendance_events.attendance_record_id')
-            ->where('attendance_events.organization_id', $organization->getKey())
+            ->where('attendance_events.organization_id', $organization->getKey());
+        $this->constrainAttendance($query, $scope);
+
+        $rows = $query
             ->where('attendance_events.type', 'check_in')
             ->where('attendance_events.outcome', 'accepted')
             ->whereNotNull('attendance_events.method')
@@ -166,12 +183,12 @@ final class WorkforceReport
      *
      * @return array<string, int>
      */
-    public function leaveDecisions(Organization $organization, Carbon $from, Carbon $to): array
+    public function leaveDecisions(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
         $counts = [];
 
         foreach (
-            LeaveRequest::query()
+            $this->constrainPeople(LeaveRequest::query(), $scope, 'leave_requests')
                 ->where('organization_id', $organization->getKey())
                 ->where('starts_on', '>=', $from->toDateString())
                 ->where('starts_on', '<', CalendarDay::following($to->toDateString()))
@@ -191,9 +208,9 @@ final class WorkforceReport
      *
      * @return array{scheduled: int, attended: int}
      */
-    public function scheduleAdherence(Organization $organization, Carbon $from, Carbon $to): array
+    public function scheduleAdherence(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
-        $base = ShiftAssignment::query()
+        $base = $this->constrainPeople(ShiftAssignment::query(), $scope, 'shift_assignments')
             ->where('organization_id', $organization->getKey())
             ->where('work_date', '>=', $from->toDateString())
             ->where('work_date', '<', CalendarDay::following($to->toDateString()))
@@ -230,9 +247,9 @@ final class WorkforceReport
     /**
      * @return array<string, int>
      */
-    public function arrangementMix(Organization $organization, Carbon $from, Carbon $to): array
+    public function arrangementMix(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
     {
-        return ShiftAssignment::query()
+        return $this->constrainPeople(ShiftAssignment::query(), $scope, 'shift_assignments')
             ->join('work_arrangements', 'work_arrangements.id', '=', 'shift_assignments.work_arrangement_id')
             ->where('shift_assignments.organization_id', $organization->getKey())
             ->whereColumn('work_arrangements.organization_id', 'shift_assignments.organization_id')
@@ -249,5 +266,155 @@ final class WorkforceReport
             ->pluck('total', 'kind')
             ->map(fn ($total) => (int) $total)
             ->all();
+    }
+
+    /**
+     * Attendance rows in the window, grouped by the person's current work type.
+     * One record is one row. A person with two periods is counted twice.
+     *
+     * @return list<array{label: string, value: int}>
+     */
+    public function workTypeMix(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
+    {
+        $counts = $this->constrainAttendance(AttendanceRecord::query(), $scope)
+            ->join('staff_members', 'staff_members.id', '=', 'attendance_records.staff_member_id')
+            ->where('attendance_records.organization_id', $organization->getKey())
+            ->whereColumn('staff_members.organization_id', 'attendance_records.organization_id')
+            ->where('attendance_records.work_date', '>=', $from->toDateString())
+            ->where('attendance_records.work_date', '<', CalendarDay::following($to->toDateString()))
+            ->select('staff_members.work_type', DB::raw('count(*) as total'))
+            ->groupBy('staff_members.work_type')
+            ->pluck('total', 'work_type');
+
+        return array_map(fn (WorkType $type): array => [
+            'label' => $type->label(),
+            'value' => (int) ($counts[$type->value] ?? 0),
+        ], WorkType::cases());
+    }
+
+    /**
+     * Record counts by department. A record with no department is omitted.
+     * At most eight departments, largest first.
+     *
+     * @return list<array{name: string, present: int, late: int, on_leave: int, other: int, total: int}>
+     */
+    public function departmentMix(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
+    {
+        $rows = $this->constrainAttendance(AttendanceRecord::query(), $scope)
+            ->where('organization_id', $organization->getKey())
+            ->where('work_date', '>=', $from->toDateString())
+            ->where('work_date', '<', CalendarDay::following($to->toDateString()))
+            ->whereNotNull('department_id')
+            ->select('department_id', 'status', DB::raw('count(*) as total'))
+            ->groupBy('department_id', 'status')
+            ->get();
+
+        $names = Department::query()
+            ->where('organization_id', $organization->getKey())
+            ->pluck('name', 'id');
+
+        return $rows
+            ->groupBy('department_id')
+            ->map(function ($group, $departmentId) use ($names): array {
+                $byStatus = $group->mapWithKeys(fn ($row) => [
+                    $row->status instanceof AttendanceStatus ? $row->status->value : (string) $row->status => (int) $row->total,
+                ]);
+
+                return [
+                    'name' => $names[$departmentId] ?? 'Department',
+                    'present' => (int) ($byStatus['present'] ?? 0),
+                    'late' => (int) ($byStatus['late'] ?? 0),
+                    'on_leave' => (int) ($byStatus['on_leave'] ?? 0),
+                    'other' => (int) $byStatus->except(['present', 'late', 'on_leave'])->sum(),
+                    'total' => (int) $group->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->take(8)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    private function constrainAttendance(Builder $query, ?AnalyticsScope $scope): Builder
+    {
+        if ($scope === null) {
+            return $query;
+        }
+
+        $query->where('attendance_records.organization_id', $scope->organization->getKey());
+
+        if ($scope->departmentIds !== null) {
+            $query->whereIn('attendance_records.department_id', $scope->departmentIds === [] ? [-1] : $scope->departmentIds);
+        }
+
+        if ($scope->staffMemberId !== null) {
+            $query->where('attendance_records.staff_member_id', $scope->staffMemberId);
+        }
+
+        if ($scope->locationId !== null) {
+            $query->where('attendance_records.location_id', $scope->locationId);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    private function constrainPeople(Builder $query, ?AnalyticsScope $scope, string $table): Builder
+    {
+        if ($scope === null) {
+            return $query;
+        }
+
+        $query->where($table.'.organization_id', $scope->organization->getKey());
+
+        if ($scope->staffMemberId !== null) {
+            $query->where($table.'.staff_member_id', $scope->staffMemberId);
+        }
+
+        if ($scope->departmentIds !== null) {
+            $ids = $scope->departmentIds === [] ? [-1] : $scope->departmentIds;
+            $query->whereIn($table.'.staff_member_id', StaffMember::query()
+                ->where('organization_id', $scope->organization->getKey())
+                ->whereIn('department_id', $ids)
+                ->select('id'));
+        }
+
+        if ($scope->locationId !== null && $table === 'shift_assignments') {
+            $query->where($table.'.location_id', $scope->locationId);
+        }
+
+        return $query;
+    }
+
+    private function activePeople(Organization $organization, ?AnalyticsScope $scope): int
+    {
+        $query = StaffMember::query()
+            ->where('organization_id', $organization->getKey())
+            ->where('status', StaffStatus::Active->value);
+
+        if ($scope === null) {
+            return $query->count();
+        }
+
+        if ($scope->departmentIds !== null) {
+            $query->whereIn('department_id', $scope->departmentIds === [] ? [-1] : $scope->departmentIds);
+        }
+
+        if ($scope->staffMemberId !== null) {
+            $query->whereKey($scope->staffMemberId);
+        }
+
+        if ($scope->locationId !== null) {
+            $query->where('primary_location_id', $scope->locationId);
+        }
+
+        return $query->count();
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Workforce;
 use App\Contracts\PushNotifier;
 use App\Enums\AttendanceStatus;
 use App\Enums\SessionStatus;
+use App\Enums\ShiftStatus;
 use App\Enums\WorkType;
 use App\Jobs\Middleware\RestoreTenantContext;
 use App\Jobs\Workforce\DeliverWorkforceNotice;
@@ -816,6 +817,45 @@ class ScheduleLeaveReviewTest extends TestCase
         $this->assertNull($context->organization());
     }
 
+    #[Test]
+    public function removing_an_assignment_checks_the_shift_and_the_person_department(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $operations = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Operations']);
+        $finance = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Finance']);
+        $manager = $this->createMember($admin->organization, 'organization_manager');
+        $head = StaffMember::factory()->forOrganization($admin->organization)->linkedTo($manager)->create([
+            'department_id' => $operations->getKey(),
+        ]);
+        $operations->update(['head_staff_member_id' => $head->getKey()]);
+        $colleague = StaffMember::factory()->forOrganization($admin->organization)->create([
+            'department_id' => $operations->getKey(),
+        ]);
+        $other = StaffMember::factory()->forOrganization($admin->organization)->create([
+            'department_id' => $finance->getKey(),
+        ]);
+        $manager->unsetRelation('staffMember');
+        $date = now()->addWeek()->toDateString();
+
+        $operationsShift = $this->publishedShift($admin, $operations->getKey(), 'Operations day');
+        $financeShift = $this->publishedShift($admin, $finance->getKey(), 'Finance day');
+        $cross = $this->place($operationsShift, $other, $date);
+        $reverse = $this->place($financeShift, $colleague, $date);
+        $inside = $this->place($operationsShift, $colleague, $date);
+
+        $this->actingAs($manager)->delete(route('org.schedules.assignments.destroy', $cross))->assertForbidden();
+        $this->actingAs($manager)->delete(route('org.schedules.assignments.destroy', $reverse))->assertForbidden();
+        $this->assertNotNull($cross->fresh());
+        $this->assertNotNull($reverse->fresh());
+
+        $this->actingAs($manager)->delete(route('org.schedules.assignments.destroy', $inside))->assertSessionHas('status');
+        $this->assertNull($inside->fresh());
+
+        $adminCross = $this->place($operationsShift, $other, now()->addWeeks(2)->toDateString());
+        $this->actingAs($admin)->delete(route('org.schedules.assignments.destroy', $adminCross))->assertSessionHas('status');
+        $this->assertNull($adminCross->fresh());
+    }
+
     /**
      * @return array{0: User, 1: User, 2: StaffMember}
      */
@@ -867,6 +907,29 @@ class ScheduleLeaveReviewTest extends TestCase
             'approval_mode' => $mode,
             'allow_self_approval' => '0',
         ];
+    }
+
+    private function publishedShift(User $admin, int $departmentId, string $name): Shift
+    {
+        return Shift::query()->create([
+            'organization_id' => $admin->organization_id,
+            'department_id' => $departmentId,
+            'name' => $name,
+            'starts_at' => '08:00:00',
+            'ends_at' => '16:00:00',
+            'effective_from' => '2026-11-01',
+            'status' => ShiftStatus::Published,
+        ]);
+    }
+
+    private function place(Shift $shift, StaffMember $person, string $date): ShiftAssignment
+    {
+        return ShiftAssignment::query()->create([
+            'organization_id' => $shift->organization_id,
+            'shift_id' => $shift->getKey(),
+            'staff_member_id' => $person->getKey(),
+            'work_date' => $date,
+        ]);
     }
 
     private function shift(User $admin, string $name, string $starts, string $ends, ?string $arrangement = null): Shift

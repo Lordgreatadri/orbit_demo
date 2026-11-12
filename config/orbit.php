@@ -261,6 +261,14 @@ return [
     'demo_password' => env('ORBIT_DEMO_PASSWORD'),
 
     /*
+    | Aggregate cache lifetime in seconds. The cache key includes the
+    | organisation, the viewer, the permission scope, and the date window.
+    | Zero disables the cache. Core figures are still correct if the cache
+    | is empty or stale within this bound.
+    */
+    'analytics_cache_seconds' => (int) env('ORBIT_ANALYTICS_CACHE_SECONDS', 60),
+
+    /*
     |--------------------------------------------------------------------------
     | Organisation reference data
     |--------------------------------------------------------------------------

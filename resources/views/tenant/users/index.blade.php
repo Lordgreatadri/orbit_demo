@@ -1,5 +1,5 @@
 <x-layouts.app title="User accounts" wide>
-    <x-page-header title="User accounts" description="Login identities for your organisation and what each may do. Accounts are separate from staff records: a person may exist on the register without a login, and an account may be linked to a staff record.">
+    <x-page-header title="User accounts" description="Login identities for your organisation and what each may do. Accounts are separate from staff records: a person may exist on the register without a login, and an account may be linked to a staff record." eyebrow="People">
         @if ($canInvite)
             <x-button href="#invite" size="sm"><x-icon name="user-plus" class="size-4" /> Invite user</x-button>
         @endif
