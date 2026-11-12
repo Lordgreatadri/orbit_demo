@@ -15,21 +15,26 @@
         @endforeach
     </nav>
 
-    <section aria-labelledby="inbox-heading">
-        <h2 id="inbox-heading" class="text-base font-semibold text-fg">Inbox</h2>
-        <p class="mt-1 text-sm text-fg-muted">Newest first. Fifteen notices on each page.</p>
+    <section aria-labelledby="inbox-heading" class="card overflow-hidden">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-edge px-5 py-4">
+            <h2 id="inbox-heading" class="flex items-center gap-2 text-base font-semibold text-fg"><x-icon name="bell" class="size-4 text-fg-subtle" /> Inbox</h2>
+            <p class="text-sm text-fg-muted">Newest first. Fifteen notices on each page.</p>
+        </div>
         @if ($inbox->isEmpty())
-            <p class="mt-4 text-sm text-fg-muted">No notifications. Leave, schedule, and attendance notices for you will appear here.</p>
+            <p class="px-5 py-6 text-sm text-fg-muted">No notifications. Leave, schedule, and attendance notices for you will appear here.</p>
         @else
-            <ul class="mt-2 divide-y divide-edge">
+            <ul class="divide-y divide-edge">
                 @foreach ($inbox as $notification)
                     @php
                         $target = \App\Workforce\Communication\Inbox::safeUrl($notification->data['url'] ?? null, auth()->user());
                         $unreadRow = $notification->read_at === null;
                     @endphp
-                    <li class="py-4 {{ $unreadRow ? 'bg-primary-soft/40' : '' }}">
+                    <li class="relative px-5 py-4 {{ $unreadRow ? 'bg-primary-soft/40' : '' }}">
+                        @if ($unreadRow)
+                            <span class="absolute top-4 bottom-4 left-0 w-[3px] rounded-r-full bg-primary" aria-hidden="true"></span>
+                        @endif
                         <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                                 @if ($target)
                                     <form method="POST" action="{{ route('org.notifications.open', $notification->uuid) }}">
                                         @csrf
@@ -60,7 +65,7 @@
                 @endforeach
             </ul>
             @if ($inbox->hasPages())
-                <div class="border-t border-edge py-3">{{ $inbox->links() }}</div>
+                <div class="border-t border-edge px-5 py-3">{{ $inbox->links() }}</div>
             @endif
         @endif
     </section>

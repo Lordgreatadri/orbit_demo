@@ -1,4 +1,4 @@
-<x-layouts.app title="Dashboard">
+<x-layouts.app title="Dashboard" wide>
     @php
         $hour = now($organization->timezone)->hour;
         $greeting = $hour < 12 ? 'morning' : ($hour < 17 ? 'afternoon' : 'evening');

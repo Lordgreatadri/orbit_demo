@@ -20,49 +20,61 @@
         @if ($staff && $types->isNotEmpty())
             <section aria-labelledby="leave-balance-heading">
                 <h2 id="leave-balance-heading" class="sr-only">Leave balances</h2>
-                <div class="inset">
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div class="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
                     @foreach ($types as $type)
-                        @php $meta = $typeMeta[$type->uuid] ?? null; @endphp
-                        <div>
-                            <p class="text-sm font-medium text-fg">{{ $type->name }}</p>
-                            <p class="mt-1 text-sm text-fg-muted">
-                                @if ($meta && $meta['limited'])
-                                    {{ rtrim(rtrim(number_format((float) $meta['remaining'], 1), '0'), '.') }} days available
-                                    @if ($meta['entitled'] !== null)
-                                        <span class="block text-xs text-fg-subtle">Entitlement {{ rtrim(rtrim(number_format((float) $meta['entitled'], 1), '0'), '.') }}</span>
-                                    @endif
-                                @else
-                                    No day limit
+                        @php
+                            $meta = $typeMeta[$type->uuid] ?? null;
+                            $limited = $meta && $meta['limited'];
+                            $remaining = $limited ? (float) $meta['remaining'] : null;
+                            $entitled = $limited && $meta['entitled'] !== null ? (float) $meta['entitled'] : null;
+                            $left = $entitled && $entitled > 0 ? max(0, min(100, $remaining / $entitled * 100)) : null;
+                        @endphp
+                        <div class="card p-4 sm:p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <p class="text-sm font-medium text-fg-muted">{{ $type->name }}</p>
+                                <span class="icon-well tone-accent" aria-hidden="true"><x-icon name="calendar" class="size-4" /></span>
+                            </div>
+                            @if ($limited)
+                                <p class="mt-1 text-[1.75rem] leading-none font-semibold tracking-tight tabular-nums text-fg">{{ rtrim(rtrim(number_format($remaining, 1), '0'), '.') }} <span class="text-sm font-medium text-fg-muted">days available</span></p>
+                                @if ($left !== null)
+                                    <div class="mt-3 meter"><span class="bg-accent" style="width: {{ round($left, 2) }}%"></span></div>
+                                    <p class="mt-2 text-xs text-fg-subtle">Entitlement {{ rtrim(rtrim(number_format($entitled, 1), '0'), '.') }} days in the open leave year</p>
                                 @endif
-                            </p>
+                            @else
+                                <p class="mt-1 text-lg font-semibold text-fg">No day limit</p>
+                                <p class="mt-2 text-xs text-fg-subtle">This type does not use a balance</p>
+                            @endif
                         </div>
                     @endforeach
-                    </div>
                 </div>
             </section>
         @endif
 
         @if ($staff)
+            <div class="grid gap-6 lg:grid-cols-3">
             @foreach ([
-                'pending' => ['Pending', 'Waiting for an approver.', $pending],
-                'due' => ['Due', 'Approved leave that has not ended.', $due],
-                'approved' => ['Approved', 'Approved leave that has already ended.', $approved],
-            ] as $key => [$heading, $hint, $rows])
-                <section aria-labelledby="leave-{{ $key }}-heading">
-                    <div class="mb-3">
-                        <h2 id="leave-{{ $key }}-heading" class="text-base font-semibold text-fg">{{ $heading }}</h2>
-                        <p class="text-sm text-fg-muted">{{ $hint }}</p>
+                'pending' => ['Pending', 'Waiting for an approver.', $pending, 'clock'],
+                'due' => ['Due', 'Approved leave that has not ended.', $due, 'calendar'],
+                'approved' => ['Approved', 'Approved leave that has already ended.', $approved, 'check-circle'],
+            ] as $key => [$heading, $hint, $rows, $icon])
+                <section aria-labelledby="leave-{{ $key }}-heading" class="card flex flex-col">
+                    <div class="flex items-start justify-between gap-3 border-b border-edge px-5 py-4">
+                        <div>
+                            <h2 id="leave-{{ $key }}-heading" class="flex items-center gap-2 text-base font-semibold text-fg"><x-icon :name="$icon" class="size-4 text-fg-subtle" /> {{ $heading }}</h2>
+                            <p class="mt-0.5 text-sm text-fg-muted">{{ $hint }}</p>
+                        </div>
+                        <span class="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-fg-muted">{{ $rows instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator ? $rows->total() : $rows->count() }}</span>
                     </div>
+                    <div class="flex-1 px-5 py-2">
                     @if ($rows->isEmpty())
-                        <p class="text-sm text-fg-muted">No {{ strtolower($heading) }} leave yet.</p>
+                        <p class="py-3 text-sm text-fg-muted">No {{ strtolower($heading) }} leave yet.</p>
                     @else
                         <ul class="divide-y divide-edge">
                             @foreach ($rows as $leaveRequest)
                                 <li class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-3">
                                     <div class="min-w-0">
                                         <p class="font-medium text-fg">{{ $leaveRequest->leaveType?->name }}</p>
-                                        <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                        <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('j M Y') }} – {{ $leaveRequest->ends_on->format('j M Y') }}</p>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>
@@ -75,8 +87,10 @@
                             <div class="mt-3">{{ $rows->links() }}</div>
                         @endif
                     @endif
+                    </div>
                 </section>
             @endforeach
+            </div>
 
             @if ($closed->isNotEmpty())
                 <section aria-labelledby="leave-closed-heading">
@@ -86,7 +100,7 @@
                             <li class="flex min-h-11 flex-wrap items-center justify-between gap-3 py-3">
                                 <div>
                                     <p class="font-medium text-fg">{{ $leaveRequest->leaveType?->name }}</p>
-                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->starts_on->format('j M Y') }} – {{ $leaveRequest->ends_on->format('j M Y') }}</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>
@@ -121,7 +135,7 @@
                             <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge border-l-4 border-l-primary bg-surface px-4 py-3">
                                 <div>
                                     <p class="font-medium text-fg">{{ $leaveRequest->staffMember?->name }}</p>
-                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('j M Y') }} – {{ $leaveRequest->ends_on->format('j M Y') }}</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>
@@ -151,7 +165,7 @@
                             <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-edge border-l-4 border-l-primary bg-surface px-4 py-3">
                                 <div>
                                     <p class="font-medium text-fg">{{ $leaveRequest->staffMember?->name }}</p>
-                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('m/d/Y') }} – {{ $leaveRequest->ends_on->format('m/d/Y') }}</p>
+                                    <p class="text-sm text-fg-muted">{{ $leaveRequest->leaveType?->name }} · {{ $leaveRequest->starts_on->format('j M Y') }} – {{ $leaveRequest->ends_on->format('j M Y') }}</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <x-badge :tone="$leaveRequest->status->tone()">{{ $leaveRequest->status->label() }}</x-badge>

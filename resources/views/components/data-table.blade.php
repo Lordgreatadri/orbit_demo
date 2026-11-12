@@ -1,7 +1,7 @@
 {{-- Horizontal-scrolling table shell with optional pagination footer. --}}
 @props(['paginator' => null, 'caption' => null])
 
-<div {{ $attributes->merge(['class' => 'min-w-0']) }}>
+<div {{ $attributes->merge(['class' => 'table-panel min-w-0']) }}>
     <div class="overflow-x-auto">
         <table class="data-table">
             @if ($caption)

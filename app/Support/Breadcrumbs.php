@@ -62,6 +62,7 @@ final class Breadcrumbs
             str_starts_with($name, 'admin.audit') => 'Audit trail',
             str_starts_with($name, 'admin.sms') => 'SMS',
             str_starts_with($name, 'admin.workforce') => 'Workforce overview',
+            $name === 'admin.statistics' => 'Statistics',
             str_starts_with($name, 'app.profile') => 'My account',
             default => null,
         };

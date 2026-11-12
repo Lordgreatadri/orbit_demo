@@ -47,6 +47,8 @@
     --info-soft: #e8efff;
 
     --focus: #0f766e;
+    /* Resting panel: a hairline contact shadow, enough to lift a panel off the page tint. */
+    --shadow-panel: 0 1px 2px rgb(16 33 43 / 0.05), 0 1px 1px rgb(16 33 43 / 0.03);
     --shadow: 0 1px 2px rgb(16 33 43 / 0.06), 0 4px 16px -8px rgb(16 33 43 / 0.12);
     /* "Floating" card: a soft contact shadow plus a wider, faint ambient shadow. */
     --shadow-float: 0 1px 1px rgb(16 33 43 / 0.04), 0 6px 14px -6px rgb(16 33 43 / 0.14), 0 14px 32px -18px rgb(16 33 43 / 0.18);
@@ -98,6 +100,7 @@
     --info-soft: #1b2f4e;
 
     --focus: #63e0d0;
+    --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px rgb(255 255 255 / 0.01);
     --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px -12px rgb(0 0 0 / 0.5);
     --shadow-float: 0 1px 1px rgb(0 0 0 / 0.3), 0 8px 18px -8px rgb(0 0 0 / 0.5), 0 18px 40px -20px rgb(0 0 0 / 0.6);
     --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -16px rgb(0 0 0 / 0.65);
@@ -150,6 +153,7 @@
     --color-brand-mint: var(--brand-mint);
 
     --shadow-card: var(--shadow);
+    --shadow-panel: var(--shadow-panel);
     --shadow-float: var(--shadow-float);
     --shadow-lift: var(--shadow-lift);
 }
@@ -263,34 +267,118 @@
     }
 
     /*
-     * A panel is a deliberate container: a chart, a form, a dialog, or a table.
-     * Ordinary sections stay on the page background.
+     * Panel: a distinct object the reader scans on its own — a KPI, chart,
+     * workflow, list, form, or table. Resting elevation is a hairline edge
+     * plus a contact shadow so panels separate from the tinted page.
      */
     .card {
-        @apply border-edge bg-surface rounded-lg border;
+        @apply border-edge bg-surface shadow-panel rounded-xl border;
     }
 
     .card-hover {
-        @apply transition-colors duration-200;
+        @apply transition-[border-color,box-shadow,transform] duration-200;
     }
 
     .card-hover:hover {
-        @apply border-edge-strong;
+        @apply border-edge-strong shadow-card;
     }
 
     .card-link {
-        @apply border-edge bg-surface block rounded-lg border transition-colors duration-200 focus-visible:outline-2;
+        @apply border-edge bg-surface shadow-panel block rounded-xl border transition-[border-color,box-shadow,background-color] duration-200 focus-visible:outline-2;
     }
 
     .card-link:hover {
-        @apply border-edge-strong bg-surface-muted;
+        @apply border-edge-strong shadow-card;
     }
 
+    /* Quiet grouping surface (filters, secondary figures). No edge, no shadow. */
     .inset {
-        @apply bg-surface-muted rounded-lg px-4 py-4 sm:px-5;
+        @apply bg-surface-muted rounded-xl px-4 py-4 sm:px-5;
+    }
+
+    /* Toolbar panel for GET filters: one row of controls with a clear boundary. */
+    .toolbar {
+        @apply border-edge bg-surface shadow-panel rounded-xl border px-4 py-3.5 sm:px-5;
+    }
+
+    /* Section heading row above a group of panels. */
+    .section-title {
+        @apply text-fg text-[1.0625rem] font-semibold tracking-tight;
+    }
+
+    .section-meta {
+        @apply text-fg-subtle text-xs;
+    }
+
+    /*
+     * Briefing: the one Level-1 surface on a dashboard. A tinted primary wash
+     * and a primary edge make it the first thing read, without a loud fill.
+     */
+    .briefing {
+        @apply rounded-xl border shadow-panel;
+        border-color: color-mix(in srgb, var(--primary) 28%, var(--edge));
+        background-color: var(--surface);
+        background-image:
+            radial-gradient(40rem 16rem at 0% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%),
+            radial-gradient(28rem 14rem at 100% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+    }
+
+    /* Severity rail used by attention rows and insight items. */
+    .rail {
+        @apply relative pl-4;
+    }
+
+    .rail::before {
+        content: '';
+        @apply absolute top-1 bottom-1 left-0 w-[3px] rounded-full;
+        background: var(--rail, var(--edge-strong));
+    }
+
+    .rail-danger { --rail: var(--danger); }
+    .rail-warning { --rail: var(--warning); }
+    .rail-info { --rail: var(--info); }
+    .rail-primary { --rail: var(--primary); }
+    .rail-success { --rail: var(--success); }
+
+    /* Restrained icon well: 2rem, soft tone. Used once per KPI or list row, never as decoration. */
+    .icon-well {
+        @apply grid size-8 shrink-0 place-items-center rounded-lg;
+    }
+
+    .tone-primary { @apply bg-primary-soft text-primary; }
+    .tone-success { @apply bg-success-soft text-success; }
+    .tone-warning { @apply bg-warning-soft text-warning; }
+    .tone-danger { @apply bg-danger-soft text-danger; }
+    .tone-accent { @apply bg-accent-soft text-accent; }
+    .tone-info { @apply bg-info-soft text-info; }
+    .tone-neutral { @apply bg-surface-muted text-fg-muted; }
+
+    /* Thin meter track used inside KPI tiles and list rows. */
+    .meter {
+        @apply bg-surface-muted relative h-1.5 w-full overflow-hidden rounded-full;
+    }
+
+    .meter > span {
+        @apply block h-full rounded-full;
+    }
+
+    /* Chart plot gridlines, drawn behind columns. */
+    .plot-grid {
+        background-image: linear-gradient(to top, var(--edge) 1px, transparent 1px);
+        background-size: 100% 50%;
+        background-position: bottom;
     }
 
     /* Dense table used across the authenticated workspace. */
+    .table-panel {
+        @apply border-edge bg-surface shadow-panel overflow-hidden rounded-xl border;
+    }
+
+    /* Inside an existing panel the table uses that panel's frame. */
+    .card .table-panel {
+        @apply rounded-none border-0 shadow-none;
+    }
+
     .data-table {
         @apply w-full text-left text-sm;
     }

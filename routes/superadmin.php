@@ -9,6 +9,7 @@ use App\Http\Controllers\Platform\RoleController;
 use App\Http\Controllers\Platform\SmsMessageController;
 use App\Http\Controllers\Platform\SmsOverviewController;
 use App\Http\Controllers\Platform\SmsProviderController;
+use App\Http\Controllers\Platform\StatisticsController;
 use App\Http\Controllers\Platform\UserAccessController;
 use App\Http\Controllers\Platform\UserController;
 use App\Http\Controllers\Platform\WorkforceOverviewController;
@@ -30,6 +31,7 @@ Route::prefix('admin')
     ->name('admin.')
     ->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('/statistics', StatisticsController::class)->name('statistics');
         Route::get('/workforce', WorkforceOverviewController::class)->name('workforce.overview');
 
         // Organisations (tenants)
