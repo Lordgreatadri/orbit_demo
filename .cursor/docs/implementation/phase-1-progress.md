@@ -478,3 +478,17 @@ The earlier flat pass was treated as a regression: equal-weight grey insets, unb
 | `php84 artisan test --compact` on `DashboardAnalyticsTest`, `PlatformStatisticsTest`, `StaffRegisterTest`, `WorkspaceShellTest`, `ScheduleLeaveReviewTest`, and `AttendanceWorkflowTest` | **71 passed, 826 assertions** |
 | `php84 vendor/bin/pint --dirty` then `php84 artisan test --compact` (full suite, 2026-11-12 validation) | Pint **passed**. **329 passed, 2792 assertions**. No failures |
 
+## Milestone 6 — Reports & exports (2026-11-12)
+
+- [x] ADR-0017 and `implementation/reports-and-exports.md`: reusable `App\Reports` contract on top of `AnalyticsScope` / `WorkforceReport` / `OperationalDigest`.
+- [x] Tenant catalog at `/org/reports` and platform catalog at `/admin/reports`.
+- [x] First-pass reports: attendance summary / by person / by department / detail, punctuality, incomplete, verification methods, schedule coverage, leave summary, notification delivery (org perspective), platform organisation statistics.
+- [x] Shared exporters: CSV stream, OpenSpout XLSX, Dompdf PDF (summary reports). Queued path for large XLSX/PDF (`report_exports`).
+- [x] `org.analytics.export` remains a thin alias of attendance-detail CSV.
+- [x] Authorization, tenant isolation, department narrowing, forged filters, export parity, date bounds, and queue coverage in `tests/Feature/Reports/ReportsAndExportsTest.php`.
+
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | Fixed import/style in report controllers, ExportManager, routes, and reports tests; second run clean |
+| `php84 artisan test --compact` | **345 passed, 2,854 assertions**. No failures |
+

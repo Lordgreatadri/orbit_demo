@@ -14,6 +14,7 @@ use App\Models\Department;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\Organization;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
@@ -39,7 +40,9 @@ class DashboardAnalyticsTest extends TestCase
     #[Test]
     public function an_organisation_dashboard_counts_only_that_tenant(): void
     {
-        $admin = $this->createOrganizationAdmin();
+        $admin = $this->createOrganizationAdmin(
+            Organization::factory()->create(['type' => OrganizationType::Business]),
+        );
         StaffMember::factory()->forOrganization($admin->organization)->count(3)->create(['status' => 'active']);
         StaffMember::factory()->create(['first_name' => 'Other', 'last_name' => 'Tenant']);
 

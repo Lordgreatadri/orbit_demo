@@ -13,6 +13,7 @@ use App\Http\Controllers\Tenant\InvitationController;
 use App\Http\Controllers\Tenant\LeaveController;
 use App\Http\Controllers\Tenant\LocationController;
 use App\Http\Controllers\Tenant\OrganizationSettingsController;
+use App\Http\Controllers\Tenant\ReportController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\ScheduleController;
 use App\Http\Controllers\Tenant\StaffMemberController;
@@ -157,4 +158,9 @@ Route::prefix('org')
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->middleware('throttle:attendance')->name('analytics.export');
+
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->name('reports.show');
+        Route::get('/reports/{report}/export', [ReportController::class, 'export'])->middleware('throttle:reports-export')->name('reports.export');
+        Route::get('/report-exports/{export}', [ReportController::class, 'download'])->middleware('throttle:reports-export')->name('reports.downloads.show');
     });

@@ -5,6 +5,7 @@ namespace App\Analytics;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\Organization;
+use App\Models\StaffMember;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -108,6 +109,41 @@ final class AnalyticsScope
             $this->locationId,
             $from->copy()->startOfDay(),
             $to->copy()->startOfDay(),
+        );
+    }
+
+    /**
+     * Narrow to one person already inside this scope. A foreign or out-of-scope
+     * UUID is ignored so filters cannot widen access.
+     */
+    public function narrowToPerson(?string $staffUuid): self
+    {
+        if ($staffUuid === null || $staffUuid === '' || $this->perspective === self::PERSONAL) {
+            return $this;
+        }
+
+        $person = StaffMember::query()
+            ->where('organization_id', $this->organization->getKey())
+            ->where('uuid', $staffUuid)
+            ->first(['id', 'department_id']);
+
+        if ($person === null) {
+            return $this;
+        }
+
+        if ($this->departmentIds !== null && ! in_array((int) $person->department_id, $this->departmentIds, true)) {
+            return $this;
+        }
+
+        return new self(
+            $this->organization,
+            $this->viewer,
+            $this->perspective,
+            $this->departmentIds,
+            (int) $person->getKey(),
+            $this->locationId,
+            $this->from->copy(),
+            $this->to->copy(),
         );
     }
 

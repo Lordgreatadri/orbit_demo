@@ -99,6 +99,10 @@ Calculated notes appear on the analytics page, grouped as action required now or
 
 Each note names the period, the metric, and a next page. The badge says Calculated. Nothing is described as model-written.
 
-## Not in this milestone
+## Related: reports and exports
 
-PDF, Excel beyond the existing attendance CSV, scheduled report delivery, a dashboard builder, an external model, course attendance, and per-tenant operational charts on the platform console.
+Operational report catalogs, CSV/XLSX/PDF, and queued large exports live under ADR-0017 and `implementation/reports-and-exports.md`. The analytics page CSV (`org.analytics.export`) remains as an alias of the attendance-detail report exporter and still applies `AnalyticsScope`.
+
+## Not in this analytics milestone
+
+Scheduled report delivery, a dashboard builder, an external model, course attendance, and per-tenant operational charts on the platform console.

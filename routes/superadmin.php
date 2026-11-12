@@ -5,6 +5,7 @@ use App\Http\Controllers\Platform\DashboardController;
 use App\Http\Controllers\Platform\ModuleController;
 use App\Http\Controllers\Platform\OrganizationController;
 use App\Http\Controllers\Platform\PermissionController;
+use App\Http\Controllers\Platform\ReportController;
 use App\Http\Controllers\Platform\RoleController;
 use App\Http\Controllers\Platform\SmsMessageController;
 use App\Http\Controllers\Platform\SmsOverviewController;
@@ -33,6 +34,9 @@ Route::prefix('admin')
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::get('/statistics', StatisticsController::class)->name('statistics');
         Route::get('/workforce', WorkforceOverviewController::class)->name('workforce.overview');
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->name('reports.show');
+        Route::get('/reports/{report}/export', [ReportController::class, 'export'])->middleware('throttle:reports-export')->name('reports.export');
 
         // Organisations (tenants)
         Route::get('/organisations', [OrganizationController::class, 'index'])->name('organizations.index');
