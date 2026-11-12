@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\StaffStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
@@ -40,6 +41,7 @@ class WorkforceOverviewController extends Controller
             ->map(fn (?string $timezone) => now($timezone ?: 'UTC')->toDateString());
 
         $attendance = $this->attendanceByOrganization($todayById);
+        $coverage = $this->activeCoverage($todayById);
         $activeStaff = StaffMember::withoutTenantScope()
             ->where('status', StaffStatus::Active->value)
             ->select('organization_id', DB::raw('count(*) as total'))
@@ -66,7 +68,7 @@ class WorkforceOverviewController extends Controller
             'present' => $statusTotal('present'),
             'late' => $statusTotal('late'),
             'on_leave' => $statusTotal('on_leave'),
-            'covered' => (int) collect($covering)->sum(fn (string $status) => $statusTotal($status)),
+            'covered' => (int) $coverage->sum('covered'),
             'open_field' => (int) $openField->sum(),
             'pending_leave' => (int) $pendingLeave->sum(),
         ];
@@ -74,6 +76,7 @@ class WorkforceOverviewController extends Controller
         return view('platform.workforce.overview', [
             'organizations' => $organizations,
             'attendance' => $attendance,
+            'coverageBuckets' => $coverage,
             'activeStaff' => $activeStaff,
             'openField' => $openField,
             'pendingLeave' => $pendingLeave,
@@ -111,5 +114,80 @@ class WorkforceOverviewController extends Controller
             ->map(fn (Collection $rows): array => $rows->mapWithKeys(fn ($row) => [
                 ($row->status->value ?? (string) $row->status) => (int) $row->total,
             ])->all());
+    }
+
+    /**
+     * Distinct active people with any covering status today. A person recorded
+     * as present in one period and late in another counts once. Bar segments
+     * use the same people in priority order: present, then late, then the
+     * other covering statuses, so the segments do not overlap.
+     *
+     * @param  Collection<int, string>  $todayById
+     * @return Collection<int, array{present: int, late: int, other: int, covered: int}>
+     */
+    private function activeCoverage(Collection $todayById): Collection
+    {
+        if ($todayById->isEmpty()) {
+            return collect();
+        }
+
+        $people = AttendanceRecord::withoutTenantScope()
+            ->join('staff_members', function ($join): void {
+                $join->on('staff_members.id', '=', 'attendance_records.staff_member_id')
+                    ->where('staff_members.status', StaffStatus::Active->value)
+                    ->whereNull('staff_members.deleted_at')
+                    ->whereColumn('staff_members.organization_id', 'attendance_records.organization_id');
+            })
+            ->whereIn('attendance_records.status', [
+                AttendanceStatus::Present->value,
+                AttendanceStatus::Late->value,
+                AttendanceStatus::OnLeave->value,
+                AttendanceStatus::Incomplete->value,
+                AttendanceStatus::Excused->value,
+            ]);
+        CalendarDay::constrainAny($people, 'attendance_records.work_date', $todayById->unique()->values()->all());
+
+        $summary = DB::query()
+            ->fromSub(
+                $people
+                    ->select('attendance_records.organization_id', 'attendance_records.work_date', 'attendance_records.staff_member_id')
+                    ->selectRaw('max(case when attendance_records.status = ? then 1 else 0 end) as has_present', [AttendanceStatus::Present->value])
+                    ->selectRaw('max(case when attendance_records.status = ? then 1 else 0 end) as has_late', [AttendanceStatus::Late->value])
+                    ->selectRaw('max(case when attendance_records.status in (?, ?, ?) then 1 else 0 end) as has_other', [
+                        AttendanceStatus::OnLeave->value,
+                        AttendanceStatus::Incomplete->value,
+                        AttendanceStatus::Excused->value,
+                    ])
+                    ->groupBy('attendance_records.organization_id', 'attendance_records.work_date', 'attendance_records.staff_member_id'),
+                'covering_people',
+            )
+            ->select('organization_id', 'work_date')
+            ->selectRaw('sum(case when has_present = 1 then 1 else 0 end) as present_people')
+            ->selectRaw('sum(case when has_present = 0 and has_late = 1 then 1 else 0 end) as late_people')
+            ->selectRaw('sum(case when has_present = 0 and has_late = 0 and has_other = 1 then 1 else 0 end) as other_people')
+            ->groupBy('organization_id', 'work_date')
+            ->get();
+
+        return $summary
+            ->filter(function ($row) use ($todayById): bool {
+                $date = $row->work_date instanceof CarbonInterface
+                    ? $row->work_date->toDateString()
+                    : substr((string) $row->work_date, 0, 10);
+
+                return ($todayById[$row->organization_id] ?? null) === $date;
+            })
+            ->groupBy('organization_id')
+            ->map(function (Collection $rows): array {
+                $present = (int) $rows->sum('present_people');
+                $late = (int) $rows->sum('late_people');
+                $other = (int) $rows->sum('other_people');
+
+                return [
+                    'present' => $present,
+                    'late' => $late,
+                    'other' => $other,
+                    'covered' => $present + $late + $other,
+                ];
+            });
     }
 }

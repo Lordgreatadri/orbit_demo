@@ -56,8 +56,8 @@ Source: `shift_assignments` whose shift `status` is `published`.
 - Scheduled: those assignments in the range.
 - Attended: the assignment has a present or late `attendance_records` row for the same organisation and person, linked by `shift_assignment_id`, or by the legacy person-and-date match when that person has exactly one published assignment that day and the record has no session and no assignment.
 - Draft shifts are excluded.
-- Unassigned shifts: published shifts whose effective window overlaps the next 7 organisation days and that have no assignment in those 7 days. For a department scope, only shifts with that `department_id` are counted.
-- Upcoming: published assignments in the next 7 days inside the scope.
+- Unassigned shifts: published shifts whose effective window overlaps the next 7 organisation days and that have no assignment in those 7 days. For a department scope, only shifts with that `department_id` are counted. The last day is included with a half-open upper bound (`effective_from` is less than the following calendar day), so a date stored at midnight still counts on SQLite and PostgreSQL.
+- Upcoming: published assignments in the next 7 days inside the scope. The same half-open bound includes the seventh day.
 
 ### Leave
 
@@ -65,9 +65,9 @@ Source: `leave_requests` and `leave_balances`.
 
 - Decision counts: requests whose `starts_on` is inside the selected range, grouped by status. This is not an attendance count.
 - Pending: `submitted` requests in scope, including ones that start outside the chart range. The page says so.
-- Utilisation: for balances whose period contains today, `sum(used_days) / sum(entitled_days + adjusted_days)` where the entitlement is greater than zero. A zero entitlement is left out of both sums. Pending days are not treated as used. The rate is null when no positive entitlement is open.
-- Upcoming approved: approved requests that overlap the next 14 days.
-- The personal workspace lists `LeaveBalance::available()` (entitled + adjusted − used − pending) for open periods. It does not recompute entitlement.
+- Utilisation: for balances whose period contains today, `sum(used_days) / sum(entitled_days + adjusted_days)` where the entitlement is greater than zero. A zero entitlement is left out of both sums. Pending days are not treated as used. The rate is null when no positive entitlement is open. An open period includes its first day: `period_start` is less than the following calendar day.
+- Upcoming approved: approved requests that overlap the next 14 days, including a request that starts on the fourteenth day (`starts_on` is less than the following calendar day).
+- The personal workspace lists `LeaveBalance::available()` (entitled + adjusted − used − pending) for open periods when the leave type requires a balance. A type with `requires_balance` false is shown as "No day limit". It does not recompute entitlement. Open requests are a separate count of that person’s submitted requests, not a filter of the five most recent requests.
 
 ### Notifications
 

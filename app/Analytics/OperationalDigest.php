@@ -60,7 +60,7 @@ final class OperationalDigest
             $unassigned = Shift::query()
                 ->where('organization_id', $scope->organization->getKey())
                 ->where('status', ShiftStatus::Published->value)
-                ->where('effective_from', '<=', $end)
+                ->where('effective_from', '<', CalendarDay::following($end))
                 ->where(function ($query) use ($start): void {
                     $query->whereNull('effective_until')->orWhere('effective_until', '>=', $start);
                 })
@@ -101,7 +101,7 @@ final class OperationalDigest
 
             $balances = LeaveBalance::query()
                 ->where('organization_id', $scope->organization->getKey())
-                ->where('period_start', '<=', $today)
+                ->where('period_start', '<', CalendarDay::following($today))
                 ->where('period_end', '>=', $today)
                 ->when($scope->staffMemberId !== null, fn ($query) => $query->where('staff_member_id', $scope->staffMemberId))
                 ->when($scope->departmentIds !== null, function ($query) use ($scope): void {
@@ -119,7 +119,7 @@ final class OperationalDigest
             $upcoming = $this->leaveQuery($scope)
                 ->where('status', LeaveStatus::Approved->value)
                 ->where('ends_on', '>=', $today)
-                ->where('starts_on', '<=', $soon)
+                ->where('starts_on', '<', CalendarDay::following($soon))
                 ->count();
 
             return [

@@ -101,11 +101,14 @@
                         @php
                             $id = $organization->getKey();
                             $row = $attendance->get($id, []);
+                            $bucket = $coverageBuckets->get($id, ['present' => 0, 'late' => 0, 'other' => 0, 'covered' => 0]);
                             $active = (int) ($activeStaff[$id] ?? 0);
                             $present = (int) ($row['present'] ?? 0);
                             $late = (int) ($row['late'] ?? 0);
-                            $other = (int) ($row['on_leave'] ?? 0) + (int) ($row['incomplete'] ?? 0) + (int) ($row['excused'] ?? 0);
-                            $covered = $present + $late + $other;
+                            $covered = (int) $bucket['covered'];
+                            $barPresent = (int) $bucket['present'];
+                            $barLate = (int) $bucket['late'];
+                            $barOther = (int) $bucket['other'];
                             $denominator = max(1, $active, $covered);
                             $share = $active > 0 ? (int) round(min($covered, $active) / $active * 100) : null;
                             $pending = (int) ($pendingLeave[$id] ?? 0);
@@ -135,10 +138,10 @@
                             <td class="text-right font-semibold tabular-nums text-fg">{{ number_format($active) }}</td>
                             <td>
                                 <div class="flex items-center gap-3">
-                                    <div class="flex h-2 min-w-0 flex-1 gap-px overflow-hidden rounded-full bg-surface-muted" role="presentation" title="{{ $present }} present, {{ $late }} late, {{ $other }} on leave or other covering status, of {{ $active }} active">
-                                        @if ($present > 0)<span class="h-full bg-primary" style="width: {{ round($present / $denominator * 100, 2) }}%"></span>@endif
-                                        @if ($late > 0)<span class="h-full bg-warning" style="width: {{ round($late / $denominator * 100, 2) }}%"></span>@endif
-                                        @if ($other > 0)<span class="h-full bg-accent" style="width: {{ round($other / $denominator * 100, 2) }}%"></span>@endif
+                                    <div class="flex h-2 min-w-0 flex-1 gap-px overflow-hidden rounded-full bg-surface-muted" role="presentation" title="{{ $barPresent }} present, {{ $barLate }} late, {{ $barOther }} on leave or other covering status, of {{ $active }} active">
+                                        @if ($barPresent > 0)<span class="h-full bg-primary" style="width: {{ round($barPresent / $denominator * 100, 2) }}%"></span>@endif
+                                        @if ($barLate > 0)<span class="h-full bg-warning" style="width: {{ round($barLate / $denominator * 100, 2) }}%"></span>@endif
+                                        @if ($barOther > 0)<span class="h-full bg-accent" style="width: {{ round($barOther / $denominator * 100, 2) }}%"></span>@endif
                                     </div>
                                     <span @class(['w-11 shrink-0 text-right text-xs font-semibold tabular-nums', 'text-fg' => $share !== null && $share > 0, 'text-fg-subtle' => $share === null || $share === 0])>{{ $share === null ? '—' : $share.'%' }}</span>
                                 </div>

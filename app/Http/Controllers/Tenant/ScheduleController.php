@@ -176,7 +176,9 @@ class ScheduleController extends Controller
     public function destroyAssignment(Request $request, ShiftAssignment $assignment, ScheduleService $schedules): RedirectResponse
     {
         abort_unless($request->user()->can('schedules.manage'), 403);
-        $this->abortUnlessDepartment($request, $assignment->shift?->department_id ?? $assignment->staffMember?->department_id);
+        $assignment->loadMissing(['shift', 'staffMember']);
+        $this->abortUnlessDepartment($request, $assignment->shift?->department_id);
+        $this->abortUnlessDepartment($request, $assignment->staffMember?->department_id);
 
         try {
             $schedules->remove($request->user(), $assignment);

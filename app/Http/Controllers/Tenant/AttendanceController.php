@@ -218,6 +218,10 @@ class AttendanceController extends Controller
         $input = $request->validated();
 
         $staff = StaffMember::query()->where('uuid', $input['staff_uuid'])->firstOrFail();
+        abort_unless(
+            AnalyticsScope::departmentAllowed($request->user(), $staff->department_id === null ? null : (int) $staff->department_id),
+            403,
+        );
         $locationId = isset($input['location_uuid'])
             ? Location::query()->where('uuid', $input['location_uuid'])->value('id')
             : null;

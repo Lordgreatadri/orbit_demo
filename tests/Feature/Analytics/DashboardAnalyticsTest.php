@@ -3,13 +3,16 @@
 namespace Tests\Feature\Analytics;
 
 use App\Analytics\AnalyticsScope;
+use App\Analytics\Insights\DeterministicInsightProvider;
 use App\Analytics\OperationalDigest;
 use App\Enums\AttendanceStatus;
+use App\Enums\LeaveStatus;
 use App\Enums\OrganizationType;
 use App\Enums\ShiftStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\LeaveBalance;
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
@@ -26,6 +29,12 @@ use Tests\TestCase;
 class DashboardAnalyticsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
     #[Test]
     public function an_organisation_dashboard_counts_only_that_tenant(): void
@@ -408,6 +417,180 @@ class DashboardAnalyticsTest extends TestCase
         $this->actingAs($admin)->get(route('org.dashboard'))->assertOk();
 
         $this->assertLessThan(55, $queries, 'Dashboard issued '.$queries.' queries.');
+    }
+
+    #[Test]
+    public function date_windows_include_the_final_day_on_sqlite(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $admin->organization->update(['timezone' => 'UTC']);
+        Carbon::setTestNow(Carbon::parse('2026-06-01 09:00:00', 'UTC'));
+        $person = StaffMember::factory()->forOrganization($admin->organization)->create();
+        $scope = AnalyticsScope::forUser($admin->fresh(), '2026-06-01', '2026-06-01');
+
+        LeaveBalance::query()->create([
+            'organization_id' => $admin->organization_id,
+            'staff_member_id' => $person->getKey(),
+            'leave_type_id' => LeaveType::query()->create([
+                'organization_id' => $admin->organization_id,
+                'name' => 'Annual',
+                'code' => 'ANNUAL',
+                'paid' => true,
+                'requires_balance' => true,
+                'is_active' => true,
+            ])->getKey(),
+            'year' => 2026,
+            'period_start' => '2026-06-01',
+            'period_end' => '2027-05-31',
+            'entitled_days' => 10,
+            'adjusted_days' => 0,
+            'used_days' => 4,
+            'pending_days' => 0,
+        ]);
+
+        $leave = app(OperationalDigest::class)->leave($scope);
+        $this->assertSame(40, $leave['utilisation']);
+        $this->assertSame(10, $leave['entitled_days']);
+
+        $typeId = LeaveType::query()->where('code', 'ANNUAL')->value('id');
+        LeaveRequest::query()->create([
+            'organization_id' => $admin->organization_id,
+            'staff_member_id' => $person->getKey(),
+            'leave_type_id' => $typeId,
+            'starts_on' => '2026-06-15',
+            'ends_on' => '2026-06-15',
+            'day_count' => 1,
+            'reason' => 'Boundary day',
+            'status' => LeaveStatus::Approved,
+        ]);
+        LeaveRequest::query()->create([
+            'organization_id' => $admin->organization_id,
+            'staff_member_id' => $person->getKey(),
+            'leave_type_id' => $typeId,
+            'starts_on' => '2026-06-16',
+            'ends_on' => '2026-06-16',
+            'day_count' => 1,
+            'reason' => 'Outside the window',
+            'status' => LeaveStatus::Approved,
+        ]);
+        $this->assertSame(1, app(OperationalDigest::class)->leave($scope)['upcoming_approved']);
+
+        Shift::query()->create([
+            'organization_id' => $admin->organization_id,
+            'name' => 'Day seven',
+            'starts_at' => '08:00:00',
+            'ends_at' => '16:00:00',
+            'effective_from' => '2026-06-07',
+            'status' => ShiftStatus::Published,
+        ]);
+        Shift::query()->create([
+            'organization_id' => $admin->organization_id,
+            'name' => 'Day eight',
+            'starts_at' => '08:00:00',
+            'ends_at' => '16:00:00',
+            'effective_from' => '2026-06-08',
+            'status' => ShiftStatus::Published,
+        ]);
+        $this->assertSame(1, app(OperationalDigest::class)->schedule($scope)['unassigned_shifts']);
+    }
+
+    #[Test]
+    public function leave_concentration_includes_leave_starting_on_the_fourteenth_day(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $admin->organization->update(['timezone' => 'UTC']);
+        Carbon::setTestNow(Carbon::parse('2026-06-01 09:00:00', 'UTC'));
+        $department = Department::factory()->forOrganization($admin->organization)->create(['name' => 'Operations']);
+        $people = StaffMember::factory()->forOrganization($admin->organization)->count(5)->create([
+            'department_id' => $department->getKey(),
+            'status' => 'active',
+        ]);
+        $type = LeaveType::query()->create([
+            'organization_id' => $admin->organization_id,
+            'name' => 'Annual',
+            'code' => 'ANNUAL',
+            'paid' => true,
+            'requires_balance' => true,
+            'is_active' => true,
+        ]);
+
+        foreach ($people->take(2) as $person) {
+            LeaveRequest::query()->create([
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $person->getKey(),
+                'leave_type_id' => $type->getKey(),
+                'starts_on' => '2026-06-14',
+                'ends_on' => '2026-06-14',
+                'day_count' => 1,
+                'reason' => 'Boundary day',
+                'status' => LeaveStatus::Approved,
+            ]);
+        }
+
+        $insights = app(DeterministicInsightProvider::class)->forScope(
+            AnalyticsScope::forUser($admin->fresh(), '2026-06-01', '2026-06-01'),
+        );
+
+        $this->assertTrue(collect($insights)->contains(fn ($insight) => $insight->code === 'leave_concentration'));
+    }
+
+    #[Test]
+    public function the_personal_dashboard_counts_every_submitted_request_and_unlimited_leave(): void
+    {
+        $admin = $this->createOrganizationAdmin();
+        $member = $this->createMember($admin->organization);
+        $person = StaffMember::factory()->forOrganization($admin->organization)->linkedTo($member)->create();
+        $annual = LeaveType::query()->create([
+            'organization_id' => $admin->organization_id,
+            'name' => 'Annual',
+            'code' => 'ANNUAL',
+            'paid' => true,
+            'requires_balance' => false,
+            'default_days' => 0,
+            'is_active' => true,
+        ]);
+        LeaveType::query()->create([
+            'organization_id' => $admin->organization_id,
+            'name' => 'Compassionate',
+            'code' => 'COMP',
+            'paid' => true,
+            'requires_balance' => true,
+            'default_days' => 3,
+            'is_active' => true,
+        ]);
+
+        foreach (range(1, 6) as $day) {
+            LeaveRequest::query()->create([
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $person->getKey(),
+                'leave_type_id' => $annual->getKey(),
+                'starts_on' => sprintf('2026-01-%02d', $day),
+                'ends_on' => sprintf('2026-01-%02d', $day),
+                'day_count' => 1,
+                'reason' => 'Submitted request',
+                'status' => LeaveStatus::Submitted,
+            ]);
+        }
+        foreach (range(1, 5) as $day) {
+            LeaveRequest::query()->create([
+                'organization_id' => $admin->organization_id,
+                'staff_member_id' => $person->getKey(),
+                'leave_type_id' => $annual->getKey(),
+                'starts_on' => sprintf('2026-12-%02d', $day),
+                'ends_on' => sprintf('2026-12-%02d', $day),
+                'day_count' => 1,
+                'reason' => 'Approved request',
+                'status' => LeaveStatus::Approved,
+            ]);
+        }
+
+        $this->actingAs($member)
+            ->get(route('org.dashboard'))
+            ->assertOk()
+            ->assertSee('Open requests')
+            ->assertSee('No day limit')
+            ->assertSee('>6<', false)
+            ->assertDontSee('0 days available');
     }
 
     private function record(StaffMember $person, string $date, AttendanceStatus $status, ?string $period = null): void

@@ -10,7 +10,7 @@
         default => ['No record yet', 'neutral', 'clock', 'Nothing is stored for you today. Check in when you arrive.'],
     };
     [$statusLabel, $statusTone, $statusIcon, $statusLine] = $todayStatus;
-    $openRequests = $personal['requests']->filter(fn ($row) => $row->status === \App\Enums\LeaveStatus::Submitted)->count();
+    $openRequests = (int) $personal['open_requests'];
     $next = $personal['next'];
 @endphp
 
@@ -74,8 +74,9 @@
         <x-stat label="Open requests" :value="number_format($openRequests)" hint="Leave you have submitted" icon="document-check" tone="warning" :href="route('org.leave.index')" />
         @php
             $headline = collect($personal['balances'])->first(fn ($row) => str_contains(strtolower($row['name']), 'annual')) ?? ($personal['balances'][0] ?? null);
+            $headlineUnlimited = $headline !== null && ! $headline['requires_balance'];
         @endphp
-        <x-stat class="col-span-2 lg:col-span-1" :label="$headline ? $headline['name'].' available' : 'Leave available'" :value="$headline ? number_format($headline['available']) : '—'" :hint="$headline ? 'Days in the open leave year' : 'No active leave type'" icon="calendar" tone="accent" :href="route('org.leave.index')" />
+        <x-stat class="col-span-2 lg:col-span-1" :label="$headline ? ($headlineUnlimited ? $headline['name'] : $headline['name'].' available') : 'Leave available'" :value="$headline ? ($headlineUnlimited ? 'No day limit' : number_format($headline['available'])) : '—'" :hint="$headline ? ($headlineUnlimited ? 'This leave type has no day limit' : 'Days in the open leave year') : 'No active leave type'" icon="calendar" tone="accent" :href="route('org.leave.index')" />
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
@@ -116,7 +117,11 @@
                     @foreach ($personal['balances'] as $balance)
                         <li class="flex items-center justify-between gap-3 rounded-lg border border-edge px-3.5 py-2.5">
                             <span class="text-sm font-medium text-fg">{{ $balance['name'] }}</span>
-                            <span class="text-right leading-none"><span class="text-lg font-semibold tabular-nums text-fg">{{ number_format($balance['available']) }}</span> <span class="text-xs text-fg-subtle">days available</span></span>
+                            @if ($balance['requires_balance'])
+                                <span class="text-right leading-none"><span class="text-lg font-semibold tabular-nums text-fg">{{ number_format($balance['available']) }}</span> <span class="text-xs text-fg-subtle">days available</span></span>
+                            @else
+                                <span class="text-sm font-semibold text-fg">No day limit</span>
+                            @endif
                         </li>
                     @endforeach
                 </ul>

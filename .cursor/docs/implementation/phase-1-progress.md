@@ -463,3 +463,18 @@ The earlier flat pass was treated as a regression: equal-weight grey insets, unb
 | `php84 artisan test --compact tests/Feature/Database/DataUpgradeTest.php` | **8 passed, 75 assertions** |
 | `php84 artisan test --compact` | **294 passed, 2547 assertions**. No failures. No skipped tests |
 
+## Review fixes (2026-11-12)
+
+- [x] Attendance correction, assignment removal, and staff create/update reject a department outside the acting manager's scope before the write. Assignment removal checks the shift department and the assigned person's department.
+- [x] Leave and schedule windows include the final day with a half-open calendar bound. An open leave balance includes its first day.
+- [x] Platform coverage counts each active person once across covering statuses. Bar segments use that same non-overlapping split.
+- [x] The sidebar workspace name keeps a published branding display name.
+- [x] The personal dashboard counts submitted leave separately from the five recent requests, and shows "No day limit" for unlimited types.
+
+| Command | Result |
+| --- | --- |
+| `php84 vendor/bin/pint --dirty` | **Passed** (import order in two tests) |
+| `php84 artisan test --compact` on the new regression methods | **8 passed, 41 assertions** |
+| `php84 artisan test --compact` on `DashboardAnalyticsTest`, `PlatformStatisticsTest`, `StaffRegisterTest`, `WorkspaceShellTest`, `ScheduleLeaveReviewTest`, and `AttendanceWorkflowTest` | **71 passed, 826 assertions** |
+| `php84 vendor/bin/pint --dirty` then `php84 artisan test --compact` (full suite, 2026-11-12 validation) | Pint **passed**. **329 passed, 2792 assertions**. No failures |
+

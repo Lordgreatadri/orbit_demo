@@ -10,6 +10,7 @@ use App\Enums\AttendanceStatus;
 use App\Models\Department;
 use App\Models\LeaveRequest;
 use App\Models\StaffMember;
+use App\Support\CalendarDay;
 
 /**
  * Thresholds are fixed and the wording quotes the figures that crossed them.
@@ -129,7 +130,7 @@ final class DeterministicInsightProvider implements OperationalInsightProvider
             $away = LeaveRequest::query()
                 ->where('organization_id', $scope->organization->getKey())
                 ->where('status', 'approved')
-                ->where('starts_on', '<=', $end)
+                ->where('starts_on', '<', CalendarDay::following($end))
                 ->where('ends_on', '>=', $start)
                 ->whereIn('staff_member_id', StaffMember::query()
                     ->where('organization_id', $scope->organization->getKey())

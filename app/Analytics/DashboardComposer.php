@@ -17,6 +17,7 @@ use App\Models\LoginEvent;
 use App\Models\ShiftAssignment;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Support\CalendarDay;
 use App\Workforce\Communication\Inbox;
 use App\Workforce\LeavePlanner;
 use App\Workforce\WorkforceReport;
@@ -255,13 +256,13 @@ final class DashboardComposer
      * Same available-day figure as the leave page: a stored open balance when one
      * exists, otherwise the planner entitlement for the open period.
      *
-     * @return list<array{name: string, available: int}>
+     * @return list<array{name: string, available: int, requires_balance: bool}>
      */
     private function personalBalances(StaffMember $staff, string $today): array
     {
         $stored = LeaveBalance::query()
             ->where('staff_member_id', $staff->getKey())
-            ->where('period_start', '<=', $today)
+            ->where('period_start', '<', CalendarDay::following($today))
             ->where('period_end', '>=', $today)
             ->get()
             ->keyBy('leave_type_id');
@@ -270,9 +271,10 @@ final class DashboardComposer
 
         foreach (LeaveType::query()->where('organization_id', $staff->organization_id)->where('is_active', true)->orderBy('name')->get() as $type) {
             $row = $stored->get($type->getKey());
+            $requiresBalance = (bool) $type->requires_balance;
 
             if ($row instanceof LeaveBalance) {
-                $lines[] = ['name' => $type->name, 'available' => $row->available()];
+                $lines[] = ['name' => $type->name, 'available' => $row->available(), 'requires_balance' => $requiresBalance];
 
                 continue;
             }
@@ -282,6 +284,7 @@ final class DashboardComposer
             $lines[] = [
                 'name' => $type->name,
                 'available' => $planner->entitledDays($staff, $type, $policy, $periodStart),
+                'requires_balance' => $requiresBalance,
             ];
         }
 
@@ -308,6 +311,12 @@ final class DashboardComposer
                 ->orderByDesc('starts_on')
                 ->limit(5)
                 ->get();
+        $openRequests = $staffId === null
+            ? 0
+            : LeaveRequest::query()
+                ->where('staff_member_id', $staffId)
+                ->where('status', LeaveStatus::Submitted->value)
+                ->count();
 
         $history = $staffId === null
             ? collect()
@@ -323,6 +332,7 @@ final class DashboardComposer
             'today' => $this->digest->today($scope),
             'balances' => $balances,
             'requests' => $requests,
+            'open_requests' => $openRequests,
             'history' => $history,
             'next' => $this->upcomingAssignments($user, $scope, $timezone)->first(),
         ];

@@ -6,6 +6,7 @@
     $isPlatform = $user?->isPlatformUser() ?? false;
     $sections = $user ? \App\Support\Navigation::for($user) : [];
     $homeRoute = $isPlatform ? route('admin.dashboard') : route('org.dashboard');
+    $workspaceName = $organization ? ((($workspaceBranding ?? null)?->displayName) ?: $organization->name) : null;
     $unreadNotifications = ($user && $organization) ? \App\Workforce\Communication\Inbox::unreadCount($user) : 0;
     $recentNotifications = ($user && $organization) ? \App\Workforce\Communication\Inbox::recent($user) : collect();
 @endphp
@@ -44,14 +45,14 @@
 
         @if ($organization)
             @php
-                $orgMonogram = \App\Support\Monogram::for($organization->name);
+                $orgMonogram = \App\Support\Monogram::for($workspaceName);
             @endphp
             <div class="shrink-0 border-b border-edge px-3 py-3">
                 <div class="flex items-center gap-3 rounded-lg bg-surface-muted/70 px-3 py-2.5">
                     <span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-deep text-xs font-semibold tracking-wide text-white">{{ $orgMonogram ?: 'O' }}</span>
                     <div class="min-w-0">
                         <p class="text-[0.6875rem] font-medium text-fg-subtle">Workspace</p>
-                        <p class="line-clamp-2 text-sm leading-snug font-semibold text-fg" title="{{ $organization->name }}">{{ $organization->name }}</p>
+                        <p class="line-clamp-2 text-sm leading-snug font-semibold text-fg" title="{{ $workspaceName }}">{{ $workspaceName }}</p>
                         <p class="mt-1 flex flex-wrap items-center gap-1.5 text-[0.6875rem] text-fg-subtle">
                             <span class="truncate">{{ $organization->type->label() }}</span>
                             @if ($organization->isDemo())
@@ -147,7 +148,7 @@
                 </button>
                 <div class="min-w-0">
                     @if ($organization)
-                        <p class="truncate text-sm font-semibold text-fg lg:hidden">{{ $organization->name }}</p>
+                        <p class="truncate text-sm font-semibold text-fg lg:hidden">{{ $workspaceName }}</p>
                         <p class="hidden truncate text-sm text-fg-muted lg:block">{{ now($organization->timezone ?: 'UTC')->format('l j F Y') }}</p>
                     @elseif ($isPlatform)
                         <p class="truncate text-sm font-semibold text-fg">Platform console</p>

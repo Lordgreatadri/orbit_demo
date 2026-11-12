@@ -109,4 +109,47 @@ class PlatformStatisticsTest extends TestCase
             ->assertOk()
             ->assertSee('Fictional Water Board');
     }
+
+    #[Test]
+    public function coverage_counts_each_active_person_once_across_covering_statuses(): void
+    {
+        $organization = Organization::factory()->create(['name' => 'Fictional Harbour Office']);
+        $person = StaffMember::factory()->forOrganization($organization)->create();
+        StaffMember::factory()->forOrganization($organization)->create();
+        $inactive = StaffMember::factory()->forOrganization($organization)->create(['status' => 'inactive']);
+        $today = now($organization->timezone ?: 'UTC')->toDateString();
+
+        AttendanceRecord::query()->create([
+            'organization_id' => $organization->getKey(),
+            'staff_member_id' => $person->getKey(),
+            'work_date' => $today,
+            'period_key' => $today.':morning',
+            'status' => AttendanceStatus::Present,
+            'source' => 'manual',
+        ]);
+        AttendanceRecord::query()->create([
+            'organization_id' => $organization->getKey(),
+            'staff_member_id' => $person->getKey(),
+            'work_date' => $today,
+            'period_key' => $today.':afternoon',
+            'status' => AttendanceStatus::Late,
+            'source' => 'manual',
+        ]);
+        AttendanceRecord::query()->create([
+            'organization_id' => $organization->getKey(),
+            'staff_member_id' => $inactive->getKey(),
+            'work_date' => $today,
+            'period_key' => $today.':morning',
+            'status' => AttendanceStatus::Present,
+            'source' => 'manual',
+        ]);
+
+        $this->actingAs($this->superAdmin())
+            ->get(route('admin.workforce.overview'))
+            ->assertOk()
+            ->assertSee('1 covered of 2 active')
+            ->assertSee('1 present, 0 late, 0 on leave or other covering status, of 2 active', false)
+            ->assertDontSee('2 covered of 2 active')
+            ->assertDontSee('3 covered of 2 active');
+    }
 }
