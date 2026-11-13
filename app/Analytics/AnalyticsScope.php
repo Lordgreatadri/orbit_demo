@@ -5,6 +5,7 @@ namespace App\Analytics;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\Organization;
+use App\Models\StaffMember;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -111,6 +112,41 @@ final class AnalyticsScope
         );
     }
 
+    /**
+     * Narrow to one person already inside this scope. A foreign or out-of-scope
+     * UUID is ignored so filters cannot widen access.
+     */
+    public function narrowToPerson(?string $staffUuid): self
+    {
+        if ($staffUuid === null || $staffUuid === '' || $this->perspective === self::PERSONAL) {
+            return $this;
+        }
+
+        $person = StaffMember::query()
+            ->where('organization_id', $this->organization->getKey())
+            ->where('uuid', $staffUuid)
+            ->first(['id', 'department_id']);
+
+        if ($person === null) {
+            return $this;
+        }
+
+        if ($this->departmentIds !== null && ! in_array((int) $person->department_id, $this->departmentIds, true)) {
+            return $this;
+        }
+
+        return new self(
+            $this->organization,
+            $this->viewer,
+            $this->perspective,
+            $this->departmentIds,
+            (int) $person->getKey(),
+            $this->locationId,
+            $this->from->copy(),
+            $this->to->copy(),
+        );
+    }
+
     public function label(): string
     {
         if ($this->perspective === self::PERSONAL) {
@@ -187,6 +223,58 @@ final class AnalyticsScope
         }
 
         return [$start, $end];
+    }
+
+    /**
+     * Scope that was allowed to produce an export artifact.
+     *
+     * @return array{organization_id: int, perspective: string, department_ids: list<int>|null, staff_member_id: int|null}
+     */
+    public function toGenerationScope(): array
+    {
+        return [
+            'organization_id' => (int) $this->organization->getKey(),
+            'perspective' => $this->perspective,
+            'department_ids' => $this->departmentIds,
+            'staff_member_id' => $this->staffMemberId,
+        ];
+    }
+
+    /**
+     * The current scope covers a stored artifact when every department and
+     * person in that artifact is still inside the current window.
+     *
+     * @param  array<string, mixed>|null  $stored
+     */
+    public function coversGeneration(?array $stored): bool
+    {
+        if (! is_array($stored) || ! array_key_exists('department_ids', $stored)) {
+            return false;
+        }
+
+        if ((int) ($stored['organization_id'] ?? 0) !== (int) $this->organization->getKey()) {
+            return false;
+        }
+
+        $artifactDepartments = $stored['department_ids'];
+
+        if ($artifactDepartments === null) {
+            if ($this->departmentIds !== null) {
+                return false;
+            }
+        } elseif ($this->departmentIds !== null) {
+            foreach ($artifactDepartments as $id) {
+                if (! in_array((int) $id, $this->departmentIds, true)) {
+                    return false;
+                }
+            }
+        }
+
+        if ($this->staffMemberId !== null && (int) ($stored['staff_member_id'] ?? 0) !== (int) $this->staffMemberId) {
+            return false;
+        }
+
+        return true;
     }
 
     public function cacheKey(string $metric): string

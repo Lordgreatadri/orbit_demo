@@ -44,15 +44,17 @@ final class OperationalDigest
     /**
      * @return array{scheduled: int, attended: int, rate: int|null, upcoming: int, unassigned_shifts: int}
      */
-    public function schedule(AnalyticsScope $scope): array
+    public function schedule(AnalyticsScope $scope, ?int $arrangementId = null): array
     {
-        return $this->cache->remember($scope, 'schedule', function () use ($scope): array {
-            $adherence = $this->attendance->scheduleAdherence($scope->organization, $scope->from, $scope->to, $scope);
+        $metric = 'schedule'.($arrangementId === null ? '' : '.arrangement.'.$arrangementId);
+
+        return $this->cache->remember($scope, $metric, function () use ($scope, $arrangementId): array {
+            $adherence = $this->attendance->scheduleAdherence($scope->organization, $scope->from, $scope->to, $scope, $arrangementId);
             $timezone = $scope->organization->timezone ?: 'UTC';
             $start = now($timezone)->toDateString();
             $end = now($timezone)->addDays(6)->toDateString();
 
-            $upcoming = $this->publishedAssignments($scope)
+            $upcoming = $this->publishedAssignments($scope, $arrangementId)
                 ->where('work_date', '>=', $start)
                 ->where('work_date', '<', CalendarDay::following($end))
                 ->count();
@@ -60,6 +62,7 @@ final class OperationalDigest
             $unassigned = Shift::query()
                 ->where('organization_id', $scope->organization->getKey())
                 ->where('status', ShiftStatus::Published->value)
+                ->when($arrangementId !== null, fn ($query) => $query->where('work_arrangement_id', $arrangementId))
                 ->where('effective_from', '<', CalendarDay::following($end))
                 ->where(function ($query) use ($start): void {
                     $query->whereNull('effective_until')->orWhere('effective_until', '>=', $start);
@@ -90,19 +93,22 @@ final class OperationalDigest
      *
      * @return array{decisions: array<string, int>, pending: int, utilisation: int|null, entitled_days: int, used_days: int, upcoming_approved: int}
      */
-    public function leave(AnalyticsScope $scope): array
+    public function leave(AnalyticsScope $scope, ?int $leaveTypeId = null): array
     {
-        return $this->cache->remember($scope, 'leave', function () use ($scope): array {
-            $decisions = $this->attendance->leaveDecisions($scope->organization, $scope->from, $scope->to, $scope);
+        $metric = 'leave'.($leaveTypeId === null ? '' : '.type.'.$leaveTypeId);
+
+        return $this->cache->remember($scope, $metric, function () use ($scope, $leaveTypeId): array {
+            $decisions = $this->attendance->leaveDecisions($scope->organization, $scope->from, $scope->to, $scope, $leaveTypeId);
             $today = now($scope->organization->timezone ?: 'UTC')->toDateString();
             $soon = now($scope->organization->timezone ?: 'UTC')->addDays(14)->toDateString();
 
-            $pending = $this->leaveQuery($scope)->where('status', LeaveStatus::Submitted->value)->count();
+            $pending = $this->leaveQuery($scope, $leaveTypeId)->where('status', LeaveStatus::Submitted->value)->count();
 
             $balances = LeaveBalance::query()
                 ->where('organization_id', $scope->organization->getKey())
                 ->where('period_start', '<', CalendarDay::following($today))
                 ->where('period_end', '>=', $today)
+                ->when($leaveTypeId !== null, fn ($query) => $query->where('leave_type_id', $leaveTypeId))
                 ->when($scope->staffMemberId !== null, fn ($query) => $query->where('staff_member_id', $scope->staffMemberId))
                 ->when($scope->departmentIds !== null, function ($query) use ($scope): void {
                     $query->whereIn('staff_member_id', StaffMember::query()
@@ -116,7 +122,7 @@ final class OperationalDigest
             $entitled = (int) ($balances->entitled_days ?? 0);
             $used = (int) ($balances->used_days ?? 0);
 
-            $upcoming = $this->leaveQuery($scope)
+            $upcoming = $this->leaveQuery($scope, $leaveTypeId)
                 ->where('status', LeaveStatus::Approved->value)
                 ->where('ends_on', '>=', $today)
                 ->where('starts_on', '<', CalendarDay::following($soon))
@@ -193,10 +199,11 @@ final class OperationalDigest
         });
     }
 
-    private function publishedAssignments(AnalyticsScope $scope): Builder
+    private function publishedAssignments(AnalyticsScope $scope, ?int $arrangementId = null): Builder
     {
         return ShiftAssignment::query()
             ->where('organization_id', $scope->organization->getKey())
+            ->when($arrangementId !== null, fn ($query) => $query->where('work_arrangement_id', $arrangementId))
             ->whereHas('shift', fn ($query) => $query->where('status', ShiftStatus::Published->value))
             ->when($scope->staffMemberId !== null, fn ($query) => $query->where('staff_member_id', $scope->staffMemberId))
             ->when($scope->departmentIds !== null, function ($query) use ($scope): void {
@@ -208,10 +215,11 @@ final class OperationalDigest
             ->when($scope->locationId !== null, fn ($query) => $query->where('location_id', $scope->locationId));
     }
 
-    private function leaveQuery(AnalyticsScope $scope): Builder
+    private function leaveQuery(AnalyticsScope $scope, ?int $leaveTypeId = null): Builder
     {
         return LeaveRequest::query()
             ->where('organization_id', $scope->organization->getKey())
+            ->when($leaveTypeId !== null, fn ($query) => $query->where('leave_type_id', $leaveTypeId))
             ->when($scope->staffMemberId !== null, fn ($query) => $query->where('staff_member_id', $scope->staffMemberId))
             ->when($scope->departmentIds !== null, function ($query) use ($scope): void {
                 $query->whereIn('staff_member_id', StaffMember::query()

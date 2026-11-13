@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Staff;
 
+use App\Enums\OrganizationType;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\Organization;
@@ -165,7 +166,9 @@ class StaffRegisterTest extends TestCase
     #[Test]
     public function the_dashboard_summarises_real_counts_only(): void
     {
-        $admin = $this->createOrganizationAdmin();
+        $admin = $this->createOrganizationAdmin(
+            Organization::factory()->create(['type' => OrganizationType::Business]),
+        );
         StaffMember::factory()->forOrganization($admin->organization)->count(3)->create(['status' => 'active', 'work_type' => 'field']);
         StaffMember::factory()->forOrganization($admin->organization)->create(['status' => 'on_leave']);
         StaffMember::factory()->create(); // another organisation
