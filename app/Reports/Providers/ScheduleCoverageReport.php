@@ -36,7 +36,8 @@ final class ScheduleCoverageReport extends AbstractReportProvider
     public function build(ReportFilters $filters, int $page = 1): ReportResult
     {
         $scope = $filters->scope;
-        $schedule = $this->digest->schedule($scope);
+        $arrangementId = $filters->arrangement === null ? null : ($filters->arrangementId ?? 0);
+        $schedule = $this->digest->schedule($scope, $arrangementId);
         $arrangements = $this->reports->arrangementMix($scope->organization, $scope->from, $scope->to, $scope);
 
         if ($filters->arrangement !== null) {

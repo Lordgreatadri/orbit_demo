@@ -51,7 +51,7 @@ abstract class AbstractReportProvider implements ReportProvider
     /**
      * @param  list<ReportKpi>  $kpis
      * @param  list<ReportColumn>  $columns
-     * @param  list<array<string, mixed>>  $rows
+     * @param  list<array<string, mixed>>|LengthAwarePaginator<int, array<string, mixed>>  $rows
      * @param  list<string>  $findings
      * @param  array<string, mixed>  $meta
      */
@@ -59,7 +59,7 @@ abstract class AbstractReportProvider implements ReportProvider
         ReportFilters $filters,
         array $kpis,
         array $columns,
-        array $rows,
+        array|LengthAwarePaginator $rows,
         string $emptyMessage,
         array $findings = [],
         array $meta = [],
@@ -69,7 +69,7 @@ abstract class AbstractReportProvider implements ReportProvider
         $definition = $this->definition();
         $payload = $rows;
 
-        if ($definition->paginated && $page !== null) {
+        if (is_array($rows) && $definition->paginated && $page !== null) {
             $total = count($rows);
             $slice = array_slice($rows, ($page - 1) * $perPage, $perPage);
             $payload = new LengthAwarePaginator(

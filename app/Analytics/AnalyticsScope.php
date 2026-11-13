@@ -225,6 +225,58 @@ final class AnalyticsScope
         return [$start, $end];
     }
 
+    /**
+     * Scope that was allowed to produce an export artifact.
+     *
+     * @return array{organization_id: int, perspective: string, department_ids: list<int>|null, staff_member_id: int|null}
+     */
+    public function toGenerationScope(): array
+    {
+        return [
+            'organization_id' => (int) $this->organization->getKey(),
+            'perspective' => $this->perspective,
+            'department_ids' => $this->departmentIds,
+            'staff_member_id' => $this->staffMemberId,
+        ];
+    }
+
+    /**
+     * The current scope covers a stored artifact when every department and
+     * person in that artifact is still inside the current window.
+     *
+     * @param  array<string, mixed>|null  $stored
+     */
+    public function coversGeneration(?array $stored): bool
+    {
+        if (! is_array($stored) || ! array_key_exists('department_ids', $stored)) {
+            return false;
+        }
+
+        if ((int) ($stored['organization_id'] ?? 0) !== (int) $this->organization->getKey()) {
+            return false;
+        }
+
+        $artifactDepartments = $stored['department_ids'];
+
+        if ($artifactDepartments === null) {
+            if ($this->departmentIds !== null) {
+                return false;
+            }
+        } elseif ($this->departmentIds !== null) {
+            foreach ($artifactDepartments as $id) {
+                if (! in_array((int) $id, $this->departmentIds, true)) {
+                    return false;
+                }
+            }
+        }
+
+        if ($this->staffMemberId !== null && (int) ($stored['staff_member_id'] ?? 0) !== (int) $this->staffMemberId) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function cacheKey(string $metric): string
     {
         $departments = $this->departmentIds === null ? 'all' : implode(',', $this->departmentIds);

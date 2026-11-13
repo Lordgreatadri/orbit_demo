@@ -492,3 +492,22 @@ The earlier flat pass was treated as a regression: equal-weight grey insets, unb
 | `php84 vendor/bin/pint --dirty` | Fixed import/style in report controllers, ExportManager, routes, and reports tests; second run clean |
 | `php84 artisan test --compact` | **345 passed, 2,854 assertions**. No failures |
 
+## Reports review fixes (2026-11-13)
+
+- [x] Downloads re-check the current `AnalyticsScope` against the stored `generation_scope`. Losing a department or `analytics.view` rejects the file.
+- [x] Export job failures are rethrown after the row is marked failed.
+- [x] XLSX/PDF row estimates run before `build()`, and oversized exports queue without building the result.
+- [x] `reports:purge-exports` deletes expired metadata, missing-file rows, and orphaned files, and leaves another tenant's live file.
+- [x] Relationship exports use `lazy(200)`. Punctuality, incomplete, and leave pages paginate in SQL.
+- [x] Leave-type and arrangement filters apply to digest totals and cache metrics.
+- [x] Per-person status totals sum rows when the person changes department inside the window.
+
+| Command | Result |
+| --- | --- |
+| `php84 artisan test --compact tests/Feature/Reports` | **30 passed, 131 assertions** |
+| `php84 artisan test --compact` on Analytics, Workforce, Access, PlatformStatistics, and TenantIsolation | **98 passed, 965 assertions** |
+| `php84 vendor/bin/pint --dirty` | **Passed** |
+| `php84 artisan test --compact` (full suite, 2026-11-13) | **359 passed, 2,923 assertions**. No failures |
+
+Exports created before `generation_scope` existed have no stored scope and are rejected on download. Generate them again. `StaffRegisterTest` pins a business organisation so the dashboard label stays "Active staff".
+

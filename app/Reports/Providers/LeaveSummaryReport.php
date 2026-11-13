@@ -36,20 +36,12 @@ final class LeaveSummaryReport extends AbstractReportProvider
     public function build(ReportFilters $filters, int $page = 1): ReportResult
     {
         $scope = $filters->scope;
-        $leave = $this->digest->leave($scope);
-        $rows = [];
-
-        foreach ($this->requestQuery($filters)->cursor() as $request) {
-            $rows[] = [
-                'person' => $request->staffMember?->name,
-                'staff_number' => $request->staffMember?->staff_number,
-                'type' => $request->leaveType?->name,
-                'status' => $request->status instanceof LeaveStatus ? $request->status->label() : (string) $request->status,
-                'starts_on' => $request->starts_on?->toDateString(),
-                'ends_on' => $request->ends_on?->toDateString(),
-                'days' => $request->day_count,
-            ];
-        }
+        $leave = $this->digest->leave($scope, $filters->leaveTypeId);
+        $query = $this->requestQuery($filters);
+        $paginator = $query->paginate(50, ['*'], 'page', $page)->withQueryString();
+        $paginator->setCollection(collect($paginator->items())->map(
+            fn (LeaveRequest $request): array => $this->map($request),
+        ));
 
         return $this->result(
             filters: $filters,
@@ -57,7 +49,7 @@ final class LeaveSummaryReport extends AbstractReportProvider
                 new ReportKpi('Pending', number_format($leave['pending']), icon: 'clock', tone: 'warning'),
                 new ReportKpi('Utilisation', $leave['utilisation'] === null ? '—' : $leave['utilisation'].'%', hint: number_format($leave['used_days']).' of '.number_format($leave['entitled_days']).' entitled days used', icon: 'chart', meter: $leave['utilisation']),
                 new ReportKpi('Upcoming approved', number_format($leave['upcoming_approved']), icon: 'calendar', tone: 'accent'),
-                new ReportKpi('Requests in range', number_format(count($rows)), icon: 'document-check'),
+                new ReportKpi('Requests in range', number_format($paginator->total()), icon: 'document-check'),
             ],
             columns: $this->columns([
                 ['key' => 'person', 'label' => 'Person'],
@@ -68,28 +60,19 @@ final class LeaveSummaryReport extends AbstractReportProvider
                 ['key' => 'ends_on', 'label' => 'Ends'],
                 ['key' => 'days', 'label' => 'Days'],
             ]),
-            rows: $rows,
+            rows: $paginator,
             emptyMessage: 'No leave requests match these filters.',
             findings: [
                 'Decision counts use requests whose start falls in the selected range.',
                 'Pending includes submitted requests even when they start outside the chart range.',
             ],
-            page: $page,
         );
     }
 
     public function exportRows(ReportFilters $filters): Generator
     {
-        foreach ($this->requestQuery($filters)->cursor() as $request) {
-            yield [
-                'person' => $request->staffMember?->name,
-                'staff_number' => $request->staffMember?->staff_number,
-                'type' => $request->leaveType?->name,
-                'status' => $request->status instanceof LeaveStatus ? $request->status->label() : (string) $request->status,
-                'starts_on' => $request->starts_on?->toDateString(),
-                'ends_on' => $request->ends_on?->toDateString(),
-                'days' => $request->day_count,
-            ];
+        foreach ($this->requestQuery($filters)->lazy(200) as $request) {
+            yield $this->map($request);
         }
     }
 
@@ -118,5 +101,21 @@ final class LeaveSummaryReport extends AbstractReportProvider
             ->when($filters->leaveStatus !== null, fn ($query) => $query->where('status', $filters->leaveStatus))
             ->orderBy('starts_on')
             ->orderBy('id');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function map(LeaveRequest $request): array
+    {
+        return [
+            'person' => $request->staffMember?->name,
+            'staff_number' => $request->staffMember?->staff_number,
+            'type' => $request->leaveType?->name,
+            'status' => $request->status instanceof LeaveStatus ? $request->status->label() : (string) $request->status,
+            'starts_on' => $request->starts_on?->toDateString(),
+            'ends_on' => $request->ends_on?->toDateString(),
+            'days' => $request->day_count,
+        ];
     }
 }

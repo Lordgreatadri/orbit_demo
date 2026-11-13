@@ -75,7 +75,7 @@ final class AttendanceDetailReport extends AbstractReportProvider
             ->with(['staffMember:id,staff_number,first_name,last_name', 'department:id,name', 'location:id,name'])
             ->orderBy('work_date')
             ->orderBy('id')
-            ->cursor() as $record) {
+            ->lazy(200) as $record) {
             yield $this->mapRecord($record, $timezone);
         }
     }

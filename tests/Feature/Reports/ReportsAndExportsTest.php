@@ -470,6 +470,129 @@ class ReportsAndExportsTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/,Late,/', $content);
     }
 
+    #[Test]
+    public function queued_export_downloads_are_limited_to_the_owning_user_and_tenant(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createOrganizationAdmin();
+        $peer = $this->createOrganizationAdmin($admin->organization);
+        $other = $this->createOrganizationAdmin();
+        $path = 'report-exports/'.$admin->organization_id.'/'.$admin->getKey().'/artifact.csv';
+        Storage::disk('local')->put($path, "Date\n2026-11-12\n");
+
+        $export = ReportExport::query()->create([
+            'organization_id' => $admin->organization_id,
+            'user_id' => $admin->getKey(),
+            'report_key' => 'attendance-summary',
+            'format' => 'csv',
+            'filters' => [],
+            'status' => ReportExport::STATUS_READY,
+            'generation_scope' => [
+                'organization_id' => $admin->organization_id,
+                'perspective' => 'organisation',
+                'department_ids' => null,
+                'staff_member_id' => null,
+            ],
+            'expires_at' => now()->addDay(),
+        ]);
+        $export->forceFill(['disk_path' => $path])->save();
+
+        $this->actingAs($admin)->get(route('org.reports.downloads.show', $export->uuid))->assertOk();
+        $this->actingAs($peer)->get(route('org.reports.downloads.show', $export->uuid))->assertNotFound();
+        $this->actingAs($other)->get(route('org.reports.downloads.show', $export->uuid))->assertNotFound();
+    }
+
+    #[Test]
+    public function poisoned_disk_paths_and_expired_exports_cannot_be_downloaded(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createOrganizationAdmin();
+        Storage::disk('local')->put('secrets/env.txt', 'secret');
+
+        $poisoned = ReportExport::query()->create([
+            'organization_id' => $admin->organization_id,
+            'user_id' => $admin->getKey(),
+            'report_key' => 'attendance-summary',
+            'format' => 'csv',
+            'filters' => [],
+            'status' => ReportExport::STATUS_READY,
+            'expires_at' => now()->addDay(),
+        ]);
+        $poisoned->forceFill(['disk_path' => 'secrets/env.txt'])->save();
+
+        $this->actingAs($admin)
+            ->get(route('org.reports.downloads.show', $poisoned->uuid))
+            ->assertNotFound();
+
+        $expiredPath = 'report-exports/'.$admin->organization_id.'/'.$admin->getKey().'/expired.csv';
+        Storage::disk('local')->put($expiredPath, "Date\n");
+        $expired = ReportExport::query()->create([
+            'organization_id' => $admin->organization_id,
+            'user_id' => $admin->getKey(),
+            'report_key' => 'attendance-summary',
+            'format' => 'csv',
+            'filters' => [],
+            'status' => ReportExport::STATUS_READY,
+            'expires_at' => now()->subMinute(),
+        ]);
+        $expired->forceFill(['disk_path' => $expiredPath])->save();
+
+        $this->actingAs($admin)
+            ->get(route('org.reports.downloads.show', $expired->uuid))
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function export_jobs_with_the_wrong_organisation_are_ignored(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createOrganizationAdmin();
+        $other = $this->createOrganizationAdmin();
+
+        $export = ReportExport::query()->create([
+            'organization_id' => $admin->organization_id,
+            'user_id' => $admin->getKey(),
+            'report_key' => 'attendance-summary',
+            'format' => 'csv',
+            'filters' => [],
+            'status' => ReportExport::STATUS_QUEUED,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        (new GenerateReportExport($export->getKey(), (int) $other->organization_id))->handle(
+            app(ReportRegistry::class),
+            app(ExportManager::class),
+        );
+
+        $this->assertSame(ReportExport::STATUS_QUEUED, $export->fresh()->status);
+        $this->assertNull($export->fresh()->disk_path);
+    }
+
+    #[Test]
+    public function reports_purge_exports_removes_expired_artifacts(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createOrganizationAdmin();
+        $path = 'report-exports/'.$admin->organization_id.'/'.$admin->getKey().'/old.csv';
+        Storage::disk('local')->put($path, "Date\n");
+
+        $export = ReportExport::query()->create([
+            'organization_id' => $admin->organization_id,
+            'user_id' => $admin->getKey(),
+            'report_key' => 'attendance-summary',
+            'format' => 'csv',
+            'filters' => [],
+            'status' => ReportExport::STATUS_READY,
+            'expires_at' => now()->subHour(),
+        ]);
+        $export->forceFill(['disk_path' => $path])->save();
+
+        $this->artisan('reports:purge-exports')->assertSuccessful();
+
+        $this->assertDatabaseMissing('report_exports', ['id' => $export->getKey()]);
+        Storage::disk('local')->assertMissing($path);
+    }
+
     private function record(StaffMember $person, string $date, AttendanceStatus $status): void
     {
         AttendanceRecord::query()->create([

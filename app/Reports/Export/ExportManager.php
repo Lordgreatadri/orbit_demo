@@ -31,33 +31,40 @@ final class ExportManager
     ): StreamedResponse|Response|RedirectResponse {
         abort_unless($provider->definition()->supports($format), 404);
 
-        $result = $provider->build($filters);
+        abort_unless($provider->authorize($user), 403);
+
+        // Estimate is always computed server-side from the authorised filter bag.
+        // Clients cannot submit a row count to force the sync or queued path.
         $estimate = $provider->estimateRows($filters);
 
         if ($format !== ReportFormat::Csv && $estimate > self::QUEUE_THRESHOLD) {
+            abort_unless($provider->definition()->audience === ReportAudience::Tenant, 404);
+            abort_unless($filters->scope->organization->getKey() !== null, 404);
+            abort_unless((int) $user->organization_id === (int) $filters->scope->organization->getKey(), 403);
+
             $export = ReportExport::query()->create([
                 'organization_id' => $filters->scope->organization->getKey(),
                 'user_id' => $user->getKey(),
                 'report_key' => $provider->definition()->key,
                 'format' => $format->value,
                 'filters' => $filters->query(),
-                'status' => 'queued',
+                'generation_scope' => $filters->scope->toGenerationScope(),
+                'status' => ReportExport::STATUS_QUEUED,
                 'row_estimate' => $estimate,
                 'expires_at' => now()->addDay(),
             ]);
 
-            GenerateReportExport::dispatch($export->getKey(), $filters->scope->organization->getKey());
+            GenerateReportExport::dispatch($export->getKey(), (int) $filters->scope->organization->getKey());
 
             return redirect()
                 ->route(
-                    $provider->definition()->audience === ReportAudience::Platform
-                        ? 'admin.reports.show'
-                        : 'org.reports.show',
+                    'org.reports.show',
                     ['report' => $provider->definition()->key] + $filters->query(),
                 )
                 ->with('status', 'Large export queued. Download it from the report exports list when ready.');
         }
 
+        $result = $provider->build($filters);
         $filename = $provider->definition()->key.'-'.$result->from.'-'.$result->to.'.'.$format->extension();
 
         return match ($format) {

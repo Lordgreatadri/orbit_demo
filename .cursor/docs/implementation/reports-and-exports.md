@@ -55,18 +55,24 @@ ReportRequest / query
 
 ## Export behaviour
 
-- Same filters and scope as the HTML report.
+- Same filters and scope as the HTML report (`ReportFilters` → `AnalyticsScope` → provider). Clients never supply a row estimate; the server computes it.
 - Organisation timezone for displayed date/times.
-- Stable column keys/labels shared by HTML and exports.
-- CSV streams; XLSX streams via OpenSpout; PDF renders Dompdf from the same columns (capped at 2 000 rows with a note).
-- XLSX/PDF with estimate &gt; 5 000 rows → `report_exports` row + queued job; download via `/org/report-exports/{uuid}`.
+- Stable column keys/labels shared by HTML and exports. Exporters write only declared column keys, never raw model attributes.
+- CSV streams. XLSX and PDF estimate rows first. Above 5 000 rows they queue and return before `build()`. Smaller files build only after that check. CSV stays synchronous.
+- Queued jobs claim a row once (`queued`/`failed` → `processing`), rebuild filters as the original requester, and refuse a mismatched organisation id. A write failure is stored as `failed`, the partial file is removed, and the exception is rethrown so the queue can use its three attempts.
+- Each artifact stores `generation_scope` (organisation, perspective, department ids, person id) from the scope that actually wrote the file.
+- Downloads require the owning user, organisation, ready status, unexpired TTL, a path under `report-exports/{org}/{user}/`, the current report permission, and a current `AnalyticsScope` that still covers `generation_scope`. Losing a department or `analytics.view` rejects the file.
+- `reports:purge-exports` (hourly) deletes expired and stale failed/processing rows, their files, and orphaned files under `report-exports/` that no remaining row references. A missing file does not stop metadata removal. Another tenant's live artifact is left in place.
+- Detail, punctuality, incomplete, and leave exports load relationships with `lazy(200)`. On-screen pages for those row reports paginate in SQL (50) and take totals from aggregate queries.
+- Leave-type and arrangement filters are part of the digest queries and of the analytics cache metric, so KPI tiles match the filtered rows.
+- A person counted in more than one department during the window has each status summed, not overwritten.
 - Rate limit: `reports-export` (20/min).
 - Formula injection: `SpreadsheetSafety` prefixes `= + - @`.
 
 ## Performance
 
 - Prefer SQL aggregates from `WorkforceReport` / `OperationalDigest`.
-- Detail/punctuality/leave use cursor/chunked export and paginated HTML (50).
+- Detail, punctuality, incomplete, and leave exports use `lazy(200)` so relationship eager-loading stays intact. Their HTML pages paginate in SQL (50). Totals come from aggregate queries.
 - Existing attendance/leave/schedule indexes are sufficient for the first pass; no new index was required.
 - Summary KPIs may use `AnalyticsCache` (same keys/TTL as analytics). Export rowsets are not cached.
 

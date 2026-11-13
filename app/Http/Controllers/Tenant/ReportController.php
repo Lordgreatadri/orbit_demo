@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reports\ReportRequest;
 use App\Models\ReportExport;
+use App\Reports\Export\ExportAuthorization;
 use App\Reports\Export\ExportManager;
 use App\Reports\ReportAudience;
 use App\Reports\ReportFilters;
@@ -19,7 +20,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function index(Request $request, ReportRegistry $registry): View
+    public function index(Request $request, ReportRegistry $registry, ExportAuthorization $authorization): View
     {
         abort_unless($request->user()?->can('analytics.view'), 403);
 
@@ -31,16 +32,20 @@ class ReportController extends Controller
             $grouped[$definition->category][] = $definition;
         }
 
+        $exports = ReportExport::query()
+            ->where('organization_id', $request->user()->organization_id)
+            ->where('user_id', $request->user()->getKey())
+            ->where('status', ReportExport::STATUS_READY)
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->filter(fn (ReportExport $export): bool => $authorization->allows($request->user(), $export))
+            ->values();
+
         return view('tenant.reports.index', [
             'grouped' => $grouped,
-            'exports' => ReportExport::query()
-                ->where('organization_id', $request->user()->organization_id)
-                ->where('user_id', $request->user()->getKey())
-                ->where('status', 'ready')
-                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-                ->latest()
-                ->limit(10)
-                ->get(),
+            'exports' => $exports,
         ]);
     }
 
@@ -71,7 +76,7 @@ class ReportController extends Controller
         return $exports->download($provider, $filters, $format, $request->user());
     }
 
-    public function download(Request $request, string $export): StreamedResponse
+    public function download(Request $request, string $export, ExportAuthorization $authorization): StreamedResponse
     {
         abort_unless($request->user()?->can('analytics.view'), 403);
 
@@ -82,6 +87,8 @@ class ReportController extends Controller
             ->firstOrFail();
 
         abort_unless($record->isReady() && ! $record->isExpired(), 404);
+        abort_unless($record->ownsDiskPath($record->disk_path), 404);
+        abort_unless($authorization->allows($request->user(), $record), 403);
         abort_unless(Storage::disk('local')->exists($record->disk_path), 404);
 
         $format = ReportFormat::from($record->format);

@@ -184,13 +184,14 @@ final class WorkforceReport
      *
      * @return array<string, int>
      */
-    public function leaveDecisions(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
+    public function leaveDecisions(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null, ?int $leaveTypeId = null): array
     {
         $counts = [];
 
         foreach (
             $this->constrainPeople(LeaveRequest::query(), $scope, 'leave_requests')
                 ->where('organization_id', $organization->getKey())
+                ->when($leaveTypeId !== null, fn ($query) => $query->where('leave_type_id', $leaveTypeId))
                 ->where('starts_on', '>=', $from->toDateString())
                 ->where('starts_on', '<', CalendarDay::following($to->toDateString()))
                 ->select('status', DB::raw('count(*) as total'))
@@ -209,12 +210,13 @@ final class WorkforceReport
      *
      * @return array{scheduled: int, attended: int}
      */
-    public function scheduleAdherence(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null): array
+    public function scheduleAdherence(Organization $organization, Carbon $from, Carbon $to, ?AnalyticsScope $scope = null, ?int $arrangementId = null): array
     {
         $base = $this->constrainPeople(ShiftAssignment::query(), $scope, 'shift_assignments')
             ->where('organization_id', $organization->getKey())
             ->where('work_date', '>=', $from->toDateString())
             ->where('work_date', '<', CalendarDay::following($to->toDateString()))
+            ->when($arrangementId !== null, fn ($query) => $query->where('shift_assignments.work_arrangement_id', $arrangementId))
             ->whereHas('shift', fn ($query) => $query->where('status', 'published'));
 
         $scheduled = (clone $base)->count();
@@ -381,14 +383,18 @@ final class WorkforceReport
             ->groupBy('staff_member_id')
             ->map(function ($group): array {
                 $first = $group->first();
-                $byStatus = $group->mapWithKeys(fn ($row) => [
-                    $row->status instanceof AttendanceStatus ? $row->status->value : (string) $row->status => (int) $row->total,
-                ]);
+                $byStatus = [];
+                foreach ($group as $row) {
+                    $status = $row->status instanceof AttendanceStatus ? $row->status->value : (string) $row->status;
+                    $byStatus[$status] = ($byStatus[$status] ?? 0) + (int) $row->total;
+                }
+
+                $departments = $group->pluck('department_name')->filter()->unique()->sort()->implode(', ');
 
                 return [
                     'staff_number' => (string) ($first->staff_number ?? ''),
                     'name' => trim(($first->first_name ?? '').' '.($first->last_name ?? '')),
-                    'department' => (string) ($first->department_name ?? ''),
+                    'department' => $departments,
                     'present' => (int) ($byStatus['present'] ?? 0),
                     'late' => (int) ($byStatus['late'] ?? 0),
                     'on_leave' => (int) ($byStatus['on_leave'] ?? 0),

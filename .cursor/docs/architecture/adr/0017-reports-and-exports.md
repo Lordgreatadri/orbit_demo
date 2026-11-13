@@ -14,8 +14,10 @@ ADR-0016 established `AnalyticsScope`, `WorkforceReport`, and `OperationalDigest
 - Tenant reports require `analytics.view`. Platform reports require `platform.access` and never expose tenant member names or tenant attendance/leave/schedule detail.
 - Filters may only narrow scope. Person, department, and location UUIDs outside the viewer’s window are ignored or yield empty results; they cannot widen access.
 - Dates use organisation timezone and `CalendarDay` half-open bounds. Report windows reuse `AnalyticsScope::window()` (at most 62 inclusive days).
-- Exports share one `ExportManager`: CSV streams with chunk/cursor semantics; XLSX uses OpenSpout streaming; PDF uses Dompdf for summary-friendly reports only. Formula-leading cells are escaped via `SpreadsheetSafety`.
-- When an XLSX/PDF estimate exceeds 5 000 rows, enqueue `GenerateReportExport`, store the artifact on the local disk, and let the requester download it. CSV stays synchronous.
+- Exports share one `ExportManager`: CSV streams; relationship exports load with `lazy(200)`; XLSX uses OpenSpout streaming; PDF uses Dompdf for summary-friendly reports only. Formula-leading cells are escaped via `SpreadsheetSafety`.
+- When an XLSX/PDF estimate exceeds 5 000 rows, enqueue `GenerateReportExport` before building the on-screen result, store the artifact on the local disk, and let the requester download it. CSV stays synchronous. The estimate is server-computed.
+- The artifact records the generation scope. A later download is allowed only when the requester still has the report permission and their current `AnalyticsScope` covers that stored scope.
+- Queued exports are claimed once. A failure is recorded and rethrown so the queue retries. Files live under `report-exports/{org}/{user}/…` and are purged, with orphan files, by `reports:purge-exports`.
 - Keep `/org/analytics/export` as a thin alias of the attendance-detail CSV so existing links keep working.
 
 ## Consequences

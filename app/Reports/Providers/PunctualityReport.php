@@ -41,18 +41,12 @@ final class PunctualityReport extends AbstractReportProvider
             $filters->scope,
         );
         $timezone = $filters->scope->organization->timezone ?: 'UTC';
-        $rows = [];
-
-        foreach ($this->lateQuery($filters)->cursor() as $record) {
-            $rows[] = [
-                'date' => $record->work_date?->toDateString(),
-                'staff_number' => $record->staffMember?->staff_number,
-                'name' => $record->staffMember?->name,
-                'department' => $record->department?->name,
-                'check_in' => $record->check_in_at?->timezone($timezone)->format('Y-m-d H:i'),
-                'late_minutes' => $record->late_minutes,
-            ];
-        }
+        $paginator = $this->lateQuery($filters)
+            ->paginate(50, ['*'], 'page', $page)
+            ->withQueryString();
+        $paginator->setCollection(collect($paginator->items())->map(
+            fn (AttendanceRecord $record): array => $this->map($record, $timezone),
+        ));
 
         return $this->result(
             filters: $filters,
@@ -69,9 +63,8 @@ final class PunctualityReport extends AbstractReportProvider
                 ['key' => 'check_in', 'label' => 'Check in'],
                 ['key' => 'late_minutes', 'label' => 'Late minutes'],
             ]),
-            rows: $rows,
+            rows: $paginator,
             emptyMessage: 'No late arrivals in this period.',
-            page: $page,
         );
     }
 
@@ -79,15 +72,8 @@ final class PunctualityReport extends AbstractReportProvider
     {
         $timezone = $filters->scope->organization->timezone ?: 'UTC';
 
-        foreach ($this->lateQuery($filters)->cursor() as $record) {
-            yield [
-                'date' => $record->work_date?->toDateString(),
-                'staff_number' => $record->staffMember?->staff_number,
-                'name' => $record->staffMember?->name,
-                'department' => $record->department?->name,
-                'check_in' => $record->check_in_at?->timezone($timezone)->format('Y-m-d H:i'),
-                'late_minutes' => $record->late_minutes,
-            ];
+        foreach ($this->lateQuery($filters)->lazy(200) as $record) {
+            yield $this->map($record, $timezone);
         }
     }
 
@@ -114,5 +100,20 @@ final class PunctualityReport extends AbstractReportProvider
             ->when($scope->locationId !== null, fn ($rows) => $rows->where('location_id', $scope->locationId))
             ->orderBy('work_date')
             ->orderBy('id');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function map(AttendanceRecord $record, string $timezone): array
+    {
+        return [
+            'date' => $record->work_date?->toDateString(),
+            'staff_number' => $record->staffMember?->staff_number,
+            'name' => $record->staffMember?->name,
+            'department' => $record->department?->name,
+            'check_in' => $record->check_in_at?->timezone($timezone)->format('Y-m-d H:i'),
+            'late_minutes' => $record->late_minutes,
+        ];
     }
 }

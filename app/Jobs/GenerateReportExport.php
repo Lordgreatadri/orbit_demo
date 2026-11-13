@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Jobs\Concerns\IsTenantAware;
 use App\Models\ReportExport;
+use App\Reports\Contracts\ReportProvider;
 use App\Reports\Export\ExportManager;
-use App\Reports\Providers\PlatformOrganisationStatisticsReport;
 use App\Reports\ReportAudience;
 use App\Reports\ReportFilters;
 use App\Reports\ReportFormat;
@@ -13,6 +13,7 @@ use App\Reports\ReportRegistry;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 class GenerateReportExport implements ShouldQueue
@@ -31,44 +32,87 @@ class GenerateReportExport implements ShouldQueue
 
     public function handle(ReportRegistry $registry, ExportManager $exports): void
     {
-        $export = ReportExport::query()->find($this->exportId);
+        $export = ReportExport::claim($this->exportId, $this->organizationId);
 
-        if ($export === null || $export->status === 'ready') {
+        if ($export === null) {
             return;
         }
 
-        $export->update(['status' => 'processing', 'failure_reason' => null]);
+        $path = null;
 
         try {
+            $user = $export->user()->first();
+
+            if ($user === null) {
+                throw new RuntimeException('Export requester is missing.');
+            }
+
+            if ((int) $user->organization_id !== (int) $export->organization_id) {
+                throw new RuntimeException('Export requester is outside the export organisation.');
+            }
+
             $provider = $registry->get($export->report_key);
+
+            if ($provider->definition()->audience !== ReportAudience::Tenant) {
+                throw new RuntimeException('Queued exports are limited to tenant reports.');
+            }
+
+            if (! $provider->authorize($user)) {
+                throw new RuntimeException('Export requester is not authorised for this report.');
+            }
+
             $format = ReportFormat::from($export->format);
-            $user = $export->user;
+            $filters = ReportFilters::fromInput(
+                $user,
+                $export->filters ?? [],
+                $provider->definition()->filters,
+            );
 
-            abort_unless($provider->authorize($user), 403);
+            if ((int) $filters->scope->organization->getKey() !== (int) $export->organization_id) {
+                throw new RuntimeException('Rebuilt report scope left the export organisation.');
+            }
 
-            $filters = $provider->definition()->audience === ReportAudience::Platform
-                ? PlatformOrganisationStatisticsReport::platformFilters($user)
-                : ReportFilters::fromInput($user, $export->filters ?? [], $provider->definition()->filters);
+            $directory = $export->artifactDirectory();
+            $path = $directory.'/'.$export->uuid.'.'.$format->extension();
 
-            $directory = 'report-exports/'.$export->organization_id.'/'.$export->user_id;
-            $filename = $export->uuid.'.'.$format->extension();
-            $path = $directory.'/'.$filename;
+            if (! $export->ownsDiskPath($path)) {
+                throw new RuntimeException('Export artifact path is not owned by the requester.');
+            }
 
             Storage::disk('local')->makeDirectory($directory);
             $absolute = Storage::disk('local')->path($path);
-            $exports->writeToPath($provider, $filters, $format, $absolute);
+            $this->writeExport($exports, $provider, $filters, $format, $absolute);
 
-            $export->update([
-                'status' => 'ready',
+            $export->forceFill([
+                'status' => ReportExport::STATUS_READY,
                 'disk_path' => $path,
-            ]);
+                'generation_scope' => $filters->scope->toGenerationScope(),
+            ])->save();
         } catch (Throwable $exception) {
-            $export->update([
-                'status' => 'failed',
+            if (is_string($path) && $path !== '' && Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+
+            $export->deleteArtifact();
+            $export->forceFill([
+                'status' => ReportExport::STATUS_FAILED,
                 'failure_reason' => 'Export failed.',
-            ]);
+                'disk_path' => null,
+            ])->save();
 
             report($exception);
+
+            throw $exception;
         }
+    }
+
+    protected function writeExport(
+        ExportManager $exports,
+        ReportProvider $provider,
+        ReportFilters $filters,
+        ReportFormat $format,
+        string $absolute,
+    ): void {
+        $exports->writeToPath($provider, $filters, $format, $absolute);
     }
 }

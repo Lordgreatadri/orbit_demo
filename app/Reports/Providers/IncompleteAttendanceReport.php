@@ -32,19 +32,19 @@ final class IncompleteAttendanceReport extends AbstractReportProvider
     public function build(ReportFilters $filters, int $page = 1): ReportResult
     {
         $timezone = $filters->scope->organization->timezone ?: 'UTC';
-        $rows = [];
-
-        foreach ($this->query($filters)->cursor() as $record) {
-            $rows[] = $this->map($record, $timezone);
-        }
-
-        $open = count(array_filter($rows, fn (array $row): bool => $row['check_out'] === null || $row['check_out'] === ''));
+        $query = $this->query($filters);
+        $total = (int) (clone $query)->count();
+        $missing = (int) (clone $query)->whereNotNull('check_in_at')->whereNull('check_out_at')->count();
+        $paginator = $query->paginate(50, ['*'], 'page', $page)->withQueryString();
+        $paginator->setCollection(collect($paginator->items())->map(
+            fn (AttendanceRecord $record): array => $this->map($record, $timezone),
+        ));
 
         return $this->result(
             filters: $filters,
             kpis: [
-                new ReportKpi('Open or incomplete', number_format(count($rows)), icon: 'alert', tone: 'warning'),
-                new ReportKpi('Missing check-out', number_format($open), icon: 'clock'),
+                new ReportKpi('Open or incomplete', number_format($total), icon: 'alert', tone: 'warning'),
+                new ReportKpi('Missing check-out', number_format($missing), icon: 'clock'),
             ],
             columns: $this->columns([
                 ['key' => 'date', 'label' => 'Date'],
@@ -55,9 +55,8 @@ final class IncompleteAttendanceReport extends AbstractReportProvider
                 ['key' => 'check_in', 'label' => 'Check in'],
                 ['key' => 'check_out', 'label' => 'Check out'],
             ]),
-            rows: $rows,
+            rows: $paginator,
             emptyMessage: 'No incomplete or open attendance records in this period.',
-            page: $page,
         );
     }
 
@@ -65,7 +64,7 @@ final class IncompleteAttendanceReport extends AbstractReportProvider
     {
         $timezone = $filters->scope->organization->timezone ?: 'UTC';
 
-        foreach ($this->query($filters)->cursor() as $record) {
+        foreach ($this->query($filters)->lazy(200) as $record) {
             yield $this->map($record, $timezone);
         }
     }
