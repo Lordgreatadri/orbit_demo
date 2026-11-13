@@ -18,7 +18,7 @@ Attendance, schedule, and leave figures already lived in `WorkforceReport` and i
 - Aggregates may be cached for `ORBIT_ANALYTICS_CACHE_SECONDS` (default 60, tests use 0). The key includes organisation, viewer, perspective, department ids, location, staff member, and dates. Tenant id alone is not a cache key.
 - The platform dashboard counts organisations, accounts, and sign-in events. It does not chart a tenant's attendance, leave, or schedules.
 - Platform statistics (`App\Analytics\PlatformStatistics`, `/admin/statistics`) extends that rule: growth, organisation type and status, account health, register composition by status and work type, invitation outcomes, and sign-in outcomes. Register counts are aggregates; no member name is read. The workforce overview shows per-organisation counts of distinct people today and never lists individuals.
-- The next milestone owns PDF, Excel, and scheduled report delivery. This milestone keeps the existing attendance CSV, scoped by the same `AnalyticsScope`.
+- PDF, Excel, and the reusable reports catalog are owned by ADR-0017. This milestone keeps the attendance CSV, scoped by the same `AnalyticsScope` (now also an alias of the attendance-detail report export). Scheduled report delivery remains later.
 
 ## Consequences
 

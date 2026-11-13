@@ -8,11 +8,15 @@ use App\Analytics\OperationalDigest;
 use App\Contracts\OperationalInsightProvider;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workforce\AnalyticsRangeRequest;
-use App\Models\AttendanceRecord;
 use App\Models\Location;
-use App\Support\CalendarDay;
+use App\Reports\Export\ExportManager;
+use App\Reports\ReportFilters;
+use App\Reports\ReportFormat;
+use App\Reports\ReportRegistry;
 use App\Workforce\WorkforceReport;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnalyticsController extends Controller
@@ -68,54 +72,20 @@ class AnalyticsController extends Controller
         ]);
     }
 
-    public function export(AnalyticsRangeRequest $request): StreamedResponse
-    {
-        $user = $request->user();
-        [$fromDate, $toDate] = $request->range();
-        $scope = AnalyticsScope::forUser(
-            $user,
-            $fromDate->toDateString(),
-            $toDate->toDateString(),
-            $request->validated('department'),
-            $request->validated('location'),
-        );
-        $from = $fromDate->toDateString();
-        $to = $toDate->toDateString();
-        $filename = 'attendance-'.$from.'-'.$to.'.csv';
+    public function export(
+        AnalyticsRangeRequest $request,
+        ReportRegistry $registry,
+        ExportManager $exports,
+    ): StreamedResponse|Response|RedirectResponse {
+        $provider = $registry->get('attendance-detail');
+        $filters = ReportFilters::fromInput($request->user(), [
+            'from' => $request->validated('from'),
+            'to' => $request->validated('to'),
+            'department' => $request->validated('department'),
+            'location' => $request->validated('location'),
+        ], $provider->definition()->filters);
 
-        return response()->streamDownload(function () use ($from, $to, $scope): void {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Date', 'Staff number', 'Name', 'Department', 'Location', 'Status', 'Check in', 'Check out', 'Late minutes']);
-
-            $query = AttendanceRecord::query()
-                ->with(['staffMember:id,staff_number,first_name,last_name', 'department:id,name', 'location:id,name'])
-                ->where('organization_id', $scope->organization->getKey())
-                ->where('work_date', '>=', $from)
-                ->where('work_date', '<', CalendarDay::following($to))
-                ->when($scope->departmentIds !== null, fn ($rows) => $rows->whereIn('department_id', $scope->departmentIds === [] ? [-1] : $scope->departmentIds))
-                ->when($scope->staffMemberId !== null, fn ($rows) => $rows->where('staff_member_id', $scope->staffMemberId))
-                ->when($scope->locationId !== null, fn ($rows) => $rows->where('location_id', $scope->locationId))
-                ->orderBy('work_date')
-                ->orderBy('id');
-
-            $query->chunk(200, function ($records) use ($handle): void {
-                foreach ($records as $record) {
-                    fputcsv($handle, array_map($this->spreadsheetCell(...), [
-                        $record->work_date->toDateString(),
-                        $record->staffMember?->staff_number,
-                        $record->staffMember?->name,
-                        $record->department?->name,
-                        $record->location?->name,
-                        $record->status->label(),
-                        $record->check_in_at?->toIso8601String(),
-                        $record->check_out_at?->toIso8601String(),
-                        $record->late_minutes,
-                    ]));
-                }
-            });
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        return $exports->download($provider, $filters, ReportFormat::Csv, $request->user());
     }
 
     /**
@@ -125,24 +95,5 @@ class AnalyticsController extends Controller
     private function paint(array $rows): array
     {
         return array_map(fn (array $row): array => $row + ['ink' => ChartPalette::color($row['key'])], $rows);
-    }
-
-    /**
-     * Spreadsheet tools treat a cell starting with =, +, -, or @ as a formula.
-     * A leading apostrophe keeps the value as text.
-     */
-    private function spreadsheetCell(mixed $value): mixed
-    {
-        if (! is_string($value) || $value === '') {
-            return $value;
-        }
-
-        $lead = ltrim($value, " \t\r\n");
-
-        if ($lead !== '' && in_array($lead[0], ['=', '+', '-', '@'], true)) {
-            return "'".$value;
-        }
-
-        return $value;
     }
 }

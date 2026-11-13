@@ -32,6 +32,7 @@ use App\Policies\SmsMessagePolicy;
 use App\Policies\SmsProviderPolicy;
 use App\Policies\StaffMemberPolicy;
 use App\Policies\UserPolicy;
+use App\Reports\ReportRegistry;
 use App\Tenancy\BrandingService;
 use App\Tenancy\Origin;
 use App\Tenancy\TenantContext;
@@ -71,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SmsSender::class, LogSmsSender::class);
         $this->app->bind(PushNotifier::class, NullPushNotifier::class);
         $this->app->bind(OperationalInsightProvider::class, DeterministicInsightProvider::class);
+        $this->app->singleton(ReportRegistry::class);
     }
 
     /**
@@ -116,6 +118,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('sms-webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
         RateLimiter::for('attendance', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
         RateLimiter::for('workforce-write', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip()));
+        RateLimiter::for('reports-export', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip()));
     }
 
     private function configurePolicies(): void

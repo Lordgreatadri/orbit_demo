@@ -78,6 +78,7 @@ class Navigation
             ]],
             ['heading' => 'Insights', 'items' => [
                 ['label' => 'Analytics', 'route' => 'org.analytics.index', 'icon' => 'chart', 'active' => 'org.analytics.*', 'can' => $user->can('analytics.view')],
+                ['label' => 'Reports', 'route' => 'org.reports.index', 'icon' => 'document-check', 'active' => 'org.reports.*', 'can' => $user->can('analytics.view')],
                 ['label' => 'Notifications', 'route' => 'org.notifications.index', 'icon' => 'bell', 'active' => 'org.notifications.*'],
             ]],
             ['heading' => 'Administration', 'items' => [
@@ -99,6 +100,7 @@ class Navigation
             ['heading' => 'Overview', 'items' => [
                 ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'home', 'active' => 'admin.dashboard'],
                 ['label' => 'Statistics', 'route' => 'admin.statistics', 'icon' => 'chart', 'active' => 'admin.statistics', 'can' => $user->can('platform.access')],
+                ['label' => 'Reports', 'route' => 'admin.reports.index', 'icon' => 'document-check', 'active' => 'admin.reports.*', 'can' => $user->can('platform.access')],
             ]],
             ['heading' => 'Tenants', 'items' => [
                 ['label' => 'Organisations', 'route' => 'admin.organizations.index', 'icon' => 'building', 'active' => 'admin.organizations.*', 'can' => $user->can('viewAnyAsPlatform', Organization::class)],
